@@ -1,0 +1,94 @@
+{
+  "name": "next-csrf-protect",
+  "version": "1.0.0",
+  "description": "Flexible CSRF protection middleware for Next.js with multiple strategies",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "dev": "tsc --watch",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --run --coverage",
+    "test:ui": "vitest --ui",
+    "lint": "pnpm biome lint --write",
+    "lint:check": "pnpm biome lint",
+    "format": "pnpm biome format --write",
+    "format:check": "pnpm biome format",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "prepublishOnly": "npm run type-check && npm run test && npm run build",
+    "version:current": "node scripts/update-version.js current",
+    "version:patch": "node scripts/update-version.js patch",
+    "version:minor": "node scripts/update-version.js minor",
+    "version:major": "node scripts/update-version.js major",
+    "version:set": "node scripts/update-version.js set"
+  },
+  "keywords": [
+    "nextjs",
+    "csrf",
+    "security",
+    "middleware",
+    "protection",
+    "next13",
+    "next14",
+    "app-router"
+  ],
+  "author": "Muneeb Samuels",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muneebs/next-csrf-protect"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/muneebs/next-csrf-protect/issues"
+  },
+  "homepage": "https://github.com/muneebs/next-csrf-protect#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "next": "^13.0.0 || ^14.0.0 || ^15.0.0",
+    "react": "^18.2.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^20.11.0",
+    "@types/react": "^19.1.6",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "@vitest/ui": "^1.2.0",
+    "eslint": "^8.56.0",
+    "next": "^15.0.0",
+    "tsc-alias": "^1.8.8",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"
+}
