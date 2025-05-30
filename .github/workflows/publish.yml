@@ -1,0 +1,143 @@
+name: Publish to NPM
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version increment type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Dry run (no actual publish)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'pnpm'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+    
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+    
+    - name: Run tests
+      run: pnpm run test
+    
+    - name: Run type check
+      run: pnpm run type-check
+    
+    - name: Run linting
+      run: pnpm run lint
+    
+    - name: Build package
+      run: pnpm run build
+    
+    - name: Update version (manual trigger)
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "Updating version: ${{ github.event.inputs.version_type }}"
+        node scripts/update-version.js ${{ github.event.inputs.version_type }}
+        NEW_VERSION=$(node -p "require('./package.json').version")
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+    
+    - name: Get version from release (release trigger)
+      if: github.event_name == 'release'
+      run: |
+        RELEASE_VERSION=${{ github.event.release.tag_name }}
+        # Remove 'v' prefix if present
+        VERSION=${RELEASE_VERSION#v}
+        echo "Setting version to: $VERSION"
+        node scripts/update-version.js set $VERSION
+        echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
+    
+    - name: Commit version bump (manual trigger only)
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        git add package.json
+        git commit -m "chore: bump version to v${{ env.NEW_VERSION }}"
+        git tag "v${{ env.NEW_VERSION }}"
+        git push origin main
+        git push origin "v${{ env.NEW_VERSION }}"
+    
+    - name: Create GitHub Release (manual trigger only)
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.NEW_VERSION }}
+        release_name: v${{ env.NEW_VERSION }}
+        body: |
+          ## Changes
+          
+          See [CHANGELOG.md](CHANGELOG.md) for details.
+          
+          ## Installation
+          
+          ```bash
+          npm install next-csrf-protect@${{ env.NEW_VERSION }}
+          ```
+        draft: false
+        prerelease: false
+    
+    - name: Dry run publish
+      if: github.event.inputs.dry_run == 'true'
+      run: |
+        echo "🔍 Dry run mode - package contents:"
+        npm pack --dry-run
+        echo "📦 Would publish version: $(node -p "require('./package.json').version")"
+        echo "🚫 Skipping actual publish due to dry run mode"
+    
+    - name: Publish to NPM
+      if: github.event.inputs.dry_run != 'true'
+      run: |
+        echo "📦 Publishing version: $(node -p "require('./package.json').version")"
+        pnpm publish --access public --no-git-checks
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Create summary
+      run: |
+        echo "## 🚀 Publish Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package:** next-csrf-protect" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version:** $(node -p "require('./package.json').version")" >> $GITHUB_STEP_SUMMARY
+        echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          echo "- **Mode:** 🔍 Dry Run" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Mode:** ✅ Published" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "- **Node.js:** $(node --version)" >> $GITHUB_STEP_SUMMARY
+        echo "- **pnpm:** $(pnpm --version)" >> $GITHUB_STEP_SUMMARY
