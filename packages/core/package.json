@@ -11,7 +11,10 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"scripts": {
 		"build": "tsc",
 		"test": "vitest --run",
@@ -19,7 +22,14 @@
 		"type-check": "tsc --noEmit",
 		"clean": "rm -rf dist"
 	},
-	"keywords": ["csrf", "security", "protection", "framework-agnostic", "token", "validation"],
+	"keywords": [
+		"csrf",
+		"security",
+		"protection",
+		"framework-agnostic",
+		"token",
+		"validation"
+	],
 	"author": "Muneeb Samuels",
 	"license": "MIT",
 	"repository": {
