@@ -1,7 +1,7 @@
 {
-	"name": "@csrf-lite/core",
+	"name": "@csrf-lite/nextjs",
 	"version": "0.1.0",
-	"description": "Framework-agnostic CSRF protection core functionality",
+	"description": "CSRF protection middleware for Next.js applications",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -9,6 +9,14 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"import": "./dist/client.js"
+		},
+		"./react": {
+			"types": "./dist/react.d.ts",
+			"import": "./dist/react.js"
 		}
 	},
 	"files": ["dist", "README.md"],
@@ -19,13 +27,13 @@
 		"type-check": "tsc --noEmit",
 		"clean": "rm -rf dist"
 	},
-	"keywords": ["csrf", "security", "protection", "framework-agnostic", "token", "validation"],
+	"keywords": ["nextjs", "csrf", "security", "middleware", "protection", "app-router", "react"],
 	"author": "Muneeb Samuels",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/muneebs/csrf-lite",
-		"directory": "packages/core"
+		"directory": "packages/nextjs"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -38,7 +46,18 @@
 	"engines": {
 		"node": ">=18.0.0"
 	},
+	"dependencies": {
+		"@csrf-lite/core": "workspace:*"
+	},
+	"peerDependencies": {
+		"next": "^13.0.0 || ^14.0.0 || ^15.0.0",
+		"react": "^18.2.0 || ^19.0.0"
+	},
 	"devDependencies": {
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/react": "^16.3.0",
+		"@types/react": "^19.1.6",
+		"next": "^15.0.0",
 		"typescript": "^5.3.3"
 	}
 }
