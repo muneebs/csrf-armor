@@ -19,7 +19,10 @@
 			"import": "./dist/react.js"
 		}
 	},
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"scripts": {
 		"build": "tsc",
 		"test": "vitest --run",
@@ -27,7 +30,15 @@
 		"type-check": "tsc --noEmit",
 		"clean": "rm -rf dist"
 	},
-	"keywords": ["nextjs", "csrf", "security", "middleware", "protection", "app-router", "react"],
+	"keywords": [
+		"nextjs",
+		"csrf",
+		"security",
+		"middleware",
+		"protection",
+		"app-router",
+		"react"
+	],
 	"author": "Muneeb Samuels",
 	"license": "MIT",
 	"repository": {
