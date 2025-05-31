@@ -26,3 +26,6 @@ build
 
 # lerna
 .nx
+
+# tests
+coverage
