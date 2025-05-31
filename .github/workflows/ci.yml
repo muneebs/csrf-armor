@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -42,8 +46,8 @@ jobs:
       - name: Build package
         run: pnpm run build
 
-      - name: Check package can be packed
-        run: npm pack --dry-run
+      - name: Check packages can be packed
+        run: pnpm -r exec npm pack --dry-run
 
   build-check:
     runs-on: ubuntu-latest
@@ -65,12 +69,57 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build package
+      - name: Build packages
         run: pnpm run build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: build-artifacts
+          path: |
+            packages/*/dist/
+            packages/*/package.json
           retention-days: 7
+
+  changeset-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check for changeset
+        run: |
+          # Check if there are any changesets
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null | wc -l)" -gt 0 ]; then
+            echo "✅ Changeset found"
+            exit 0
+          fi
+          
+          # Check if any package files were changed
+          if git diff --name-only origin/main...HEAD | grep -E '^packages/.+\.(ts|tsx|js|jsx|json)$' | grep -v test | grep -v spec; then
+            echo "❌ Package files changed but no changeset found"
+            echo "Please add a changeset by running: pnpm changeset"
+            echo ""
+            echo "Changed package files:"
+            git diff --name-only origin/main...HEAD | grep -E '^packages/.+\.(ts|tsx|js|jsx|json)$' | grep -v test | grep -v spec
+            exit 1
+          else
+            echo "✅ No package files changed, changeset not required"
+            exit 0
+          fi
