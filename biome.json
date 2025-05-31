@@ -14,10 +14,10 @@
     "formatWithErrors": false,
     "ignore": [],
     "attributePosition": "auto",
-    "indentStyle": "tab",
+    "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 120,
-    "lineEnding": "lf"
+    "lineWidth": 80,
+    "bracketSpacing": true
   },
   "organizeImports": {
     "enabled": true
@@ -36,7 +36,7 @@
       "jsxQuoteStyle": "double",
       "quoteProperties": "asNeeded",
       "semicolons": "always",
-      "trailingCommas": "all"
+      "trailingCommas": "es5"
     }
   }
 }

@@ -1,0 +1,45 @@
+{
+	"name": "@csrf-lite/core",
+	"version": "0.1.0",
+	"description": "Framework-agnostic CSRF protection core functionality",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"test": "vitest --run",
+		"test:watch": "vitest",
+		"type-check": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"keywords": ["csrf", "security", "protection", "framework-agnostic", "token", "validation"],
+	"author": "Muneeb Samuels",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/muneebs/csrf-lite",
+		"directory": "packages/core"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"bugs": {
+		"url": "https://github.com/muneebs/csrf-lite/issues"
+	},
+	"homepage": "https://github.com/muneebs/csrf-lite#readme",
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.3.3"
+	}
+}

@@ -1,43 +1,59 @@
-# next-csrf-protect
-[![Checked with Biome](https://img.shields.io/badge/Checked_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
-[![CI](https://github.com/muneebs/next-csrf-protect/workflows/CI/badge.svg)](https://github.com/muneebs/next-csrf-protect/actions/workflows/ci.yml)
-[![npm version](https://badge.fury.io/js/next-csrf-protect.svg)](https://badge.fury.io/js/next-csrf-protect)
-[![npm downloads](https://img.shields.io/npm/dm/next-csrf-protect.svg)](https://npmjs.com/package/next-csrf-protect)
+# CSRF-Lite
+
+<img src="assets/logo.png" alt="Csrf Light" width="768" />
+
+[![CI](https://github.com/muneebs/csrf-lite/workflows/CI/badge.svg)](https://github.com/muneebs/csrf-lite/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/csrf-lite.svg)](https://badge.fury.io/js/csrf-lite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A flexible and secure CSRF protection middleware for Next.js 13+ App Router with multiple protection strategies.
+Modern, framework-agnostic CSRF protection library with multiple security strategies.
 
-## Features
-
-* 🔒 **Multiple Protection Strategies**: Choose from signed tokens, double-submit cookies, origin checking, or hybrid approach
-* 🚀 **Optimized for Next.js App Router**: Built specifically for Next.js 13+ middleware
-* 🎯 **TypeScript First**: Full type safety with strict TypeScript
+* ✅ **Framework Agnostic**: Works with Next.js, Node.js/Express, Vite, and more
+* 🔐 **Multiple Strategies**: Signed Token, Double Submit Cookie, Signed Double Submit, Origin Check, Hybrid
+* 🚀 **Edge Runtime Compatible**: Uses Web Crypto API for modern environments
+* 📦 **Zero Dependencies**: Secure and lightweight core library
 * 🔧 **Highly Configurable**: Customize tokens, cookies, paths, and validation logic
-* 🪶 **Lightweight**: Zero dependencies except Next.js
-* ✅ **Well Tested**: Comprehensive test coverage with Vitest
-* 📦 **ESM Only**: Modern ESM package for better tree-shaking
+* ✅ **Well Tested**: Comprehensive test coverage
+* 📦 **ESM Only**: Modern ESM packages with TypeScript support
+* ⚡ **High Performance**: Event-driven updates, optimized cryptographic operations
 
-## Installation
+---
+
+## 📦 Packages
+
+### Framework-Specific Packages
+
+| Package | Description | Install |
+|---------|-------------|---------|
+| **[@csrf-lite/nextjs](./packages/nextjs)** | Next.js App Router middleware | `npm i @csrf-lite/nextjs` |
+
+> more framework specific packages coming soon.
+
+### Core Package
+
+| Package | Description | Install |
+|---------|-------------|---------|
+| **[@csrf-lite/core](./packages/core)** | Framework-agnostic core | `npm i @csrf-lite/core` |
+
+---
+
+## 🚀 Quick Start
+
+### Next.js App Router
 
 ```bash
-npm install next-csrf-protect
-# or
-yarn add next-csrf-protect
-# or
-pnpm add next-csrf-protect
+npm install @csrf-lite/nextjs
 ```
 
-## Quick Start
-
-### 1. Create `middleware.ts` in your project root:
-
 ```typescript
+// middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createCsrfProtect } from 'next-csrf-protect';
+import { createCsrfMiddleware } from '@csrf-lite/nextjs';
 
-const csrfProtect = createCsrfProtect({
-  secret: process.env.CSRF_SECRET!, // 32+ character secret
+const csrfProtect = createCsrfMiddleware({
+  strategy: 'signed-double-submit',
+  secret: process.env.CSRF_SECRET!,
 });
 
 export async function middleware(request: NextRequest) {
@@ -52,34 +68,44 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
 ```
 
-### 2. Use in your components:
-
 ```typescript
-'use client';
+// app/layout.tsx
+import { CsrfProvider } from '@csrf-lite/nextjs';
 
-import { useCsrf } from 'next-csrf-protect/client';
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html>
+      <body>
+        <CsrfProvider>
+          {children}
+        </CsrfProvider>
+      </body>
+    </html>
+  );
+}
+
+// components/MyForm.tsx
+'use client';
+import { useCsrf } from '@csrf-lite/nextjs';
 
 export function MyForm() {
-  const { token, csrfFetch } = useCsrf();
+  const { csrfToken, csrfFetch } = useCsrf();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const response = await csrfFetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'John' }),
     });
-
-    if (response.ok) {
-      console.log('Success!');
-    }
   };
 
   return (
@@ -90,191 +116,242 @@ export function MyForm() {
   );
 }
 ```
+---
 
-## Configuration Options
+## 🛡️ Security Strategies
 
-```typescript
-createCsrfProtect({
-  strategy: 'signed-token',
-  secret: process.env.CSRF_SECRET,
-  tokenExpiry: 3600,
-  cookie: {
-    name: 'csrf-token',
-    secure: true,
-    httpOnly: false,
-    sameSite: 'lax',
-    path: '/',
-    domain: '.example.com',
-    maxAge: undefined,
-  },
-  allowedOrigins: [
-    'https://example.com',
-    'https://app.example.com',
-  ],
-  excludePaths: ['/api/webhooks', '/api/health'],
-  skipContentTypes: ['multipart/form-data'],
-  getTokenFromRequest: (request) => {
-    return request.headers.get('x-csrf-token') ||
-           request.nextUrl.searchParams.get('_csrf');
-  },
-});
-```
-
-## Protection Strategies
-
-### 1. Signed Token
-
+### 1. Signed Token Strategy
 ```typescript
 {
   strategy: 'signed-token',
   secret: process.env.CSRF_SECRET!,
-  tokenExpiry: 3600,
+  token: { expiry: 3600 },
 }
 ```
+- **How it works**: Generates HMAC-signed tokens with expiration
+- **Best for**: Stateless applications, microservices
+- **Security**: High (cryptographic protection + expiry)
 
-* Stateless, self-contained tokens with expiration
-* Ideal for serverless/multi-instance apps
-
-### 2. Double Submit Cookie
-
+### 2. Double Submit Cookie Strategy
 ```typescript
 {
-  strategy: 'double-submit',
+  strategy: 'double-submit'
 }
 ```
+- **How it works**: Same token in cookie and request header
+- **Best for**: Traditional web applications
+- **Security**: Medium (relies on Same-Origin Policy)
 
-* Compares submitted token with cookie
-* Simpler but cookie-dependent
+### 3. Signed Double Submit Cookie Strategy ⭐
+```typescript
+{
+  strategy: 'signed-double-submit',
+  secret: process.env.CSRF_SECRET!
+}
+```
+- **How it works**: Unsigned token in client-accessible cookie and request headers, signed token in server-only cookie for validation
+- **Best for**: High-security applications, financial services
+- **Security**: Very High (combines cryptographic signing + double submit pattern)
 
-### 3. Origin Check
-
+### 4. Origin Check Strategy
 ```typescript
 {
   strategy: 'origin-check',
-  allowedOrigins: ['https://yourdomain.com'],
+  allowedOrigins: ['https://yourdomain.com']
 }
 ```
+- **How it works**: Validates Origin/Referer headers
+- **Best for**: APIs with known client origins
+- **Security**: Medium (can be bypassed by some proxies)
 
-* Validates Origin/Referer headers
-* Good supplemental strategy
-
-### 4. Hybrid
-
+### 5. Hybrid Strategy
 ```typescript
 {
   strategy: 'hybrid',
+  secret: process.env.CSRF_SECRET!,
+  allowedOrigins: ['https://yourdomain.com']
 }
 ```
-
-* Combines signed-token + origin-check for extra security
-
-## Client-Side Usage
-
-### React Hook
-
-```typescript
-import { useCsrf } from 'next-csrf-protect/client';
-
-function MyComponent() {
-  const { token, csrfFetch } = useCsrf();
-  // Use csrfFetch like fetch with CSRF token automatically included
-}
-```
-
-### Manual Token Handling
-
-```typescript
-import { getCsrfToken, createCsrfHeaders } from 'next-csrf-protect/client';
-
-const token = getCsrfToken();
-const headers = createCsrfHeaders();
-
-fetch('/api/endpoint', {
-  method: 'POST',
-  headers: {
-    ...headers,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(data),
-});
-```
-
-## Security Best Practices
-
-1. Use HTTPS in production (`cookie.secure: true`)
-2. Generate strong secrets (32+ chars)
-3. Rotate secrets periodically
-4. Validate origin strictly
-5. Set short token expiry (e.g., 1 hour)
-6. Use session cookies by default
-
-## Cookie vs Token Expiry
-
-```typescript
-// Session cookie, 1-hour token
-createCsrfProtect({
-  tokenExpiry: 3600,
-  cookie: { maxAge: undefined },
-});
-
-// Persistent cookie
-createCsrfProtect({
-  tokenExpiry: 3600,
-  cookie: { maxAge: 86400 },
-});
-```
-
-## API Routes
-
-```typescript
-export async function POST(request: Request) {
-  const data = await request.json();
-  return Response.json({ success: true });
-}
-```
-
-## Error Handling
-
-```typescript
-if (!result.success) {
-  switch (result.reason) {
-    case 'Token expired':
-      return new NextResponse('Session expired', { status: 401 });
-    case 'Origin not allowed':
-      return new NextResponse('Forbidden', { status: 403 });
-    default:
-      return new NextResponse('Invalid request', { status: 400 });
-  }
-}
-```
-
-## Testing
-
-```bash
-npm test
-npm run test:coverage
-npm run test -- --watch
-```
-
-## TypeScript
-
-```typescript
-import type { CsrfConfig, CsrfProtectResult } from 'next-csrf-protect';
-```
-
-## License
-
-MIT
-
-## Support
-
-* 📚 [Documentation](README.md)
-* 🐛 [Issue Tracker](https://github.com/muneebs/next-csrf-protect/issues)
+- **How it works**: Combines signed tokens + origin validation
+- **Best for**: Maximum security requirements
+- **Security**: Maximum (multiple validation layers)
 
 ---
 
-## Acknowledgements
+## 🔒 Security Recommendations
 
-This project is inspired by the excellent work done by [@amorey](https://github.com/amorey) on [edge-csrf](https://github.com/amorey/edge-csrf).
+### Strategy Selection Guide
 
-I extend my gratitude to [@amorey](https://github.com/amorey) for the foundational work on edge-csrf. Their approach to CSRF protection in edge environments has significantly influenced the development of next-csrf-protect, and I appreciate the insights and solutions provided through their project.
+| Use Case | Recommended Strategy | Why |
+|----------|---------------------|-----|
+| **Banking/Financial** | `signed-double-submit` | Cryptographic protection + double validation |
+| **E-commerce** | `signed-double-submit` or `hybrid` | Strong protection for transactions |
+| **General Web Apps** | `double-submit` | Good balance of security and simplicity |
+| **Public APIs** | `origin-check` + `signed-token` | Control access origins |
+| **Microservices** | `signed-token` | Stateless, works across services |
+| **High Traffic Sites** | `double-submit` | Minimal overhead |
+| **Enterprise/Admin** | `hybrid` | Maximum security layers |
+
+### Security Best Practices
+
+1. **Always use HTTPS** in production (`cookie.secure: true`)
+2. **Use strong secrets** (32+ random characters, rotate periodically)
+3. **Set appropriate cookie attributes**:
+   - `sameSite: 'strict'` for maximum protection
+   - `httpOnly: false` only when client access is needed
+   - `secure: true` in production
+4. **Monitor for attacks** - log validation failures
+5. **Set short token expiry** (1-4 hours) for sensitive operations
+
+**⚠️ Important Security Notes:**
+- Never use default secrets in production
+- The `signed-double-submit` strategy requires `httpOnly: false` for client cookie access
+- Always validate your CSRF secret is properly set: `process.env.CSRF_SECRET`
+
+---
+
+## ⚙️ Configuration Options
+
+All packages share the same core configuration interface:
+
+```typescript
+interface CsrfConfig {
+  strategy?: 'double-submit' | 'signed-double-submit' | 'signed-token' | 'origin-check' | 'hybrid';
+  secret?: string;
+  token?: {
+    expiry?: number;           // Token expiry in seconds (default: 3600)
+    headerName?: string;       // Header name (default: 'X-CSRF-Token')
+    fieldName?: string;        // Form field name (default: 'csrf_token')
+  };
+  cookie?: {
+    name?: string;             // Cookie name (default: 'csrf-token')
+    secure?: boolean;          // Secure flag (default: true)
+    httpOnly?: boolean;        // HttpOnly flag (default: false)
+    sameSite?: 'strict' | 'lax' | 'none'; // SameSite (default: 'lax')
+    path?: string;             // Path (default: '/')
+    domain?: string;           // Domain (optional)
+    maxAge?: number;           // Max age in seconds (optional)
+  };
+  allowedOrigins?: string[];   // Allowed origins for origin-check
+  excludePaths?: string[];     // Paths to exclude from CSRF protection
+  skipContentTypes?: string[]; // Content types to skip
+}
+```
+
+---
+
+## 📚 Framework Documentation
+
+- **[Next.js Package](./packages/nextjs/README.md)** - App Router middleware, React hooks
+- **[Core Package](./packages/core/README.md)** - Framework-agnostic implementation
+
+---
+
+## ⚡ Performance Characteristics
+
+**Strategy Performance (Relative):**
+
+| Strategy | Computational Overhead | Memory Usage | Security Level | Best Use Case |
+|----------|------------------------|---------------|----------------|---------------|
+| **origin-check** | Minimal (header validation) | Minimal | Medium | Known client origins |
+| **double-submit** | Very Low (no cryptography) | Low | Medium | General web applications |
+| **signed-double-submit** | Low (1 HMAC operation) | Low | High | High-security applications |
+| **signed-token** | Low (1 HMAC operation) | Low | High | Stateless APIs |
+| **hybrid** | Medium (HMAC + headers) | Low | Highest | Maximum security needs |
+
+**Performance Notes:**
+- Origin-check and double-submit have minimal CPU overhead
+- Signed strategies require HMAC operations (Web Crypto API)
+- Hybrid strategy combines multiple validation steps
+- Actual performance depends on hardware, request volume, and implementation details
+
+---
+
+## 🛠️ Development
+
+### Setup
+```bash
+git clone https://github.com/muneebs/csrf-lite.git
+cd csrf-lite
+pnpm install
+```
+
+### Commands
+```bash
+pnpm build          # Build all packages
+pnpm test           # Run all tests
+pnpm lint           # Lint all packages
+pnpm clean          # Clean build artifacts
+```
+
+### Package Structure
+```
+csrf-lite/
+├── packages/
+│   ├── core/         # Framework-agnostic core
+│   ├── nextjs/       # Next.js adapter
+│   ├── nodejs/       # Node.js/Express adapter
+│   └── vite/         # Vite adapter
+├── package.json      # Root package
+└── pnpm-workspace.yaml
+```
+
+---
+
+## 🧪 Testing Your Implementation
+
+### Quick Security Check
+
+```typescript
+// Test CSRF protection is working
+const testCsrf = async () => {
+  // This should fail without proper CSRF token
+  try {
+    await fetch('/api/protected', { method: 'POST' });
+  } catch (error) {
+    console.log('✅ CSRF protection is working');
+  }
+  
+  // This should succeed with proper token
+  const response = await csrfFetch('/api/protected', { method: 'POST' });
+  console.log('✅ Legitimate requests work');
+};
+```
+
+### Strategy Validation
+
+```typescript
+// Verify your strategy is correctly configured
+const config = {
+  strategy: 'signed-double-submit',
+  secret: process.env.CSRF_SECRET,
+};
+
+// Check secret is set
+if (!config.secret || config.secret === 'default-secret-change-this') {
+  throw new Error('❌ CSRF secret not properly configured!');
+}
+
+console.log('✅ CSRF configuration looks good');
+```
+
+---
+
+## 📄 License
+
+MIT © [Muneeb Samuels](https://github.com/muneebs)
+
+---
+
+## 🙏 Acknowledgements
+
+This project is inspired by the excellent work done by [@amorey](https://github.com/amorey) on [edge-csrf](https://github.com/amorey/edge-csrf). Their approach to CSRF protection in edge environments has significantly influenced the development of csrf-lite.
+
+---
+
+## 🔗 Links
+
+- [📚 Documentation](https://github.com/muneebs/csrf-lite#readme)
+- [🐛 Issue Tracker](https://github.com/muneebs/csrf-lite/issues)
+- [📦 NPM Packages](https://www.npmjs.com/search?q=%40csrf-lite)
+- [🔒 Security Policy](./docs/SECURITY.md)
