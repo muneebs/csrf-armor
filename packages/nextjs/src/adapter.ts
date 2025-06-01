@@ -5,7 +5,7 @@ import type {
   CsrfResponse,
   RequiredCsrfConfig,
   CookieOptions,
-} from "@csrf-lite/core";
+} from "@csrf-armor/core";
 
 export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
   extractRequest(req: NextRequest): CsrfRequest {
@@ -35,19 +35,21 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
       }
     } else {
       for (const [key, value] of Object.entries(csrfResponse.headers)) {
-        res.headers.set(key, value);
+        res.headers.set(key, String(value));
       }
     }
 
     // Set cookies
     if (csrfResponse.cookies instanceof Map) {
-      for (const [name, { value, options }] of csrfResponse.cookies) {
+      for (const [name, cookieData] of csrfResponse.cookies) {
+        const { value, options } = cookieData as { value: string; options?: CookieOptions };
         res.cookies.set(name, value, this.adaptCookieOptions(options));
       }
     } else {
-      for (const [name, { value, options }] of Object.entries(
+      for (const [name, cookieData] of Object.entries(
         csrfResponse.cookies,
       )) {
+        const { value, options } = cookieData as { value: string; options?: CookieOptions };
         res.cookies.set(name, value, this.adaptCookieOptions(options));
       }
     }

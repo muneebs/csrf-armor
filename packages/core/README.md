@@ -1,13 +1,13 @@
-# @csrf-lite/core
+# @csrfx/core
 
-<img src="../../assets/logo.png" alt="Csrf Light" width="768" />
+<img src="../../assets/logo.jpeg" alt="Csrf Light" />
 
 Framework-agnostic CSRF protection core functionality.
 
 ## Installation
 
 ```bash
-npm install @csrf-lite/core
+npm install @csrf-armor/core
 ```
 
 ## Overview
@@ -31,7 +31,7 @@ This package provides the core CSRF protection logic that can be adapted to any 
 ### Creating a Custom Adapter
 
 ```typescript
-import { CsrfAdapter, CsrfRequest, CsrfResponse, createCsrfProtection } from '@csrf-lite/core';
+import { CsrfAdapter, CsrfRequest, CsrfResponse, createCsrfProtection } from '@csrfx/core';
 
 class MyFrameworkAdapter implements CsrfAdapter<MyRequest, MyResponse> {
   extractRequest(req: MyRequest): CsrfRequest {
@@ -103,7 +103,7 @@ if (result.success) {
 ### Direct Validation
 
 ```typescript
-import { validateRequest, generateSignedToken, generateNonce } from '@csrf-lite/core';
+import { validateRequest, generateSignedToken, generateNonce } from '@csrfx/core';
 
 // Generate different types of tokens
 const signedToken = await generateSignedToken('secret', 3600);
@@ -247,7 +247,7 @@ interface CsrfConfig {
 ### Default Configuration
 
 ```typescript
-import { DEFAULT_CONFIG } from '@csrf-lite/core';
+import { DEFAULT_CONFIG } from '@csrfx/core';
 
 console.log(DEFAULT_CONFIG);
 // {
@@ -445,7 +445,7 @@ import {
   TokenExpiredError, 
   TokenInvalidError, 
   OriginMismatchError 
-} from '@csrf-lite/core';
+} from '@csrfx/core';
 
 try {
   await parseSignedToken(token, secret);
@@ -511,7 +511,7 @@ const protection = createCsrfProtection(adapter, config);
 ### Custom Validation Logic
 
 ```typescript
-import { validateOrigin, validateSignedToken, validateDoubleSubmit } from '@csrf-lite/core';
+import { validateOrigin, validateSignedToken, validateDoubleSubmit } from '@csrfx/core';
 
 // Use individual validation functions
 const originResult = validateOrigin(request, config);
@@ -652,7 +652,7 @@ const config = {
 
 ```typescript
 import express from 'express';
-import { CsrfAdapter, createCsrfProtection } from '@csrf-lite/core';
+import { CsrfAdapter, createCsrfProtection } from '@csrfx/core';
 
 class ExpressAdapter implements CsrfAdapter<express.Request, express.Response> {
   extractRequest(req: express.Request) {
@@ -680,7 +680,7 @@ class ExpressAdapter implements CsrfAdapter<express.Request, express.Response> {
 
 ```typescript
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { CsrfAdapter, createCsrfProtection } from '@csrf-lite/core';
+import { CsrfAdapter, createCsrfProtection } from '@csrfx/core';
 
 class FastifyAdapter implements CsrfAdapter<FastifyRequest, FastifyReply> {
   extractRequest(req: FastifyRequest) {
@@ -711,7 +711,7 @@ class FastifyAdapter implements CsrfAdapter<FastifyRequest, FastifyReply> {
 ### Unit Testing Tokens
 
 ```typescript
-import { generateSignedToken, parseSignedToken, generateNonce } from '@csrf-lite/core';
+import { generateSignedToken, parseSignedToken, generateNonce } from '@csrfx/core';
 
 describe('CSRF Token Generation', () => {
   test('should generate and validate signed tokens', async () => {
@@ -736,7 +736,7 @@ describe('CSRF Token Generation', () => {
 ### Integration Testing
 
 ```typescript
-import { createCsrfProtection } from '@csrf-lite/core';
+import { createCsrfProtection } from '@csrfx/core';
 
 describe('CSRF Protection Integration', () => {
   test('should protect against CSRF attacks', async () => {
@@ -779,7 +779,7 @@ To benchmark CSRF strategies for your specific use case:
 
 ```typescript
 // Example benchmark setup
-import { createCsrfProtection } from '@csrf-lite/core';
+import { createCsrfProtection } from '@csrfx/core';
 
 async function benchmarkStrategy(strategy, iterations = 10000) {
     const protection = createCsrfProtection(adapter, { strategy, secret: 'test' });
@@ -807,7 +807,7 @@ const csrf = require('csrf');
 const tokens = new csrf();
 
 // New
-import { generateSignedToken, parseSignedToken } from '@csrf-lite/core';
+import { generateSignedToken, parseSignedToken } from '@csrfx/core';
 const token = await generateSignedToken(secret, 3600);
 ```
 
@@ -818,7 +818,7 @@ const csurf = require('csurf');
 app.use(csurf());
 
 // New
-import { createCsrfProtection } from '@csrf-lite/core';
+import { createCsrfProtection } from '@csrf-armor/core';
 const adapter = new ExpressAdapter();
 const protection = createCsrfProtection(adapter, config);
 ```
@@ -831,4 +831,4 @@ MIT © [Muneeb Samuels](https://github.com/muneebs)
 
 ## Related Packages
 
-- [@csrf-lite/nextjs](../nextjs) - Next.js App Router middleware and React hooks
+- [@csrf-armor/nextjs](../nextjs) - Next.js App Router middleware and React hooks
