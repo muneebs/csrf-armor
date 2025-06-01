@@ -20,7 +20,7 @@
 		"test": "vitest --run",
 		"test:watch": "vitest",
 		"type-check": "tsc --noEmit",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist tsconfig.tsbuildinfo"
 	},
 	"keywords": [
 		"csrf",

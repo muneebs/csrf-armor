@@ -120,29 +120,29 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
         // Add strategy hint for client
         ["x-csrf-strategy", this.config.strategy],
       ]),
-      cookies: new Map([
-        [
-          this.config.cookie.name,
-          {
-            value: tokenData.cookieToken,
-            options: tokenData.cookieOptions,
-          },
-        ],
-        ...(tokenData.serverCookieToken
-          ? new Map([
-              [
-                `${this.config.cookie.name}-server`,
-                {
-                  value: tokenData.serverCookieToken,
-                  options: {
-                    ...tokenData.cookieOptions,
-                    httpOnly: true, // Server-only
-                  },
-                },
-              ],
-            ])
-          : new Map()),
-      ]),
+      cookies: (() => {
+        const cookiesMap = new Map([
+          [
+            this.config.cookie.name,
+            {
+              value: tokenData.cookieToken,
+              options: tokenData.cookieOptions,
+            },
+          ],
+        ]);
+        
+        if (tokenData.serverCookieToken) {
+          cookiesMap.set(`${this.config.cookie.name}-server`, {
+            value: tokenData.serverCookieToken,
+            options: {
+              ...tokenData.cookieOptions,
+              httpOnly: true, // Server-only
+            },
+          });
+        }
+        
+        return cookiesMap;
+      })(),
     };
 
     // Apply response modifications
