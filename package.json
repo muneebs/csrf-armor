@@ -1,5 +1,5 @@
 {
-	"name": "csrf-lite",
+	"name": "csrf-armor",
 	"version": "0.1.0",
 	"description": "Framework-agnostic CSRF protection library",
 	"type": "module",
@@ -38,16 +38,16 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/muneebs/csrf-lite"
+		"url": "https://github.com/muneebs/csrf-armor"
 	},
 	"publishConfig": {
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
 	},
 	"bugs": {
-		"url": "https://github.com/muneebs/csrf-lite/issues"
+		"url": "https://github.com/muneebs/csrf-armor/issues"
 	},
-	"homepage": "https://github.com/muneebs/csrf-lite#readme",
+	"homepage": "https://github.com/muneebs/csrf-armor#readme",
 	"engines": {
 		"node": ">=18.0.0",
 		"pnpm": ">=8.0.0"
