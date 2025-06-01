@@ -76,7 +76,7 @@ This will:
 
 1. Make changes to `packages/core/src/index.ts`
 2. Run `pnpm changeset`
-3. Select `@csrf-lite/core` package
+3. Select `@csrf-armor/core` package
 4. Choose `minor` for a new feature
 5. Write: "Add new validateToken method"
 6. Commit the changeset file with your changes
@@ -109,23 +109,23 @@ gh workflow run prerelease.yml -f snapshot_tag=testing
 
 ```bash
 # Latest stable versions
-npm install @csrf-lite/core
-npm install @csrf-lite/nextjs
+npm install @csrf-armor/core
+npm install @csrf-armor/nextjs
 
 # Specific version
-npm install @csrf-lite/core@1.2.3
+npm install @csrf-armor/core@1.2.3
 ```
 
 ### Snapshot Packages
 
 ```bash
 # Development snapshots
-npm install @csrf-lite/core@dev
-npm install @csrf-lite/nextjs@dev
+npm install @csrf-armor/core@dev
+npm install @csrf-armor/nextjs@dev
 
 # Beta snapshots
-npm install @csrf-lite/core@beta
-npm install @csrf-lite/nextjs@beta
+npm install @csrf-armor/core@beta
+npm install @csrf-armor/nextjs@beta
 ```
 
 ## Required Secrets
@@ -143,14 +143,14 @@ Configure these secrets in your GitHub repository:
 
 ```
 packages/
-├── core/           # @csrf-lite/core
-└── nextjs/         # @csrf-lite/nextjs
+├── core/           # @csrf-armor/core
+└── nextjs/         # @csrf-armor/nextjs
 ```
 
 Each package:
 - Has its own `package.json`
 - Can be versioned independently
-- Published with `@csrf-lite/` scope
+- Published with `@csrf-armor/` scope
 - Follows semantic versioning
 
 ## Troubleshooting

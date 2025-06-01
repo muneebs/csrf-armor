@@ -31,7 +31,6 @@
   ],
   "references": [
     { "path": "packages/core" },
-    { "path": "packages/nextjs" },
-    { "path": "packages/vite" }
+    { "path": "packages/nextjs" }
   ]
 }

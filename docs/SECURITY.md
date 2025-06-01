@@ -2,7 +2,7 @@
 
 ## Reporting Security Vulnerabilities
 
-**Security is important to me.** If you find a security vulnerability in CSRF-Lite, I'd appreciate you letting me know privately so I can fix it quickly.
+**Security is important to me.** If you find a security vulnerability in CSRF-Armor, I'd appreciate you letting me know privately so I can fix it quickly.
 
 ### How to Report
 
@@ -126,7 +126,7 @@ Based on my experience, here's what I recommend:
 
 ---
 
-## What CSRF-Lite Actually Protects
+## What CSRF-Armor Actually Protects
 
 ### ✅ What I Built This to Stop
 
@@ -136,13 +136,13 @@ Based on my experience, here's what I recommend:
 
 ### ⚠️ What This Doesn't Fix
 
-CSRF-Lite is focused on one thing. It doesn't protect against:
+CSRF-Armor is focused on one thing. It doesn't protect against:
 - **XSS attacks** - Use Content Security Policy for this
 - **SQL injection** - Use parameterized queries
 - **Bad authentication** - That's a separate concern
 - **Authorization bugs** - Still need proper access controls
 
-Think of CSRF-Lite as one layer in your security stack, not the whole thing.
+Think of CSRF-Armor as one layer in your security stack, not the whole thing.
 
 ---
 
@@ -257,7 +257,7 @@ If you see lots of failures from the same IP, that might be an attack.
 
 ### Responsible Security Research
 
-I welcome security research! If you're testing CSRF-Lite:
+I welcome security research! If you're testing CSRF-Armor:
 - Report issues privately first (give me a chance to fix them)
 - Don't test on other people's apps without permission
 - Be patient - I'm just one person, but I take security seriously
@@ -265,12 +265,12 @@ I welcome security research! If you're testing CSRF-Lite:
 ### What This Policy Covers
 
 This applies to:
-- All official CSRF-Lite packages (`@csrf-lite/*`)
+- All official CSRF-Armor packages (`@csrf-armor/*`)
 - Code and examples in this repository
 - Official releases on NPM
 
 This doesn't cover:
-- Apps that use CSRF-Lite (that's between you and the app developers)
+- Apps that use CSRF-Armor (that's between you and the app developers)
 - Unofficial forks or modifications
 - Third-party dependencies (report those to their maintainers)
 
@@ -282,7 +282,7 @@ Security is something I care deeply about, especially for a library that's suppo
 
 If you find a security issue, please reach out. I'd much rather fix it privately than have people get hurt because I missed something.
 
-And if you're using CSRF-Lite in production, please take the time to configure it properly. The defaults are decent, but security always needs thoughtful configuration for your specific situation.
+And if you're using CSRF-Armor in production, please take the time to configure it properly. The defaults are decent, but security always needs thoughtful configuration for your specific situation.
 
 Stay safe out there! 🔒
 

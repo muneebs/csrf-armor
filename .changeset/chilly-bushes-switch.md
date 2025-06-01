@@ -1,64 +1,28 @@
 ---
-"@csrf-lite/nextjs": major
-"@csrf-lite/core": major
+"@csrf-armor/nextjs": major
+"@csrf-armor/core": major
 ---
 
-# @csrf-lite/core
+**🚀 Initial release**
 
-## 1.0.0
+**Features:**
 
-### Major Changes
+- **Next.js Package**: Complete CSRF protection integration for Next.js applications
 
-- Initial release
+    - App Router and Pages Router support
+    - React hooks and components for client-side integration
+    - Middleware adapter for seamless integration
+    - TypeScript definitions and comprehensive documentation
 
-  **🚀 Features:**
+- **Core Package**: Improved framework-agnostic CSRF protection
+    - Multiple validation strategies (double-submit cookies, synchronizer tokens)
+    - Robust cryptographic utilities with secure token generation
+    - Comprehensive error handling and validation
+    - Flexible configuration options
 
-    - **Next.js Package**: Complete CSRF protection integration for Next.js applications
+**📚 Documentation & Tooling:**
 
-        - App Router and Pages Router support
-        - React hooks and components for client-side integration
-        - Middleware adapter for seamless integration
-        - TypeScript definitions and comprehensive documentation
-
-    - **Core Package**: Improved framework-agnostic CSRF protection
-        - Multiple validation strategies (double-submit cookies, synchronizer tokens)
-        - Robust cryptographic utilities with secure token generation
-        - Comprehensive error handling and validation
-        - Flexible configuration options
-
-  **📚 Documentation & Tooling:**
-
-    - Comprehensive README and security documentation
-    - GitHub workflows documentation with usage examples
-    - Biome integration for consistent code formatting and linting
-    - TypeScript configurations across packages
-
-# @csrf-lite/nextjs
-
-## 1.0.0
-
-### Major Changes
-
-- Initial release
-
-  **🚀 Features:**
-
-    - **Next.js Package**: Complete CSRF protection integration for Next.js applications
-
-        - App Router and Pages Router support
-        - React hooks and components for client-side integration
-        - Middleware adapter for seamless integration
-        - TypeScript definitions and comprehensive documentation
-
-    - **Core Package**: Improved framework-agnostic CSRF protection
-        - Multiple validation strategies (double-submit cookies, synchronizer tokens)
-        - Robust cryptographic utilities with secure token generation
-        - Comprehensive error handling and validation
-        - Flexible configuration options
-
-  **📚 Documentation & Tooling:**
-
-    - Comprehensive README and security documentation
-    - GitHub workflows documentation with usage examples
-    - Biome integration for consistent code formatting and linting
-    - TypeScript configurations across packages
+- Comprehensive README and security documentation
+- GitHub workflows documentation with usage examples
+- Biome integration for consistent code formatting and linting
+- TypeScript configurations across packages
