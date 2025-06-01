@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { createCsrfMiddleware } from "../src/middleware.js";
-import { verifySignedToken } from "@csrf-lite/core";
+import { verifySignedToken } from "@csrf-armor/core";
 
 describe("CSRF Middleware", () => {
   it("should allow GET requests without validation", async () => {

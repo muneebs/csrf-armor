@@ -10,7 +10,7 @@ export type {
   TokenOptions,
   ValidationResult,
   CsrfProtectResult,
-} from "@csrf-lite/core";
+} from "@csrf-armor/core";
 
 export {
   generateSignedToken,
@@ -18,4 +18,4 @@ export {
   signUnsignedToken,
   verifySignedToken,
   generateNonce,
-} from "@csrf-lite/core";
+} from "@csrf-armor/core";

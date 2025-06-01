@@ -1,8 +1,8 @@
-# @csrf-lite/nextjs
+# @csrf-armor/nextjs
 
-<img src="../../assets/logo.png" alt="Csrf Light" width="768" />
+<img src="../../assets/logo.jpeg" alt="Csrf Light" />
 
-[![npm version](https://badge.fury.io/js/@csrf-lite%2Fnextjs.svg)](https://badge.fury.io/js/@csrf-lite%2Fnextjs)
+[![npm version](https://badge.fury.io/js/@csrf-armor%2Fnextjs.svg)](https://badge.fury.io/js/@csrf-armor%2Fnextjs)
 
 Complete CSRF protection for Next.js applications with App Router support, middleware integration, and React hooks.
 
@@ -22,11 +22,11 @@ Complete CSRF protection for Next.js applications with App Router support, middl
 ## Installation
 
 ```bash
-npm install @csrf-lite/nextjs
+npm install @csrf-armor/nextjs
 # or
-yarn add @csrf-lite/nextjs
+yarn add @csrf-armor/nextjs
 # or
-pnpm add @csrf-lite/nextjs
+pnpm add @csrf-armor/nextjs
 ```
 
 ---
@@ -40,7 +40,7 @@ Create `middleware.ts` in your project root:
 ```typescript
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createCsrfMiddleware } from '@csrf-lite/nextjs';
+import { createCsrfMiddleware } from '@csrf-armor/nextjs';
 
 const csrfProtect = createCsrfMiddleware({
   strategy: 'signed-double-submit',
@@ -94,7 +94,7 @@ First, wrap your app with the CSRF provider:
 
 ```typescript
 // app/layout.tsx or your root component
-import { CsrfProvider } from '@csrf-lite/nextjs';
+import { CsrfProvider } from '@csrf-armor/nextjs';
 
 export default function RootLayout({
   children,
@@ -117,7 +117,7 @@ export default function RootLayout({
 
 ```typescript
 'use client';
-import { useCsrf } from '@csrf-lite/nextjs';
+import { useCsrf } from '@csrf-armor/nextjs';
 
 export function ContactForm() {
   const { csrfToken, csrfFetch, updateToken } = useCsrf();
@@ -368,7 +368,7 @@ const csrfProtect = createCsrfMiddleware({
 ```typescript
 // Different protection for different routes
 import { NextRequest, NextResponse } from 'next/server';
-import { createCsrfMiddleware } from '@csrf-lite/nextjs';
+import { createCsrfMiddleware } from '@csrf-armor/nextjs';
 
 const apiCsrf = createCsrfMiddleware({
   strategy: 'signed-token',
@@ -481,7 +481,7 @@ try {
 ### Manual Token Management
 
 ```typescript
-import { getCsrfToken, createCsrfHeaders, csrfFetch } from '@csrf-lite/nextjs';
+import { getCsrfToken, createCsrfHeaders, csrfFetch } from '@csrf-armor/nextjs';
 
 // Get current token
 const token = getCsrfToken();
@@ -508,7 +508,7 @@ import type {
   CsrfStrategy, 
   CsrfProtectResult,
   CsrfClientConfig 
-} from '@csrf-lite/nextjs';
+} from '@csrf-armor/nextjs';
 
 const config: CsrfConfig = {
   strategy: 'signed-double-submit',
@@ -695,7 +695,7 @@ export async function middleware(request: NextRequest) {
 If you're migrating from other CSRF protection libraries:
 
 1. **Remove old CSRF middleware**
-2. **Install @csrf-lite/nextjs**
+2. **Install @csrf-armor/nextjs**
 3. **Update middleware.ts**
 4. **Replace client-side CSRF code with hooks**
 
@@ -707,7 +707,7 @@ If you're migrating from other CSRF protection libraries:
 
 // After (App Router)
 // middleware.ts in project root
-import { createCsrfMiddleware } from '@csrf-lite/nextjs';
+import { createCsrfMiddleware } from '@csrf-armor/nextjs';
 
 const csrfProtect = createCsrfMiddleware({
   strategy: 'signed-double-submit',
@@ -785,7 +785,7 @@ export async function middleware(request: NextRequest) {
 ### Client-Side Debugging
 
 ```typescript
-import { getCsrfToken } from '@csrf-lite/nextjs';
+import { getCsrfToken } from '@csrf-armor/nextjs';
 
 // Check if token is available
 const token = getCsrfToken();
@@ -810,4 +810,10 @@ MIT © [Muneeb Samuels](https://github.com/muneebs)
 
 ## Related Packages
 
-- [@csrf-lite/core](../core) - Framework-agnostic CSRF protection
+- [@csrf-armor/core](../core) - Framework-agnostic CSRF protection
+
+---
+
+## 🙏 Acknowledgements
+
+This project is inspired by the excellent work done by [@amorey](https://github.com/amorey) on [edge-csrf](https://github.com/amorey/edge-csrf). Their approach to CSRF protection in edge environments has significantly influenced the development of csrf-armor.

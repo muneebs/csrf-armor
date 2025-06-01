@@ -1,9 +1,9 @@
-# CSRF-Lite
+# CSRF-Armor
 
-<img src="assets/logo.png" alt="Csrf Light" width="768" />
+<img src="assets/logo.jpeg" alt="CSRF Armor" />
 
-[![CI](https://github.com/muneebs/csrf-lite/workflows/CI/badge.svg)](https://github.com/muneebs/csrf-lite/actions/workflows/ci.yml)
-[![npm version](https://badge.fury.io/js/csrf-lite.svg)](https://badge.fury.io/js/csrf-lite)
+[![CI](https://github.com/muneebs/csrf-armor/workflows/CI/badge.svg)](https://github.com/muneebs/csrf-armor/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/@csrf-armor.svg)](https://badge.fury.io/js/@csrf-armor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Modern, framework-agnostic CSRF protection library with multiple security strategies.
@@ -25,7 +25,7 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| **[@csrf-lite/nextjs](./packages/nextjs)** | Next.js App Router middleware | `npm i @csrf-lite/nextjs` |
+| **[@csrf-armor/nextjs](./packages/nextjs)** | Next.js App Router middleware | `npm i @csrf-armor/nextjs` |
 
 > more framework specific packages coming soon.
 
@@ -33,7 +33,7 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| **[@csrf-lite/core](./packages/core)** | Framework-agnostic core | `npm i @csrf-lite/core` |
+| **[@csrf-armor/core](./packages/core)** | Framework-agnostic core | `npm i @csrf-armor/core` |
 
 ---
 
@@ -42,14 +42,14 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 ### Next.js App Router
 
 ```bash
-npm install @csrf-lite/nextjs
+npm install @csrf-armor/nextjs
 ```
 
 ```typescript
 // middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createCsrfMiddleware } from '@csrf-lite/nextjs';
+import { createCsrfMiddleware } from '@csrf-armor/nextjs';
 
 const csrfProtect = createCsrfMiddleware({
   strategy: 'signed-double-submit',
@@ -74,7 +74,7 @@ export const config = {
 
 ```typescript
 // app/layout.tsx
-import { CsrfProvider } from '@csrf-lite/nextjs';
+import { CsrfProvider } from '@csrf-armor/nextjs';
 
 export default function RootLayout({
   children,
@@ -94,7 +94,7 @@ export default function RootLayout({
 
 // components/MyForm.tsx
 'use client';
-import { useCsrf } from '@csrf-lite/nextjs';
+import { useCsrf } from '@csrf-armor/nextjs';
 
 export function MyForm() {
   const { csrfToken, csrfFetch } = useCsrf();
@@ -271,8 +271,8 @@ interface CsrfConfig {
 
 ### Setup
 ```bash
-git clone https://github.com/muneebs/csrf-lite.git
-cd csrf-lite
+git clone https://github.com/muneebs/csrf-armor.git
+cd csrf-armor
 pnpm install
 ```
 
@@ -286,7 +286,7 @@ pnpm clean          # Clean build artifacts
 
 ### Package Structure
 ```
-csrf-lite/
+csrf-armor/
 ├── packages/
 │   ├── core/         # Framework-agnostic core
 │   ├── nextjs/       # Next.js adapter
@@ -311,7 +311,7 @@ const testCsrf = async () => {
   } catch (error) {
     console.log('✅ CSRF protection is working');
   }
-  
+
   // This should succeed with proper token
   const response = await csrfFetch('/api/protected', { method: 'POST' });
   console.log('✅ Legitimate requests work');
@@ -343,15 +343,9 @@ MIT © [Muneeb Samuels](https://github.com/muneebs)
 
 ---
 
-## 🙏 Acknowledgements
-
-This project is inspired by the excellent work done by [@amorey](https://github.com/amorey) on [edge-csrf](https://github.com/amorey/edge-csrf). Their approach to CSRF protection in edge environments has significantly influenced the development of csrf-lite.
-
----
-
 ## 🔗 Links
 
-- [📚 Documentation](https://github.com/muneebs/csrf-lite#readme)
-- [🐛 Issue Tracker](https://github.com/muneebs/csrf-lite/issues)
-- [📦 NPM Packages](https://www.npmjs.com/search?q=%40csrf-lite)
+- [📚 Documentation](https://github.com/muneebs/csrf-armor#readme)
+- [🐛 Issue Tracker](https://github.com/muneebs/csrf-armor/issues)
+- [📦 NPM Packages](https://www.npmjs.com/search?q=%40csrf-armor)
 - [🔒 Security Policy](./docs/SECURITY.md)

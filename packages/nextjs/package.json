@@ -1,5 +1,5 @@
 {
-	"name": "@csrf-lite/nextjs",
+	"name": "@csrf-armor/nextjs",
 	"version": "0.1.0",
 	"description": "CSRF protection middleware for Next.js applications",
 	"type": "module",
@@ -43,7 +43,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/muneebs/csrf-lite",
+		"url": "https://github.com/muneebs/csrf-armor",
 		"directory": "packages/nextjs"
 	},
 	"publishConfig": {
@@ -51,14 +51,14 @@
 		"registry": "https://registry.npmjs.org/"
 	},
 	"bugs": {
-		"url": "https://github.com/muneebs/csrf-lite/issues"
+		"url": "https://github.com/muneebs/csrf-armor/issues"
 	},
-	"homepage": "https://github.com/muneebs/csrf-lite#readme",
+	"homepage": "https://github.com/muneebs/csrf-armor#readme",
 	"engines": {
 		"node": ">=18.0.0"
 	},
 	"dependencies": {
-		"@csrf-lite/core": "workspace:*"
+		"@csrf-armor/core": "workspace:*"
 	},
 	"peerDependencies": {
 		"next": "^13.0.0 || ^14.0.0 || ^15.0.0",

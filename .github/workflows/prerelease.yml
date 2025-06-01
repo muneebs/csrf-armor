@@ -50,6 +50,9 @@ jobs:
     - name: Run linting
       run: pnpm run lint:check
 
+    - name: Build core package first
+      run: pnpm --filter @csrf-armor/core run build
+
     - name: Build packages
       run: pnpm run build
 
@@ -106,6 +109,6 @@ jobs:
         echo "### Install Commands" >> $GITHUB_STEP_SUMMARY
         echo '```bash' >> $GITHUB_STEP_SUMMARY
         echo "# Install with snapshot tag" >> $GITHUB_STEP_SUMMARY
-        echo "npm install @csrf-lite/core@${{ steps.snapshot.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-        echo "npm install @csrf-lite/nextjs@${{ steps.snapshot.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "npm install @csrf-armor/core@${{ steps.snapshot.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "npm install @csrf-armor/nextjs@${{ steps.snapshot.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
