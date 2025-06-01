@@ -23,36 +23,10 @@
 		"version-packages": "changeset version",
 		"release": "pnpm build && changeset publish"
 	},
-	"keywords": [
-		"csrf",
-		"security",
-		"protection",
-		"middleware",
-		"nextjs",
-		"nodejs",
-		"express",
-		"vite",
-		"framework-agnostic"
-	],
-	"author": "Your Name",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/muneebs/csrf-armor"
-	},
-	"publishConfig": {
-		"access": "public",
-		"registry": "https://registry.npmjs.org/"
-	},
-	"bugs": {
-		"url": "https://github.com/muneebs/csrf-armor/issues"
-	},
-	"homepage": "https://github.com/muneebs/csrf-armor#readme",
 	"engines": {
 		"node": ">=18.0.0",
 		"pnpm": ">=8.0.0"
 	},
-	"packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92",
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@changesets/changelog-github": "^0.4.8",
@@ -66,5 +40,6 @@
 	},
 	"pnpm": {
 		"overrides": {}
-	}
+	},
+	"packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"
 }
