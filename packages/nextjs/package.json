@@ -24,11 +24,11 @@
 		"README.md"
 	],
 	"scripts": {
-		"build": "tsc",
+		"build": "tsc -b tsconfig.json --verbose",
 		"test": "vitest --run",
 		"test:watch": "vitest",
 		"type-check": "tsc --noEmit",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist tsconfig.tsbuildinfo"
 	},
 	"keywords": [
 		"nextjs",
