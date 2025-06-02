@@ -1,7 +1,7 @@
 // Next.js CSRF protection package
-export { createCsrfMiddleware } from "./middleware.js";
-export * from "./client.js";
-export * from "./react.js";
+export { createCsrfMiddleware } from './middleware.js';
+export * from './client.js';
+export * from './react.js';
 
 export type {
   CsrfConfig,
@@ -10,7 +10,7 @@ export type {
   TokenOptions,
   ValidationResult,
   CsrfProtectResult,
-} from "@csrf-armor/core";
+} from '@csrf-armor/core';
 
 export {
   generateSignedToken,
@@ -18,4 +18,4 @@ export {
   signUnsignedToken,
   verifySignedToken,
   generateNonce,
-} from "@csrf-armor/core";
+} from '@csrf-armor/core';

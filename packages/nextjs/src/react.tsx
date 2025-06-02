@@ -7,15 +7,15 @@ import {
   useEffect,
   useMemo,
   useState,
-} from "react";
-import { type CsrfClientConfig, csrfFetch, getCsrfToken } from "./client.js";
+} from 'react';
+import { type CsrfClientConfig, csrfFetch, getCsrfToken } from './client.js';
 
 interface CsrfContextValue {
   csrfToken: string | null;
   updateToken: () => void;
   csrfFetch: (
     input: RequestInfo | URL,
-    init?: RequestInit,
+    init?: RequestInit
   ) => Promise<Response>;
 }
 
@@ -42,6 +42,10 @@ export function CsrfProvider({
 
   // Event-driven updates
   useEffect(() => {
+    if (!config?.autoRefresh) {
+      return;
+    }
+
     // Listen for page visibility changes (user returns to tab)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -56,21 +60,21 @@ export function CsrfProvider({
 
     // Listen for storage events (if using localStorage fallback)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "csrf-token") {
+      if (e.key === 'csrf-token') {
         updateToken();
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("storage", handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("storage", handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
     };
-  }, [updateToken]);
+  }, [config?.autoRefresh, updateToken]);
 
   // Enhanced fetch that automatically updates token from response headers
   const secureFetch = useCallback(
@@ -78,7 +82,7 @@ export function CsrfProvider({
       const response = await csrfFetch(input, init, config);
 
       // Check if server sent a new token
-      const headerName = config?.headerName ?? "x-csrf-token";
+      const headerName = config?.headerName ?? 'x-csrf-token';
       const newToken = response.headers.get(headerName);
 
       if (newToken && newToken !== csrfToken) {
@@ -87,7 +91,7 @@ export function CsrfProvider({
 
       return response;
     },
-    [config, csrfToken],
+    [config, csrfToken]
   );
 
   const value = useMemo<CsrfContextValue>(
@@ -96,7 +100,7 @@ export function CsrfProvider({
       updateToken,
       csrfFetch: secureFetch,
     }),
-    [csrfToken, updateToken, secureFetch],
+    [csrfToken, updateToken, secureFetch]
   );
 
   return <CsrfContext.Provider value={value}>{children}</CsrfContext.Provider>;
@@ -106,7 +110,7 @@ export function useCsrf() {
   const context = useContext(CsrfContext);
 
   if (!context) {
-    throw new Error("useCsrf must be used within a CsrfProvider");
+    throw new Error('useCsrf must be used within a CsrfProvider');
   }
 
   return context;
