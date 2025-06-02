@@ -1,6 +1,6 @@
 {
   "name": "@csrf-armor/nextjs",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CSRF protection middleware for Next.js applications",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,10 @@
       "import": "./dist/react.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -b tsconfig.json --verbose",
     "pretest": "cd ../core && pnpm run build",
