@@ -30,6 +30,7 @@
   },
   "javascript": {
     "formatter": {
+      "quoteStyle": "single",
       "arrowParentheses": "always",
       "bracketSameLine": true,
       "bracketSpacing": true,
