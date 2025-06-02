@@ -1,6 +1,6 @@
 # CSRF-Armor
 
-<img src="assets/logo.jpeg" alt="CSRF Armor" />
+<img src="https://cdn.nebz.dev/csrf-armor/logo.jpeg" alt="CSRF Armor" />
 
 [![CodeQL](https://github.com/muneebs/csrf-armor/workflows/CodeQL%20Security%20Analysis/badge.svg)](https://github.com/muneebs/csrf-armor/actions/workflows/codeql-analysis.yml)
 [![CI](https://github.com/muneebs/csrf-armor/workflows/CI/badge.svg)](https://github.com/muneebs/csrf-armor/actions/workflows/ci.yml)
