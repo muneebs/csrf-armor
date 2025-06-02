@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  validateOrigin,
-  validateSignedToken,
   validateDoubleSubmit,
-  validateSignedDoubleSubmit,
+  validateOrigin,
   validateRequest,
-} from '../src/validation.js';
-import type { RequiredCsrfConfig, CsrfRequest } from '../src/types.js';
-import { generateSignedToken, generateNonce, signUnsignedToken } from '../src/crypto.js';
+  validateSignedDoubleSubmit,
+  validateSignedToken,
+} from '../src';
+import type { CsrfRequest, RequiredCsrfConfig } from '../src';
+import { generateNonce, generateSignedToken, signUnsignedToken } from '../src';
 
 const TEST_CONFIG: RequiredCsrfConfig = {
   strategy: 'hybrid',
@@ -29,8 +29,14 @@ const TEST_CONFIG: RequiredCsrfConfig = {
   skipContentTypes: [],
 };
 
-const mockGetTokenFromRequest = async (request: CsrfRequest, config: RequiredCsrfConfig): Promise<string | undefined> => {
-  const headers = request.headers instanceof Map ? request.headers : new Map(Object.entries(request.headers));
+const mockGetTokenFromRequest = async (
+  request: CsrfRequest,
+  config: RequiredCsrfConfig
+): Promise<string | undefined> => {
+  const headers =
+    request.headers instanceof Map
+      ? request.headers
+      : new Map(Object.entries(request.headers));
   return headers.get(config.token.headerName.toLowerCase());
 };
 
@@ -84,7 +90,11 @@ describe('Validation', () => {
         secret,
       };
 
-      const result = await validateSignedToken(request, config, mockGetTokenFromRequest);
+      const result = await validateSignedToken(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(true);
     });
 
@@ -96,7 +106,11 @@ describe('Validation', () => {
         cookies: new Map(),
       };
 
-      const result = await validateSignedToken(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedToken(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('No CSRF token provided');
     });
@@ -112,7 +126,11 @@ describe('Validation', () => {
         cookies: new Map([['csrf-token', token]]),
       };
 
-      const result = await validateDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(true);
     });
 
@@ -124,7 +142,11 @@ describe('Validation', () => {
         cookies: new Map([['csrf-token', 'token2']]),
       };
 
-      const result = await validateDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Token mismatch');
     });
@@ -134,7 +156,10 @@ describe('Validation', () => {
   describe('validateSignedDoubleSubmit', () => {
     it('should validate with unsigned client token and signed server cookie', async () => {
       const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(unsignedToken, TEST_CONFIG.secret);
+      const signedServerToken = await signUnsignedToken(
+        unsignedToken,
+        TEST_CONFIG.secret
+      );
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -142,17 +167,24 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken]]), // Client submits unsigned
         cookies: new Map([
           ['csrf-token', unsignedToken], // Client cookie (unsigned)
-          ['csrf-token-server', signedServerToken] // Server cookie (signed)
+          ['csrf-token-server', signedServerToken], // Server cookie (signed)
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(true);
     });
 
     it('should reject when no client cookie found', async () => {
       const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(unsignedToken, TEST_CONFIG.secret);
+      const signedServerToken = await signUnsignedToken(
+        unsignedToken,
+        TEST_CONFIG.secret
+      );
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -160,11 +192,15 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken]]),
         cookies: new Map([
           // Missing client cookie
-          ['csrf-token-server', signedServerToken]
+          ['csrf-token-server', signedServerToken],
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Missing CSRF cookies');
     });
@@ -177,12 +213,16 @@ describe('Validation', () => {
         url: 'http://localhost/api',
         headers: new Map([['x-csrf-token', unsignedToken]]),
         cookies: new Map([
-          ['csrf-token', unsignedToken]
+          ['csrf-token', unsignedToken],
           // Missing server cookie
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Missing CSRF cookies');
     });
@@ -190,7 +230,10 @@ describe('Validation', () => {
     it('should reject when submitted token does not match client cookie', async () => {
       const unsignedToken1 = generateNonce(32);
       const unsignedToken2 = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(unsignedToken1, TEST_CONFIG.secret);
+      const signedServerToken = await signUnsignedToken(
+        unsignedToken1,
+        TEST_CONFIG.secret
+      );
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -198,11 +241,15 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken2]]), // Different token
         cookies: new Map([
           ['csrf-token', unsignedToken1],
-          ['csrf-token-server', signedServerToken]
+          ['csrf-token-server', signedServerToken],
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Token mismatch');
     });
@@ -210,7 +257,10 @@ describe('Validation', () => {
     it('should reject when client cookie does not match server cookie', async () => {
       const unsignedToken1 = generateNonce(32);
       const unsignedToken2 = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(unsignedToken2, TEST_CONFIG.secret);
+      const signedServerToken = await signUnsignedToken(
+        unsignedToken2,
+        TEST_CONFIG.secret
+      );
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -218,11 +268,15 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken1]]),
         cookies: new Map([
           ['csrf-token', unsignedToken1], // Matches header
-          ['csrf-token-server', signedServerToken] // But server cookie signs different token
+          ['csrf-token-server', signedServerToken], // But server cookie signs different token
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Cookie integrity check failed');
     });
@@ -237,18 +291,25 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken]]),
         cookies: new Map([
           ['csrf-token', unsignedToken],
-          ['csrf-token-server', invalidSignedToken]
+          ['csrf-token-server', invalidSignedToken],
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('CSRF token is invalid: Invalid signature');
     });
 
     it('should reject when server cookie signed with wrong secret', async () => {
       const unsignedToken = generateNonce(32);
-      const wrongSignedToken = await signUnsignedToken(unsignedToken, 'wrong-secret');
+      const wrongSignedToken = await signUnsignedToken(
+        unsignedToken,
+        'wrong-secret'
+      );
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -256,11 +317,15 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken]]),
         cookies: new Map([
           ['csrf-token', unsignedToken],
-          ['csrf-token-server', wrongSignedToken]
+          ['csrf-token-server', wrongSignedToken],
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('CSRF token is invalid: Invalid signature');
     });
@@ -268,7 +333,10 @@ describe('Validation', () => {
     // LEGACY TEST - This behavior should now fail
     it('should reject legacy signed-double-submit pattern (signed token in client cookie)', async () => {
       const unsignedToken = generateNonce(32);
-      const signedToken = await signUnsignedToken(unsignedToken, TEST_CONFIG.secret);
+      const signedToken = await signUnsignedToken(
+        unsignedToken,
+        TEST_CONFIG.secret
+      );
 
       // Old pattern: unsigned in header, signed in client cookie
       const request: CsrfRequest = {
@@ -280,7 +348,11 @@ describe('Validation', () => {
         ]),
       };
 
-      const result = await validateSignedDoubleSubmit(request, TEST_CONFIG, mockGetTokenFromRequest);
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Missing CSRF cookies'); // No server cookie
     });
@@ -301,13 +373,20 @@ describe('Validation', () => {
         strategy: 'double-submit' as const,
       };
 
-      const result = await validateRequest(request, config, mockGetTokenFromRequest);
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(true);
     });
 
     it('should validate signed-double-submit strategy correctly', async () => {
       const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(unsignedToken, TEST_CONFIG.secret);
+      const signedServerToken = await signUnsignedToken(
+        unsignedToken,
+        TEST_CONFIG.secret
+      );
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -315,7 +394,7 @@ describe('Validation', () => {
         headers: new Map([['x-csrf-token', unsignedToken]]),
         cookies: new Map([
           ['csrf-token', unsignedToken],
-          ['csrf-token-server', signedServerToken]
+          ['csrf-token-server', signedServerToken],
         ]),
       };
 
@@ -324,7 +403,11 @@ describe('Validation', () => {
         strategy: 'signed-double-submit' as const,
       };
 
-      const result = await validateRequest(request, config, mockGetTokenFromRequest);
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
       expect(result.isValid).toBe(true);
     });
   });
