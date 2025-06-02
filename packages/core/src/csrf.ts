@@ -1,21 +1,47 @@
-import type {
-  CsrfConfig,
-  RequiredCsrfConfig,
-  CsrfResponse,
-  CsrfAdapter,
-  RequiredCookieOptions,
-} from "./types.js";
-import { DEFAULT_CONFIG, SAFE_METHODS } from "./constants.js";
+import { DEFAULT_CONFIG, SAFE_METHODS } from './constants.js';
 import {
-  generateSignedToken,
   generateNonce,
-  signUnsignedToken,
   generateSecureSecret,
-} from "./crypto.js";
-import { validateRequest } from "./validation.js";
+  generateSignedToken,
+  signUnsignedToken,
+} from './crypto.js';
+import type {
+  CsrfAdapter,
+  CsrfConfig,
+  CsrfRequest,
+  CsrfResponse,
+  RequiredCookieOptions,
+  RequiredCsrfConfig,
+} from './types.js';
+import { validateRequest } from './validation.js';
+
+function extractPathname(url: string): string {
+  try {
+    // Always return the full pathname for accurate excludePaths matching
+    return new URL(url, 'http://localhost').pathname;
+  } catch {
+    const questionMarkIndex = url.indexOf('?');
+    if (questionMarkIndex !== -1) {
+      return url.substring(0, questionMarkIndex);
+    }
+    return url;
+  }
+}
+
+function processHeaders(
+  rawHeaders: CsrfRequest['headers']
+): Map<string, string> {
+  if (rawHeaders instanceof Map) {
+    return rawHeaders;
+  }
+
+  // Simple conversion without string pooling
+  return new Map(Object.entries(rawHeaders));
+}
+
 function mergeConfig(
   defaultConfig: CsrfConfig,
-  userConfig?: CsrfConfig,
+  userConfig?: CsrfConfig
 ): RequiredCsrfConfig {
   const merged = {
     ...defaultConfig,
@@ -32,7 +58,7 @@ function mergeConfig(
 
   // Ensure all required properties are present
   const config: RequiredCsrfConfig = {
-    strategy: userConfig?.strategy ?? defaultConfig.strategy ?? "hybrid",
+    strategy: userConfig?.strategy ?? defaultConfig.strategy ?? 'hybrid',
     secret:
       userConfig?.secret ?? defaultConfig.secret ?? generateSecureSecret(),
     token: {
@@ -40,18 +66,18 @@ function mergeConfig(
       headerName:
         userConfig?.token?.headerName ??
         defaultConfig.token?.headerName ??
-        "X-CSRF-Token",
+        'X-CSRF-Token',
       fieldName:
         userConfig?.token?.fieldName ??
         defaultConfig.token?.fieldName ??
-        "csrf_token",
+        'csrf_token',
     },
     cookie: {
-      name: merged.cookie?.name ?? "csrf-token",
+      name: merged.cookie?.name ?? 'csrf-token',
       secure: merged.cookie?.secure ?? true,
       httpOnly: merged.cookie?.httpOnly ?? false,
-      sameSite: merged.cookie?.sameSite ?? "lax",
-      path: merged.cookie?.path ?? "/",
+      sameSite: merged.cookie?.sameSite ?? 'lax',
+      path: merged.cookie?.path ?? '/',
     },
     allowedOrigins: merged.allowedOrigins ?? [],
     excludePaths: merged.excludePaths ?? [],
@@ -75,7 +101,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
 
   constructor(
     adapter: CsrfAdapter<TRequest, TResponse>,
-    userConfig?: CsrfConfig,
+    userConfig?: CsrfConfig
   ) {
     this.adapter = adapter;
     this.config = mergeConfig(DEFAULT_CONFIG, userConfig);
@@ -83,7 +109,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
 
   async protect(
     request: TRequest,
-    response: TResponse,
+    response: TResponse
   ): Promise<{
     success: boolean;
     response: TResponse;
@@ -92,19 +118,13 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
   }> {
     const csrfRequest = this.adapter.extractRequest(request);
 
-    // Check if path is excluded
-    const url = new URL(csrfRequest.url);
-    const pathname = url.pathname;
+    const pathname = extractPathname(csrfRequest.url);
     if (this.config.excludePaths.some((path) => pathname.startsWith(path))) {
       return { success: true, response };
     }
 
-    // Check if content type should skip CSRF
-    const headers =
-      csrfRequest.headers instanceof Map
-        ? csrfRequest.headers
-        : new Map(Object.entries(csrfRequest.headers));
-    const contentType = headers.get("content-type") ?? "";
+    const headers = processHeaders(csrfRequest.headers);
+    const contentType = headers.get('content-type') ?? '';
     if (
       this.config.skipContentTypes.some((type) => contentType.includes(type))
     ) {
@@ -116,9 +136,9 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     // Create CSRF response
     const csrfResponse: CsrfResponse = {
       headers: new Map([
-        ["x-csrf-token", tokenData.clientToken],
+        ['x-csrf-token', tokenData.clientToken],
         // Add strategy hint for client
-        ["x-csrf-strategy", this.config.strategy],
+        ['x-csrf-strategy', this.config.strategy],
       ]),
       cookies: (() => {
         const cookiesMap = new Map([
@@ -130,7 +150,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
             },
           ],
         ]);
-        
+
         if (tokenData.serverCookieToken) {
           cookiesMap.set(`${this.config.cookie.name}-server`, {
             value: tokenData.serverCookieToken,
@@ -140,7 +160,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
             },
           });
         }
-        
+
         return cookiesMap;
       })(),
     };
@@ -161,14 +181,14 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     const validationResult = await validateRequest(
       csrfRequest,
       this.config,
-      this.adapter.getTokenFromRequest,
+      this.adapter.getTokenFromRequest
     );
 
     if (!validationResult.isValid) {
       return {
         success: false,
         response: modifiedResponse,
-        reason: validationResult.reason ?? "CSRF Validation failed",
+        reason: validationResult.reason ?? 'CSRF Validation failed',
       };
     }
 
@@ -188,8 +208,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     const baseOptions = this.config.cookie;
 
     switch (this.config.strategy) {
-      case "double-submit": {
-        // Simple double-submit: same unsigned token everywhere
+      case 'double-submit': {
         const unsignedToken = generateNonce(32);
         return {
           clientToken: unsignedToken,
@@ -198,28 +217,26 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
         };
       }
 
-      case "signed-double-submit": {
-        // Signed double-submit: unsigned for client, signed for server validation
+      case 'signed-double-submit': {
         const unsignedToken = generateNonce(32);
         const signedToken = await signUnsignedToken(
           unsignedToken,
-          this.config.secret,
+          this.config.secret
         );
 
         return {
-          clientToken: unsignedToken, // Client uses unsigned token
-          cookieToken: unsignedToken, // Client-accessible cookie has unsigned token
-          serverCookieToken: signedToken, // Server-only cookie has signed token
+          clientToken: unsignedToken,
+          cookieToken: unsignedToken,
+          serverCookieToken: signedToken,
           cookieOptions: { ...baseOptions, httpOnly: false },
         };
       }
 
-      case "signed-token":
-      case "hybrid": {
-        // Signed strategies: use signed token
+      case 'signed-token':
+      case 'hybrid': {
         const signedToken = await generateSignedToken(
           this.config.secret,
-          this.config.token.expiry,
+          this.config.token.expiry
         );
         return {
           clientToken: signedToken,
@@ -228,8 +245,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
         };
       }
 
-      case "origin-check": {
-        // Origin-only: minimal token needed
+      case 'origin-check': {
         const nonce = generateNonce(16);
         return {
           clientToken: nonce,
@@ -247,7 +263,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
 
 export function createCsrfProtection<TRequest = unknown, TResponse = unknown>(
   adapter: CsrfAdapter<TRequest, TResponse>,
-  config?: CsrfConfig,
+  config?: CsrfConfig
 ): CsrfProtection<TRequest, TResponse> {
   return new CsrfProtection(adapter, config);
 }

@@ -1,15 +1,15 @@
 export type CsrfStrategy =
-  | "double-submit"
-  | "signed-double-submit"
-  | "signed-token"
-  | "origin-check"
-  | "hybrid";
+  | 'double-submit'
+  | 'signed-double-submit'
+  | 'signed-token'
+  | 'origin-check'
+  | 'hybrid';
 
 export interface CookieOptions {
   name?: string;
   secure?: boolean;
   httpOnly?: boolean;
-  sameSite?: "strict" | "lax" | "none";
+  sameSite?: 'strict' | 'lax' | 'none';
   path?: string;
   domain?: string;
   maxAge?: number;
@@ -19,7 +19,7 @@ export interface RequiredCookieOptions {
   name: string;
   secure: boolean;
   httpOnly: boolean;
-  sameSite: "strict" | "lax" | "none";
+  sameSite: 'strict' | 'lax' | 'none';
   path: string;
   domain?: string;
   maxAge?: number;
@@ -95,6 +95,6 @@ export interface CsrfAdapter<TRequest = unknown, TResponse = unknown> {
   applyResponse(res: TResponse, csrfResponse: CsrfResponse): TResponse;
   getTokenFromRequest(
     req: CsrfRequest,
-    config: RequiredCsrfConfig,
+    config: RequiredCsrfConfig
   ): Promise<string | undefined>;
 }
