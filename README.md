@@ -2,8 +2,9 @@
 
 <img src="assets/logo.jpeg" alt="CSRF Armor" />
 
+[![CodeQL](https://github.com/muneebs/csrf-armor/workflows/CodeQL%20Security%20Analysis/badge.svg)](https://github.com/muneebs/csrf-armor/actions/workflows/codeql-analysis.yml)
 [![CI](https://github.com/muneebs/csrf-armor/workflows/CI/badge.svg)](https://github.com/muneebs/csrf-armor/actions/workflows/ci.yml)
-[![npm version](https://badge.fury.io/js/@csrf-armor.svg)](https://badge.fury.io/js/@csrf-armor)
+[![npm version](https://badge.fury.io/js/%40csrf-armor%2Fcore.svg)](https://badge.fury.io/js/%40csrf-armor%2Fcore)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Modern, framework-agnostic CSRF protection library with multiple security strategies.
@@ -15,7 +16,7 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 * 🔧 **Highly Configurable**: Customize tokens, cookies, paths, and validation logic
 * ✅ **Well Tested**: Comprehensive test coverage
 * 📦 **ESM Only**: Modern ESM packages with TypeScript support
-* ⚡ **High Performance**: Event-driven updates, optimized cryptographic operations
+* 🔒 **Automated Security Scanning**: CodeQL analysis and custom security checks
 
 ---
 
@@ -72,7 +73,7 @@ export const config = {
 };
 ```
 
-```typescript
+```typescript jsx
 // app/layout.tsx
 import { CsrfProvider } from '@csrf-armor/nextjs';
 
@@ -125,7 +126,7 @@ export function MyForm() {
 {
   strategy: 'signed-token',
   secret: process.env.CSRF_SECRET!,
-  token: { expiry: 3600 },
+  token: { expiry: 3600 }
 }
 ```
 - **How it works**: Generates HMAC-signed tokens with expiration
@@ -240,6 +241,30 @@ interface CsrfConfig {
 
 ---
 
+
+## 🔒 Security & Analysis
+
+### Automated Security Scanning
+
+CSRF-Armor includes comprehensive security analysis:
+
+- **CodeQL Analysis**: Automated scanning on every PR and push
+- **Weekly Security Scans**: Scheduled vulnerability detection
+- **Custom Security Checks**: CSRF-specific vulnerability detection
+
+### Local Security Testing
+
+```bash
+# Run comprehensive security checks
+pnpm run security:check
+
+# Check for specific issues
+pnpm run security:secrets     # Hardcoded secrets
+pnpm run security:timing      # Timing attack vulnerabilities  
+pnpm run security:random      # Weak random generation
+```
+---
+
 ## 📚 Framework Documentation
 
 - **[Next.js Package](./packages/nextjs/README.md)** - App Router middleware, React hooks
@@ -278,10 +303,12 @@ pnpm install
 
 ### Commands
 ```bash
-pnpm build          # Build all packages
-pnpm test           # Run all tests
-pnpm lint           # Lint all packages
-pnpm clean          # Clean build artifacts
+pnpm build              # Build all packages
+pnpm test               # Run all tests
+pnpm lint               # Lint all packages
+pnpm security:check     # Run security analysis
+pnpm audit              # Check for vulnerable dependencies
+pnpm clean              # Clean build artifacts
 ```
 
 ### Package Structure
@@ -289,9 +316,7 @@ pnpm clean          # Clean build artifacts
 csrf-armor/
 ├── packages/
 │   ├── core/         # Framework-agnostic core
-│   ├── nextjs/       # Next.js adapter
-│   ├── nodejs/       # Node.js/Express adapter
-│   └── vite/         # Vite adapter
+│   └── nextjs/       # Next.js adapter
 ├── package.json      # Root package
 └── pnpm-workspace.yaml
 ```
@@ -348,4 +373,4 @@ MIT © [Muneeb Samuels](https://github.com/muneebs)
 - [📚 Documentation](https://github.com/muneebs/csrf-armor#readme)
 - [🐛 Issue Tracker](https://github.com/muneebs/csrf-armor/issues)
 - [📦 NPM Packages](https://www.npmjs.com/search?q=%40csrf-armor)
-- [🔒 Security Policy](./docs/SECURITY.md)
+- [🔒 Security Policy](./SECURITY.md)

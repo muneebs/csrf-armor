@@ -8,7 +8,7 @@
 
 **Please don't report security vulnerabilities through public GitHub issues.**
 
-Instead, please email me at: **security@[ms-dev.net]**
+Instead, please email me at: **security@nebz.dev**
 
 Please include:
 - What type of issue it is (e.g., authentication bypass, token validation flaw, etc.)
@@ -188,12 +188,24 @@ const csrfProtect = createCsrfMiddleware({
 
 ## How I Test Security
 
-### What I Do
+### Automated Security Pipeline
 
-- **Automated testing**: Every commit runs tests that simulate CSRF attacks
-- **Dependency scanning**: GitHub tells me if dependencies have vulnerabilities
-- **Manual review**: I manually review all security-related code changes
-- **Real-world testing**: I use this library in my own projects
+**GitHub Actions (Every Push/PR):**
+- **CodeQL Analysis**: Comprehensive security scanning for vulnerabilities
+- **Custom Security Checks**: CSRF-specific vulnerability detection
+- **Dependency Scanning**: Automatic alerts for vulnerable dependencies
+- **Weekly Security Scans**: Scheduled deep security analysis
+
+**Local Development Tools:**
+```bash
+# Comprehensive security analysis (run before committing)
+pnpm run security:check
+
+# Specific vulnerability checks
+pnpm run security:secrets     # Detects hardcoded secrets
+pnpm run security:timing      # Finds timing attack vulnerabilities  
+pnpm run security:random      # Identifies weak random generation
+```
 
 ### What You Can Do
 
@@ -240,10 +252,39 @@ If you see lots of failures from the same IP, that might be an attack.
 
 ---
 
+## Security Monitoring
+
+### Continuous Security
+
+**Automated Monitoring:**
+- **Weekly scans**: Comprehensive security analysis every Monday
+- **Dependency alerts**: Real-time notifications for vulnerable packages
+- **Build security**: Every release is automatically scanned
+- **Community reports**: GitHub security advisories integration
+
+**Security Metrics I Track:**
+- Time to fix critical security issues (target: < 24 hours)
+- Security test coverage percentage
+- False positive rates in automated scans
+- Community security feedback response time
+
+### How You Can Help
+
+**Report Security Issues:**
+- Use private reporting (email) for vulnerabilities
+- Include reproduction steps and impact assessment
+- Test on your own systems, not production apps
+
+**Stay Secure:**
+- Enable GitHub security alerts for your projects using CSRF-Armor
+- Run `pnpm audit` regularly in your applications
+- Monitor your application logs for unusual CSRF failure patterns
+
 ## Contact Me
 
 ### For Security Issues
-- **Email**: muneeb@[yourdomain.com] *(replace with your actual email)*
+- **Email**: muneeb@nebz.dev
+  - *Questions? Email me: security@nebz.dev*
 - **Response time**: Usually within 24-48 hours
 - **Best for**: Vulnerabilities, security questions, urgent issues
 
@@ -288,5 +329,5 @@ Stay safe out there! 🔒
 
 ---
 
-*Last updated: 31 May 2025*  
-*Questions? Email me: security@[ms-dev.net]*
+*Last updated: 01 April 2025*  
+*Questions? Email me: security@nebz.dev*
