@@ -1,11 +1,11 @@
-import type { NextRequest, NextResponse } from "next/server";
+import type { NextRequest, NextResponse } from 'next/server';
 import type {
   CsrfAdapter,
   CsrfRequest,
   CsrfResponse,
   RequiredCsrfConfig,
   CookieOptions,
-} from "@csrf-armor/core";
+} from '@csrf-armor/core';
 
 export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
   extractRequest(req: NextRequest): CsrfRequest {
@@ -42,14 +42,18 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     // Set cookies
     if (csrfResponse.cookies instanceof Map) {
       for (const [name, cookieData] of csrfResponse.cookies) {
-        const { value, options } = cookieData as { value: string; options?: CookieOptions };
+        const { value, options } = cookieData as {
+          value: string;
+          options?: CookieOptions;
+        };
         res.cookies.set(name, value, this.adaptCookieOptions(options));
       }
     } else {
-      for (const [name, cookieData] of Object.entries(
-        csrfResponse.cookies,
-      )) {
-        const { value, options } = cookieData as { value: string; options?: CookieOptions };
+      for (const [name, cookieData] of Object.entries(csrfResponse.cookies)) {
+        const { value, options } = cookieData as {
+          value: string;
+          options?: CookieOptions;
+        };
         res.cookies.set(name, value, this.adaptCookieOptions(options));
       }
     }
@@ -59,7 +63,7 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
 
   async getTokenFromRequest(
     request: CsrfRequest,
-    config: RequiredCsrfConfig,
+    config: RequiredCsrfConfig
   ): Promise<string | undefined> {
     const headers =
       request.headers instanceof Map
@@ -71,10 +75,10 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     if (headerValue) return headerValue;
 
     // Try form data if available
-    if (request.body && typeof request.body === "object") {
+    if (request.body && typeof request.body === 'object') {
       const body = request.body as Record<string, unknown>;
       const formValue = body[config.token.fieldName];
-      if (typeof formValue === "string") return formValue;
+      if (typeof formValue === 'string') return formValue;
     }
 
     return undefined;

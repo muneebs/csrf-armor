@@ -19,13 +19,13 @@
       "import": "./dist/react.js"
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
     "build": "tsc -b tsconfig.json --verbose",
+    "pretest": "cd ../core && pnpm run build",
     "test": "vitest --run",
+    "pretest:coverage": "cd ../core && pnpm run build",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
