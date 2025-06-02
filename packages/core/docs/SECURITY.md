@@ -126,11 +126,11 @@ app.post('/api/transfer', (req, res) => {
 });
 ```
 
-### Flash/PDF-based CSRF
+### PDF-based CSRF
 
 **Attack Scenario:**
 
-1. Attacker hosts malicious Flash/PDF file
+1. Attacker hosts malicious PDF file
 2. Plugin makes cross-origin requests ignoring same-origin policy
 3. Requests include cookies and bypass CSRF protection
 
