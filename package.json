@@ -1,48 +1,50 @@
 {
-  "name": "csrf-armor",
-  "version": "0.1.0",
-  "description": "Framework-agnostic CSRF protection library",
-  "type": "module",
-  "private": true,
-  "workspaces": ["packages/*"],
-  "scripts": {
-    "build": "pnpm -r run build",
-    "dev": "pnpm -r run dev",
-    "test": "pnpm -r run test",
-    "test:coverage": "pnpm -r run test:coverage",
-    "test:watch": "pnpm -r run test:watch",
-    "type-check": "pnpm -r run type-check",
-    "lint": "pnpm biome lint --write packages/*/src",
-    "lint:check": "pnpm biome lint packages/*/src",
-    "format": "pnpm biome format --write packages/*/src",
-    "format:check": "pnpm biome format packages/*/src",
-    "clean": "pnpm -r run clean && rm -rf node_modules/.cache",
-    "clean:all": "pnpm clean && rm -rf node_modules pnpm-lock.yaml && pnpm -r exec rm -rf node_modules dist",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish",
-    "security:check": "./scripts/security-check.sh",
-    "security:secrets": "grep -r 'secret.*:' packages/*/src/ | grep -v 'process.env' | grep -v 'default-secret-change-this' || echo 'No hardcoded secrets found'",
-    "security:timing": "grep -r '===' packages/*/src/ | grep -i 'token\\|secret\\|csrf' | grep -v 'timingSafeEqual' || echo 'No timing attack vulnerabilities found'",
-    "security:random": "grep -r 'Math.random' packages/*/src/ || echo 'No weak random generation found'"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@changesets/changelog-github": "^0.4.8",
-    "@changesets/cli": "^2.26.2",
-    "@types/node": "^16.18.126",
-    "@vitest/coverage-v8": "^3.1.4",
-    "@vitest/ui": "^1.2.0",
-    "jsdom": "^26.1.0",
-    "typescript": "^5.3.3",
-    "vitest": "^3.1.4"
-  },
-  "pnpm": {
-    "overrides": {}
-  },
-  "packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"
+	"name": "csrf-armor",
+	"version": "0.1.0",
+	"description": "Framework-agnostic CSRF protection library",
+	"type": "module",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"build": "pnpm -r run build",
+		"dev": "pnpm -r run dev",
+		"test": "pnpm -r run test",
+		"test:coverage": "pnpm -r run test:coverage",
+		"test:watch": "pnpm -r run test:watch",
+		"type-check": "pnpm -r run type-check",
+		"lint": "pnpm biome lint --write packages/*/src",
+		"lint:check": "pnpm biome lint packages/*/src",
+		"format": "pnpm biome format --write packages/*/src",
+		"format:check": "pnpm biome format packages/*/src",
+		"clean": "pnpm -r run clean && rm -rf node_modules/.cache",
+		"clean:all": "pnpm clean && rm -rf node_modules pnpm-lock.yaml && pnpm -r exec rm -rf node_modules dist",
+		"changeset": "changeset",
+		"version-packages": "changeset version",
+		"release": "pnpm build && changeset publish",
+		"security:check": "./scripts/security-check.sh",
+		"security:secrets": "grep -r 'secret.*:' packages/*/src/ | grep -v 'process.env' | grep -v 'default-secret-change-this' || echo 'No hardcoded secrets found'",
+		"security:timing": "grep -r '===' packages/*/src/ | grep -i 'token\\|secret\\|csrf' | grep -v 'timingSafeEqual' || echo 'No timing attack vulnerabilities found'",
+		"security:random": "grep -r 'Math.random' packages/*/src/ || echo 'No weak random generation found'"
+	},
+	"engines": {
+		"node": ">=18.0.0",
+		"pnpm": ">=8.0.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.0.0-beta.1",
+		"@changesets/changelog-github": "^0.4.8",
+		"@changesets/cli": "^2.26.2",
+		"@types/node": "^16.18.126",
+		"@vitest/coverage-v8": "^3.1.4",
+		"@vitest/ui": "^1.2.0",
+		"jsdom": "^26.1.0",
+		"@typescript/native-preview": "^7.0.0-dev.20250523.1",
+		"vitest": "^3.1.4"
+	},
+	"pnpm": {
+		"overrides": {}
+	},
+	"packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"
 }
