@@ -1,25 +1,46 @@
 # @csrf-armor/nextjs
 
-<img src="../../assets/logo.jpeg" alt="Csrf Light" />
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Routing System Setup](#routing-system-setup)
+- [Context Provider Setup (App Router)](#context-provider-setup-app-router)
+- [Context Provider Setup (Pages Router)](#context-provider-setup-pages-router)
+- [Usage in Components](#usage-in-components)
+- [API Route Example](#api-route-example)
+- [Automatic Token Management](#automatic-token-management)
+- [Troubleshooting](#troubleshooting)
+- [Security Best Practices](#security-best-practices)
+
+<img src="https://cdn.nebz.dev/csrf-armor/logo.jpeg" alt="CSRF Armor" />
 
 [![npm version](https://badge.fury.io/js/@csrf-armor%2Fnextjs.svg)](https://badge.fury.io/js/@csrf-armor%2Fnextjs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-13%2B-black.svg)](https://nextjs.org/)
 
-Complete CSRF protection for Next.js applications with App Router support, middleware integration, and React hooks.
+**Complete CSRF protection for Next.js applications with App Router and Pages Router support, middleware integration, and React hooks.**
 
-## Features
+Built for Next.js 12+ with support for both App Router and Pages Router, Edge Runtime compatibility, and modern React patterns.
 
-- ✅ **App Router & Pages Router** - Works with both Next.js routing systems
+## ✨ Features
+
 - 🛡️ **Multiple Security Strategies** - Choose from 5 different CSRF protection methods
-- 🪝 **React Hooks** - `useCsrf` hook for easy client-side integration
-- 🔄 **Automatic Token Management** - Handles token generation, validation, and refresh
-- 🚀 **Edge Runtime Compatible** - Works in Vercel Edge Runtime and other edge environments
-- 📱 **SSR & Client-Side** - Full support for server-side and client-side rendering
+- 🔄 **App Router & Pages Router** - Full support for both Next.js routing systems
+- 🪝 **React Hooks** - `useCsrf` hook for seamless client-side integration
+- ⚡ **Edge Runtime Compatible** - Works in Vercel Edge Runtime and serverless environments
 - 🎯 **TypeScript First** - Fully typed with comprehensive TypeScript support
-- ⚡ **High Performance** - Event-driven updates, no wasteful polling
+- 📱 **SSR & Client-Side** - Full support for server-side and client-side rendering
+- 🔄 **Automatic Token Management** - Smart token refresh and validation
 
 ---
 
-## Installation
+## 🚀 Quick Start
+
+The middleware setup works for both App Router and Pages Router. **Provider setup differs:**
+- App Router: Use `app/layout.tsx` with `CsrfProvider`.
+- Pages Router: Use `_app.tsx` with `CsrfProvider`.
+
+### 1. Installation
 
 ```bash
 npm install @csrf-armor/nextjs
@@ -29,791 +50,799 @@ yarn add @csrf-armor/nextjs
 pnpm add @csrf-armor/nextjs
 ```
 
----
-
-## Quick Start
-
-### 1. Create Middleware
-
-Create `middleware.ts` in your project root:
-
-```typescript
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { createCsrfMiddleware } from '@csrf-armor/nextjs';
-
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!, // Use a strong secret from env
-});
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  if (!result.success) {
-    // Log for security monitoring
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('CSRF validation failed:', {
-        url: request.url,
-        method: request.method,
-        reason: result.reason,
-        ip: request.ip,
-        userAgent: request.headers.get('user-agent'),
-      });
-    }
-
-    return new NextResponse('CSRF validation failed', { 
-      status: 403,
-      headers: { 'Content-Type': 'text/plain' }
-    });
-  }
-
-  return result.response;
-}
-
-export const config = {
-  matcher: [
-    // Protect all routes except static files and API routes that don't need protection
-    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
-  ],
-};
-```
-
-### 2. Add Environment Variable
+### 2. Environment Setup
 
 Add to your `.env.local`:
 
 ```bash
+# Generate with: openssl rand -base64 32
 CSRF_SECRET=your-super-secret-csrf-key-min-32-chars-long
 ```
 
-### 3. Setup Context Provider
+> **⚠️ Security Warning**: Never use a default or weak secret in production!
 
-First, wrap your app with the CSRF provider:
+### 3. Create Middleware
+
+Create `middleware.ts` in your project root:
 
 ```typescript
-// app/layout.tsx or your root component
-import { CsrfProvider } from '@csrf-armor/nextjs';
+import {NextResponse} from 'next/server';
+import type {NextRequest} from 'next/server';
+import {createCsrfMiddleware} from '@csrf-armor/nextjs';
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <CsrfProvider config={{ cookieName: 'csrf-token' }}>
-          {children}
-        </CsrfProvider>
-      </body>
-    </html>
-  );
+// Validate secret in production
+if (process.env.NODE_ENV === 'production' && !process.env.CSRF_SECRET) {
+    throw new Error('CSRF_SECRET environment variable is required in production');
+}
+
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' // Use 'strict' for higher security if cross-origin not needed
+    }
+});
+
+export async function middleware(request: NextRequest) {
+    const response = NextResponse.next();
+    const result = await csrfProtect(request, response);
+
+    if (!result.success) {
+        // Security logging
+        console.warn('CSRF validation failed:', {
+            url: request.url,
+            method: request.method,
+            reason: result.reason,
+            ip: request.ip || 'unknown',
+            userAgent: request.headers.get('user-agent') || 'unknown',
+        });
+
+        return NextResponse.json(
+            {error: 'CSRF validation failed'},
+            {status: 403}
+        );
+    }
+
+    return result.response;
 }
 ```
 
-### 4. Use in React Components
+### 4. Context Provider Setup (App Router)
 
-```typescript
+Wrap your app with the CSRF provider in `app/layout.tsx` (Next.js 13+ App Router):
+
+```typescript jsx
+// app/layout.tsx
+import {CsrfProvider} from '@csrf-armor/nextjs';
+import type {Metadata} from 'next';
+
+export const metadata: Metadata = {
+    title: 'Your App',
+    description: 'Your app description',
+};
+
+export default function RootLayout({children}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <html lang="en">
+        <body>
+        <CsrfProvider>{children}</CsrfProvider>
+        </body>
+        </html>
+    );
+}
+```
+
+### 4b. Context Provider Setup (Pages Router)
+
+Wrap your app in `_app.tsx` (Next.js 12+ Pages Router):
+
+```typescript jsx
+// pages/_app.tsx
+import {CsrfProvider} from '@csrf-armor/nextjs';
+
+export default function MyApp({Component, pageProps}) {
+    return (
+        <CsrfProvider>
+            <Component {...pageProps} />
+        </CsrfProvider>
+    );
+}
+```
+
+### 5. Usage in Components
+
+```typescript jsx
 'use client';
-import { useCsrf } from '@csrf-armor/nextjs';
+import {useCsrf} from '@csrf-armor/nextjs';
+import {useState} from 'react';
 
 export function ContactForm() {
-  const { csrfToken, csrfFetch, updateToken } = useCsrf();
+    const {csrfToken, csrfFetch} = useCsrf();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [message, setMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsSubmitting(true);
 
-    try {
-      const response = await csrfFetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.get('name'),
-          email: formData.get('email'),
-          message: formData.get('message'),
-        }),
-      });
+        try {
+            const formData = new FormData(e.currentTarget);
 
-      if (response.ok) {
-        alert('Message sent successfully!');
-      }
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    }
-  };
+            const response = await csrfFetch('/api/contact', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    message: formData.get('message'),
+                }),
+            });
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <input name="name" placeholder="Your Name" required />
-      <input name="email" type="email" placeholder="Your Email" required />
-      <textarea name="message" placeholder="Your Message" required />
-      <button type="submit">Send Message</button>
+            if (response.ok) {
+                setMessage('Message sent successfully!');
+                e.currentTarget.reset();
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            setMessage('Failed to send message. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-      {/* Optional: Manual token refresh */}
-      <button type="button" onClick={updateToken}>
-        Refresh CSRF Token
-      </button>
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <input
+                    name="name"
+                    placeholder="Your Name"
+                    required
+                    className="w-full p-2 border rounded"
+                />
+            </div>
+            <div>
+                <input
+                    name="email"
+                    type="email"
+                    placeholder="Your Email"
+                    required
+                    className="w-full p-2 border rounded"
+                />
+            </div>
+            <div>
+                <textarea
+                    name="message"
+                    placeholder="Your Message"
+                    required
+                    rows={4}
+                    className="w-full p-2 border rounded"
+                />
+            </div>
+            <button
+                type="submit"
+                disabled={isSubmitting || !csrfToken}
+                className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50">
+                {isSubmitting ? 'Sending...' : 'Send Message'}
+            </button>
 
-      {csrfToken && <small>Protected by CSRF token</small>}
-    </form>
-  );
+            {message && (
+                <div
+                    className={`p-2 rounded ${message.includes('success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {message}
+                </div>
+            )}
+        </form>
+    );
 }
 ```
 
-### 5. API Route Example
+### 6. API Route Example
 
 ```typescript
 // app/api/contact/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest, NextResponse} from 'next/server';
 
 export async function POST(request: NextRequest) {
-  // CSRF validation happens automatically in middleware
-  // If we reach here, the request is valid
-  
-  const data = await request.json();
-  
-  // Process the contact form...
-  console.log('Contact form data:', data);
-  
-  return NextResponse.json({ 
-    success: true, 
-    message: 'Contact form submitted successfully' 
-  });
+    try {
+        // CSRF validation happens automatically in middleware
+        const data = await request.json();
+
+        // Validate input
+        if (!data.name || !data.email || !data.message) {
+            return NextResponse.json(
+                {error: 'Missing required fields'},
+                {status: 400}
+            );
+        }
+
+        // Process the contact form
+        console.log('Contact form data:', data);
+        // Add your email sending logic here
+
+        return NextResponse.json({
+            success: true,
+            message: 'Contact form submitted successfully'
+        });
+    } catch (error) {
+        console.error('Contact form error:', error);
+        return NextResponse.json(
+            {error: 'Internal server error'},
+            {status: 500}
+        );
+    }
 }
 ```
 
 ---
 
-## Security Strategies
+## 🔄 Routing System Setup
 
-### 1. Signed Double Submit (Recommended)
+CSRF Armor supports both Next.js routing systems using the same root `middleware.ts` file. See [Quick Start](#quick-start).
 
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-});
-```
-
-**How it works:**
-- Unsigned token sent in response header and client-accessible cookie
-- Signed token stored in server-only httpOnly cookie for validation
-- Client reads unsigned token from client cookie and includes it in request headers
-- Server verifies signed server cookie contains same unsigned token as submitted
-
-**Security:** Combines the benefits of cryptographic signing with double-submit protection.
-Even if an attacker can read the client cookie, they cannot forge the server-side signed validation.
-
-**Best for:** High-security applications, financial services, e-commerce
-
-### 2. Double Submit Cookie
+### Universal Middleware (Both App Router & Pages Router)
 
 ```typescript
+// middleware.ts (project root) - works for both routing systems
+import {NextResponse} from 'next/server';
+import type {NextRequest} from 'next/server';
+import {createCsrfMiddleware} from '@csrf-armor/nextjs';
+
 const csrfProtect = createCsrfMiddleware({
-  strategy: 'double-submit',
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
 });
+
+export async function middleware(request: NextRequest) {
+    const response = NextResponse.next();
+    const result = await csrfProtect(request, response);
+
+    if (!result.success) {
+        return NextResponse.json(
+            {error: 'CSRF validation failed'},
+            {status: 403}
+        );
+    }
+
+    return result.response;
+}
+
+export const config = {
+    matcher: [
+        // Protect all routes except static files
+        '/((?!_next/static|_next/image|favicon.ico).*)',
+    ],
+};
 ```
 
-**How it works:**
-- Same token stored in cookie and sent in header
-- Relies on Same-Origin Policy for protection
+### App Router Provider Setup
 
-**Best for:** General web applications, content management systems
+```typescript jsx
+// app/layout.tsx
+import {CsrfProvider} from '@csrf-armor/nextjs';
 
-### 3. Signed Token
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-token',
-  secret: process.env.CSRF_SECRET!,
-  token: { expiry: 3600 }, // 1 hour
-});
+export default function RootLayout({children}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <html lang="en">
+        <body>
+        <CsrfProvider>{children}</CsrfProvider>
+        </body>
+        </html>
+    );
+}
 ```
 
-**How it works:**
-- HMAC-signed tokens with expiration
-- Stateless validation
+### Pages Router Provider Setup
 
-**Best for:** APIs, microservices, stateless applications
+```typescript jsx
+// pages/_app.tsx
+import type {AppProps} from 'next/app';
+import {CsrfProvider} from '@csrf-armor/nextjs';
 
-### 4. Origin Check
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'origin-check',
-  allowedOrigins: [
-    'https://yourdomain.com',
-    'https://www.yourdomain.com',
-  ],
-});
+export default function App({Component, pageProps}: AppProps) {
+    return (
+        <CsrfProvider>
+            <Component {...pageProps} />
+        </CsrfProvider>
+    );
+}
 ```
 
-**How it works:**
-- Validates Origin/Referer headers
-- Allows requests only from specified origins
+### Using Hooks in Both Routing Systems
 
-**Best for:** APIs with known client origins, mobile app backends
+The React hooks work identically in both App Router and Pages Router:
 
-### 5. Hybrid Protection
+```typescript jsx
+'use client'; // Only needed in App Router
 
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'hybrid',
-  secret: process.env.CSRF_SECRET!,
-  allowedOrigins: ['https://yourdomain.com'],
-});
+import {useCsrf} from '@csrf-armor/nextjs';
+
+export function ContactForm() {
+    const {csrfToken, csrfFetch} = useCsrf();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        try {
+            const response = await csrfFetch('/api/contact', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: 'Hello'}),
+            });
+
+            if (response.ok) {
+                console.log('Success!');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <input name="message" placeholder="Your message" />
+            <button type="submit">Send</button>
+        </form>
+    );
+}
 ```
-
-**How it works:**
-- Combines signed token + origin validation
-- Multiple layers of protection
-
-**Best for:** Maximum security requirements, enterprise applications
 
 ---
 
-## Configuration Options
+## 🛡️ Security Strategies
+
+Choose the strategy that best fits your security and performance requirements:
+
+| Strategy                   | Security | Performance | Best For         | Setup Complexity |
+|----------------------------|----------|-------------|------------------|------------------|
+| **Signed Double Submit** ⭐ | ⭐⭐⭐⭐⭐    | ⭐⭐⭐⭐        | Most web apps    | Medium           |
+| **Double Submit**          | ⭐⭐⭐      | ⭐⭐⭐⭐⭐       | Simple apps      | Easy             |
+| **Signed Token**           | ⭐⭐⭐⭐     | ⭐⭐⭐⭐        | APIs, SPAs       | Medium           |
+| **Origin Check**           | ⭐⭐⭐      | ⭐⭐⭐⭐⭐       | Known origins    | Easy             |
+| **Hybrid**                 | ⭐⭐⭐⭐⭐    | ⭐⭐⭐         | Maximum security | Hard             |
+
+### Signed Double Submit (Recommended)
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
+});
+```
+
+**How it works:**
+
+- Client receives unsigned token in response header and accessible cookie
+- Server stores signed token in httpOnly cookie
+- Client submits unsigned token, server verifies against signed cookie
+- Combines cryptographic protection with double-submit pattern
+
+**Best for:** E-commerce, financial services, general web applications
+
+### Double Submit Cookie
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'double-submit',
+});
+```
+
+**How it works:**
+
+- Same token stored in cookie and sent in header/form
+- Relies on Same-Origin Policy for protection
+
+**Best for:** Content management systems, internal tools
+
+### Signed Token
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'signed-token',
+    secret: process.env.CSRF_SECRET!,
+    token: {expiry: 3600}, // 1 hour
+});
+```
+
+**How it works:**
+
+- HMAC-signed tokens with expiration timestamps
+- Stateless validation using cryptographic signatures
+
+**Best for:** APIs, SPAs, microservices
+
+### Origin Check
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'origin-check',
+    allowedOrigins: [
+        'https://yourdomain.com',
+        'https://www.yourdomain.com',
+    ],
+});
+```
+
+**How it works:**
+
+- Validates Origin/Referer headers against whitelist
+- Lightweight validation with minimal overhead
+
+**Best for:** Mobile app backends, known client origins
+
+### Hybrid Protection
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'hybrid',
+    secret: process.env.CSRF_SECRET!,
+    allowedOrigins: ['https://yourdomain.com'],
+});
+```
+
+**How it works:**
+
+- Combines signed token validation with origin checking
+- Multiple layers of protection for maximum security
+
+**Best for:** Banking, healthcare, enterprise applications
+
+---
+
+## ⚙️ Configuration
+
+### Complete Configuration Reference
 
 ```typescript
 interface CsrfConfig {
-  strategy?: 'double-submit' | 'signed-double-submit' | 'signed-token' | 'origin-check' | 'hybrid';
-  secret?: string;                    // Required for signed strategies
-  
-  token?: {
-    expiry?: number;                  // Token expiry in seconds (default: 3600)
-    headerName?: string;              // Header name (default: 'x-csrf-token')
-    fieldName?: string;               // Form field name (default: 'csrf_token')
-  };
-  
-  cookie?: {
-    name?: string;                    // Cookie name (default: 'csrf-token')
-    secure?: boolean;                 // Secure flag (default: true in production)
-    httpOnly?: boolean;               // HttpOnly flag (default: false)
-    sameSite?: 'strict' | 'lax' | 'none'; // SameSite (default: 'lax')
-    path?: string;                    // Path (default: '/')
-    domain?: string;                  // Domain (optional)
-    maxAge?: number;                  // Max age in seconds (optional)
-  };
-  
-  allowedOrigins?: string[];          // Allowed origins for origin-check
-  excludePaths?: string[];            // Paths to exclude from protection
-  skipContentTypes?: string[];        // Content types to skip
+    strategy?: 'double-submit' | 'signed-double-submit' | 'signed-token' | 'origin-check' | 'hybrid';
+    secret?: string;                    // Required for signed strategies
+
+    token?: {
+        expiry?: number;                  // Token expiry in seconds (default: 3600)
+        headerName?: string;              // Header name (default: 'x-csrf-token')
+        fieldName?: string;               // Form field name (default: 'csrf_token')
+    };
+
+    cookie?: {
+        name?: string;                    // Cookie name (default: 'csrf-token')
+        secure?: boolean;                 // Secure flag (default: true in production)
+        httpOnly?: boolean;               // HttpOnly flag (default: false)
+        sameSite?: 'strict' | 'lax' | 'none'; // SameSite (default: 'lax')
+        path?: string;                    // Path (default: '/')
+        domain?: string;                  // Domain (optional)
+        maxAge?: number;                  // Max age in seconds (optional)
+    };
+
+    allowedOrigins?: string[];          // Allowed origins for origin-check
+    excludePaths?: string[];            // Paths to exclude from protection
+    skipContentTypes?: string[];        // Content types to skip
 }
+```
+
+### Environment-Specific Configuration
+
+```typescript
+// Development configuration
+const developmentConfig = {
+    strategy: 'double-submit' as const,
+    cookie: {
+        secure: false,      // Allow HTTP in development
+        sameSite: 'lax' as const
+    }
+};
+
+// Production configuration
+const productionConfig = {
+    strategy: 'signed-double-submit' as const,
+    secret: process.env.CSRF_SECRET!,
+    cookie: {
+        secure: true,       // HTTPS only
+        sameSite: 'strict' as const,
+        domain: '.yourdomain.com'
+    }
+};
+
+const csrfProtect = createCsrfMiddleware(
+    process.env.NODE_ENV === 'production'
+        ? productionConfig
+        : developmentConfig
+);
+```
+
+### Path Exclusions
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
+    excludePaths: [
+        '/api/webhooks',     // External webhooks
+        '/api/public',       // Public API endpoints
+        '/health',           // Health checks
+        '/api/auth/callback' // Auth callbacks
+    ],
+});
 ```
 
 ---
 
-## Advanced Usage
-
-### Custom Error Handling
-
-```typescript
-// middleware.ts
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  if (!result.success) {
-    // Custom error response
-    return NextResponse.json(
-      { 
-        error: 'CSRF validation failed',
-        reason: result.reason,
-        timestamp: new Date().toISOString()
-      },
-      { status: 403 }
-    );
-  }
-
-  return result.response;
-}
-```
-
-### Excluding Specific Paths
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-  excludePaths: [
-    '/api/webhooks',     // Webhook endpoints
-    '/api/public',       // Public API endpoints
-    '/health',           // Health check endpoints
-  ],
-});
-```
-
-### Custom Cookie Configuration
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-  cookie: {
-    name: 'my-csrf-token',
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: false,        // Allow client-side access
-    sameSite: 'strict',     // Strict same-site policy
-    path: '/',
-    maxAge: 60 * 60 * 24,  // 24 hours
-  },
-});
-```
-
-### Multiple CSRF Configurations
-
-```typescript
-// Different protection for different routes
-import { NextRequest, NextResponse } from 'next/server';
-import { createCsrfMiddleware } from '@csrf-armor/nextjs';
-
-const apiCsrf = createCsrfMiddleware({
-  strategy: 'signed-token',
-  secret: process.env.CSRF_SECRET!,
-});
-
-const webCsrf = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-});
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const pathname = request.nextUrl.pathname;
-  
-  let result;
-  if (pathname.startsWith('/api/')) {
-    result = await apiCsrf(request, response);
-  } else {
-    result = await webCsrf(request, response);
-  }
-
-  if (!result.success) {
-    return new NextResponse('CSRF validation failed', { status: 403 });
-  }
-
-  return result.response;
-}
-```
-
----
-
-## React Hooks API
+## 🪝 React Hooks API
 
 ### CsrfProvider
 
-Context provider that manages CSRF state with optimized performance.
+The context provider that manages CSRF state across your application.
 
 ```typescript
 interface CsrfProviderProps {
-  children: React.ReactNode;
-  config?: CsrfClientConfig;
+    children: React.ReactNode;
+    config?: CsrfClientConfig;
 }
 
 interface CsrfClientConfig {
-  cookieName?: string;    // Cookie name to read token from (default: 'csrf-token')
-  headerName?: string;    // Header name to send token in (default: 'x-csrf-token')
+    cookieName?: string;    // Cookie name to read token from (default: 'csrf-token')
+    headerName?: string;    // Header name to send token in (default: 'x-csrf-token')
+    autoRefresh?: boolean;  // Auto-refresh on focus/visibility (default: true)
 }
 ```
 
 **Features:**
+
 - ✅ Event-driven updates (no polling)
 - ✅ Automatic token refresh from response headers
 - ✅ Shared state across components
-- ✅ Optimized re-renders with useMemo
+- ✅ Performance optimized with React.memo
 
 **Usage:**
-```typescript
-<CsrfProvider config={{ cookieName: 'my-csrf', headerName: 'X-My-CSRF' }}>
-  <App />
+
+```typescript jsx
+<CsrfProvider config={{
+    cookieName: 'my-csrf',
+    headerName: 'X-My-CSRF',
+    autoRefresh: true
+}}>
+    <App/>
 </CsrfProvider>
 ```
 
-**Error Handling:**
-Throws error if used without provider:
-```typescript
-// ❌ This will throw
-const { csrfToken } = useCsrf(); // Error: must be within CsrfProvider
+### useCsrf Hook
 
-// ✅ Correct usage
-<CsrfProvider>
-  <MyComponent /> {/* useCsrf() works here */}
-</CsrfProvider>
-```
-
-### useCsrf()
-
-Hook for accessing CSRF functionality within a CsrfProvider.
+Main hook for accessing CSRF functionality.
 
 ```typescript
-const { csrfToken, csrfFetch, updateToken } = useCsrf();
+const {csrfToken, csrfFetch, updateToken} = useCsrf();
 ```
 
 **Returns:**
-- `csrfToken: string | null` - Current CSRF token (null if not available)
-- `csrfFetch: (input, init?) => Promise<Response>` - Fetch function with automatic CSRF headers
+
+- `csrfToken: string | null` - Current CSRF token
+- `csrfFetch: (input, init?) => Promise<Response>` - Fetch with automatic CSRF headers
 - `updateToken: () => void` - Manually refresh token
 
-**Automatic Updates:**
-- When user returns to tab (visibility change)
-- When window gains focus
-- When localStorage 'csrf-token' changes
-- When server responds with new token in headers
+**Example with Error Handling:**
 
-**Error Handling:**
-```typescript
-const { csrfFetch, updateToken } = useCsrf();
+```typescript jsx
+'use client';
+import {useCsrf} from '@csrf-armor/nextjs';
 
-try {
-  const response = await csrfFetch('/api/data', { method: 'POST' });
-  if (response.status === 403) {
-    // CSRF validation failed - token may be expired
-    updateToken(); // Refresh and retry
-  }
-} catch (error) {
-  console.error('Request failed:', error);
+export function DataForm() {
+    const {csrfToken, csrfFetch, updateToken, isLoading} = useCsrf();
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (data: any) => {
+        try {
+            setError(null);
+
+            const response = await csrfFetch('/api/data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data),
+            });
+
+            if (response.status === 403) {
+                // CSRF token might be expired
+                updateToken();
+                setError('Security token expired. Please try again.');
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            // Handle success
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'An error occurred');
+        }
+    };
+
+    if (isLoading) {
+        return <div>Loading security token ...</div>;
+    }
+
+    return (
+        <form onSubmit={handleSubmit}>
+            {error && <div className="error">{error}</div>}
+            {/* Form fields */}
+            <button type="submit" disabled={!csrfToken}>
+                Submit
+            </button>
+        </form>
+    )
 }
-```
-
-### Manual Token Management
-
-```typescript
-import { getCsrfToken, createCsrfHeaders, csrfFetch } from '@csrf-armor/nextjs';
-
-// Get current token
-const token = getCsrfToken();
-
-// Create headers manually
-const headers = createCsrfHeaders();
-
-// Use csrfFetch directly
-const response = await csrfFetch('/api/data', {
-  method: 'POST',
-  body: JSON.stringify({ data: 'example' }),
-});
 ```
 
 ---
 
-## TypeScript Support
+## 🔒 Security Best Practices
 
-Full TypeScript support with comprehensive type definitions:
+### 1. Strong Secret Management
+
+```bash
+# Generate a strong secret
+openssl rand -base64 32
+
+# Or using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
 
 ```typescript
-import type { 
-  CsrfConfig, 
-  CsrfStrategy, 
-  CsrfProtectResult,
-  CsrfClientConfig 
-} from '@csrf-armor/nextjs';
+// Validate secret at startup
+if (process.env.NODE_ENV === 'production') {
+    const secret = process.env.CSRF_SECRET;
+    if (!secret || secret.length < 32) {
+        throw new Error('CSRF_SECRET must be at least 32 characters in production');
+    }
+}
+```
 
-const config: CsrfConfig = {
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-  cookie: {
-    secure: true,
-    sameSite: 'strict',
-  },
+### 2. Cookie Security Configuration
+
+```typescript
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        sameSite: 'strict',    // Strictest protection
+        httpOnly: false,       // Required for client access
+        path: '/',
+        maxAge: 60 * 60 * 24,  // 24 hours
+        // For subdomains:
+        // domain: '.yourdomain.com'
+    },
+});
+```
+
+### 3. Security Headers
+
+```typescript
+// middleware.ts
+export async function middleware(request: NextRequest) {
+    const response = NextResponse.next();
+    const result = await csrfProtect(request, response);
+
+    if (result.success) {
+        // Add security headers
+        result.response.headers.set('X-Content-Type-Options', 'nosniff');
+        result.response.headers.set('X-Frame-Options', 'DENY');
+        result.response.headers.set('X-XSS-Protection', '1; mode=block');
+        result.response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    }
+
+    return result.response;
+}
+```
+
+---
+
+## 🔧 Advanced Usage
+
+### Multiple CSRF Strategies
+
+```typescript
+// middleware.ts
+import {createCsrfMiddleware} from '@csrf-armor/nextjs';
+
+const apiCsrf = createCsrfMiddleware({
+    strategy: 'signed-token',
+    secret: process.env.CSRF_SECRET!,
+    token: {expiry: 3600}
+});
+
+const webCsrf = createCsrfMiddleware({
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
+});
+
+export async function middleware(request: NextRequest) {
+    const response = NextResponse.next();
+    const {pathname} = request.nextUrl;
+
+    let result;
+    if (pathname.startsWith('/api/')) {
+        result = await apiCsrf(request, response);
+    } else {
+        result = await webCsrf(request, response);
+    }
+
+    return result.success ? result.response :
+        NextResponse.json({error: 'Forbidden'}, {status: 403});
+}
+```
+
+### Gradual Migration Strategy
+
+For large applications, migrate gradually:
+
+**Phase 1: Install and configure**
+
+```bash
+npm install @csrf-armor/nextjs
+```
+
+**Phase 2: Add middleware (affects only new routes)**
+
+```typescript
+// middleware.ts
+export const config = {
+    matcher: [
+        '/api/new/:path*',  // Only protect new API routes initially
+        '/dashboard/:path*', // And specific page sections
+    ],
+};
+```
+
+**Phase 3: Migrate API routes one by one**
+
+```typescript
+// Start with low-risk routes, then move to critical ones
+const protectedRoutes = [
+    '/api/user/profile',    // Low risk
+    '/api/settings',        // Medium risk  
+    '/api/payments',        // High risk - migrate last
+];
+```
+
+**Phase 4: Expand coverage**
+
+```typescript
+// Gradually expand matcher to cover all routes
+export const config = {
+    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)',],
 };
 ```
 
 ---
 
-## Error Handling
+## 🤝 Contributing
 
-### Common Error Scenarios
+We welcome contributions! Areas where help is needed:
 
-```typescript
-// Handle CSRF validation failures
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  if (!result.success) {
-    // Log to console or external service (Sentry, DataDog, etc.)
-    console.error('CSRF validation failed:', {
-      reason: result.reason,
-      url: request.url,
-      method: request.method,
-      userAgent: request.headers.get('user-agent'),
-    });
-
-    // Return appropriate error response
-    return NextResponse.json(
-      { error: 'CSRF validation failed' },
-      { status: 403 }
-    );
-  }
-
-  return result.response;
-}
-```
-
-### Client-Side Error Handling
-
-```typescript
-const { csrfFetch, updateToken } = useCsrf();
-
-try {
-  const response = await csrfFetch('/api/data', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      // CSRF validation failed - try refreshing token
-      console.warn('CSRF validation failed, refreshing token...');
-      updateToken();
-      // Optional: retry the request or reload page
-      // window.location.reload();
-    }
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const result = await response.json();
-  // Handle success...
-} catch (error) {
-  console.error('Request failed:', error);
-  // Handle error...
-}
-```
+- **Additional framework integrations**
+- **Performance optimizations**
+- **Security enhancements**
+- **Documentation improvements**
+- **Test coverage expansion**
 
 ---
 
-## Security Best Practices
-
-### 1. Strong Secrets
-
-```bash
-# Generate a strong secret (32+ characters)
-openssl rand -base64 32
-
-# In your .env.local
-CSRF_SECRET=your-generated-secret-here
-```
-
-> ### ⚠️ Never use the default secret in production!
-
-### 2. Environment-Specific Configuration
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-  },
-});
-
-// Add runtime secret validation
-if (process.env.NODE_ENV === 'production' && process.env.CSRF_SECRET === 'default-secret-change-this') {
-  throw new Error('CSRF_SECRET must be changed in production!');
-}
-```
-
-### 3. Cookie Security Configuration
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-  cookie: {
-    secure: true,                    // HTTPS only in production
-    sameSite: 'strict',             // Strongest protection
-    httpOnly: false,                // Must be false for client access
-    path: '/',                      
-    // Optional: domain-specific
-    domain: process.env.NODE_ENV === 'production' ? '.yourdomain.com' : undefined,
-  },
-});
-```
-
-**⚠️ Security Notes:**
-- `httpOnly: false` is required for client cookie access but creates XSS risk
-- Use `sameSite: 'strict'` for maximum protection (may break some integrations)
-- Always use `secure: true` in production (requires HTTPS)
-- Consider domain settings for subdomain cookie sharing
-
-### 4. Security Headers
-
-```typescript
-// middleware.ts - Add security headers
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  if (result.success) {
-    // Add additional security headers
-    result.response.headers.set('X-Content-Type-Options', 'nosniff');
-    result.response.headers.set('X-Frame-Options', 'DENY');
-    result.response.headers.set('X-XSS-Protection', '1; mode=block');
-  }
-
-  return result.response;
-}
-```
-
-### 5. Logging and Monitoring
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-});
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  if (!result.success) {
-    // Log security incidents
-    console.warn('CSRF validation failed', {
-      ip: request.ip,
-      userAgent: request.headers.get('user-agent'),
-      url: request.url,
-      reason: result.reason,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  return result.success ? result.response :
-    new NextResponse('Forbidden', { status: 403 });
-}
-```
-
----
-
-## Migration Guide
-
-### From Other CSRF Libraries
-
-If you're migrating from other CSRF protection libraries:
-
-1. **Remove old CSRF middleware**
-2. **Install @csrf-armor/nextjs**
-3. **Update middleware.ts**
-4. **Replace client-side CSRF code with hooks**
-
-### From Pages Router to App Router
-
-```typescript
-// Before (Pages Router with API routes)
-// pages/api/_middleware.ts or pages/api/[...all].ts
-
-// After (App Router)
-// middleware.ts in project root
-import { createCsrfMiddleware } from '@csrf-armor/nextjs';
-
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-});
-
-export async function middleware(request: NextRequest) {
-  // Middleware runs on all routes by default
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-  
-  return result.success ? result.response : 
-    new NextResponse('Forbidden', { status: 403 });
-}
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**1. "useCsrf must be used within a CsrfProvider"**
-- **Solution:** Wrap your app with `<CsrfProvider>`
-- Make sure the provider is above all components using `useCsrf()`
-
-**2. "No CSRF token found" with signed-double-submit**
-- Check that cookies are enabled in the browser
-- Verify the client cookie is not httpOnly
-- Ensure both client and server cookies are set correctly
-
-**3. Tokens not updating automatically**
-- The hooks use event-driven updates
-- Manual refresh: call `updateToken()` from the hook
-- Check browser console for JavaScript errors
-
-**4. "CSRF validation failed" on legitimate requests**
-- Ensure cookies are enabled in the browser
-- Check that the domain/path settings are correct
-- Verify the secret is consistent across deployments
-
-**5. Tokens not being included in requests**
-- Make sure you're using `csrfFetch` or manually adding headers
-- Check that the client cookie is accessible (httpOnly: false for client access)
-- Verify the component is client-side (`'use client'`)
-
-### Debug Mode
-
-```typescript
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-});
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  // Debug logging in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('CSRF Debug:', {
-      success: result.success,
-      reason: result.reason,
-      token: result.token,
-      method: request.method,
-      url: request.url,
-    });
-  }
-
-  return result.success ? result.response : 
-    new NextResponse('Forbidden', { status: 403 });
-}
-```
-
-### Client-Side Debugging
-
-```typescript
-import { getCsrfToken } from '@csrf-armor/nextjs';
-
-// Check if token is available
-const token = getCsrfToken();
-if (!token) {
-  console.warn('No CSRF token found. Make sure cookies are enabled.');
-}
-
-// Monitor token changes in development
-if (process.env.NODE_ENV === 'development') {
-  setInterval(() => {
-    const currentToken = getCsrfToken();
-    console.log('Current CSRF token:', currentToken);
-  }, 5000);
-}
-```
-
----
-
-## License
+## 📄 License
 
 MIT © [Muneeb Samuels](https://github.com/muneebs)
 
-## Related Packages
+## 📦 Related Packages
 
-- [@csrf-armor/core](../core) - Framework-agnostic CSRF protection
+- **[@csrf-armor/core](../core)** - Framework-agnostic CSRF protection
 
 ---
 
-## 🙏 Acknowledgements
-
-This project is inspired by the excellent work done by [@amorey](https://github.com/amorey) on [edge-csrf](https://github.com/amorey/edge-csrf). Their approach to CSRF protection in edge environments has significantly influenced the development of csrf-armor.
+**Questions?** [Open an issue](https://github.com/muneebs/csrf-armor/issues)
+or [start a discussion](https://github.com/muneebs/csrf-armor/discussions)!
