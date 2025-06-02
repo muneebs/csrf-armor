@@ -1,6 +1,6 @@
 ---
-"@csrf-protect/core": patch
-"@csrf-protect/nextjs": patch
+"@csrf-armor/core": patch
+"@csrf-armor/nextjs": patch
 ---
 
 - Updated core CSRF logic, constants, types, and validation.
