@@ -1,0 +1,46 @@
+{
+  "name": "@csrf-armor/express",
+  "version": "0.0.1",
+  "description": "Express.js adapter for CSRF Armor - Advanced CSRF protection for Express.js applications",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src/",
+    "format": "biome format src/ --write"
+  },
+  "keywords": [
+    "csrf",
+    "security",
+    "express",
+    "middleware",
+    "csrf-protection"
+  ],
+  "author": "Muneeb Samuels",
+  "license": "MIT",
+  "dependencies": {
+    "@csrf-armor/core": "workspace:*",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "tsdown": "^0.12.6",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "peerDependencies": {
+    "express": "^4.x"
+  },
+  "module": "./dist/index.js"
+}
