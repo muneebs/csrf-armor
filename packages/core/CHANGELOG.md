@@ -1,5 +1,13 @@
 # @csrf-armor/core
 
+## 1.0.2
+
+### Patch Changes
+
+- [`29cc7dfbb28b9b3990b193375fef333f15c2c31d`](https://github.com/muneebs/csrf-armor/commit/29cc7dfbb28b9b3990b193375fef333f15c2c31d) - add adapter tests and update middleware test with mocked adapter
+
+- [`19dab6865f5d66123e20c01a9eff0eaefee5812c`](https://github.com/muneebs/csrf-armor/commit/19dab6865f5d66123e20c01a9eff0eaefee5812c) - Enhance CsrfRequest interface and update NextjsAdapter to handle headers and body correctly
+
 ## 1.0.1
 
 ### Patch Changes
