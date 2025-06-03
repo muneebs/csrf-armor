@@ -136,7 +136,9 @@ strategies.forEach((strategy) => {
   });
 
   app.post(`/submit/${strategy}`, (req, res) => {
-    const sanitizedData = req.body.data.replace(/[\n\r]/g, '');
+    const sanitizedData = req.body.data
+      ? String(req.body.data).replace(/[\n\r]/g, '')
+      : '';
     console.log(`Data submitted with ${strategy} strategy:`, sanitizedData);
     res.send(
       `Form submitted successfully using <strong>${strategy}</strong> strategy! <br><a href="/demo/${strategy}">Go Back</a> <br><a href="/">Strategy List</a>`
