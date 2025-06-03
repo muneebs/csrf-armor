@@ -71,7 +71,7 @@ export interface TokenPayload {
 export interface CsrfRequest {
   method: string;
   url: string;
-  headers: Map<string, string> | Record<string, string>;
+  headers: Map<string, string> | Record<string, string> | Headers;
   cookies: Map<string, string> | Record<string, string>;
   body?: unknown;
 }
