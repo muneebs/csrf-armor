@@ -104,24 +104,6 @@ app.use(async (req, res, next) => {
 
 ### Next.js
 
-```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { CsrfAdapter, createCsrfProtection } from '@csrf-armor/core';
-
-// Simplified NextJS adapter (full implementation in docs)
-export async function middleware(request: NextRequest) {
-  const csrfProtection = createCsrfProtection(adapter, {
-    strategy: 'signed-double-submit',
-    secret: process.env.CSRF_SECRET!
-  });
-
-  const response = NextResponse.next();
-  const result = await csrfProtection.protect(request, response);
-  
-  return result.success ? result.response : new NextResponse('Forbidden', { status: 403 });
-}
-```
-
 > **💡 Complete Next.js solution**: [@csrf-armor/nextjs](../nextjs) with React hooks and simplified setup.
 
 **🔌 More framework examples and adapters**: [Advanced Configuration Guide →](./docs/ADVANCED.md)
