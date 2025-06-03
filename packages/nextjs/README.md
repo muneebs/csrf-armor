@@ -1,16 +1,5 @@
 # @csrf-armor/nextjs
 
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Routing System Setup](#routing-system-setup)
-- [Context Provider Setup (App Router)](#context-provider-setup-app-router)
-- [Context Provider Setup (Pages Router)](#context-provider-setup-pages-router)
-- [Usage in Components](#usage-in-components)
-- [API Route Example](#api-route-example)
-- [Automatic Token Management](#automatic-token-management)
-- [Troubleshooting](#troubleshooting)
-- [Security Best Practices](#security-best-practices)
-
 <img src="https://cdn.nebz.dev/csrf-armor/logo.jpeg" alt="CSRF Armor" />
 
 [![npm version](https://badge.fury.io/js/@csrf-armor%2Fnextjs.svg)](https://badge.fury.io/js/@csrf-armor%2Fnextjs)
@@ -21,6 +10,17 @@
 **Complete CSRF protection for Next.js applications with App Router and Pages Router support, middleware integration, and React hooks.**
 
 Built for Next.js 12+ with support for both App Router and Pages Router, Edge Runtime compatibility, and modern React patterns.
+
+## Contents
+
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Routing System Setup](#-routing-system-setup)
+- [Context Provider Setup (App Router)](#4-context-provider-setup-app-router)
+- [Context Provider Setup (Pages Router)](#4b-context-provider-setup-pages-router)
+- [Usage in Components](#5-usage-in-components)
+- [API Route Example](#6-api-route-example)
+- [Security Best Practices](#-security-best-practices)
 
 ## ✨ Features
 
@@ -161,59 +161,23 @@ import {useState} from 'react';
 
 export function ContactForm() {
     const {csrfToken, csrfFetch} = useCsrf();
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState('');
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-
-        try {
-            const formData = new FormData(e.currentTarget);
-
-            const response = await csrfFetch('/api/contact', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    name: formData.get('name'),
-                    email: formData.get('email'),
-                    message: formData.get('message'),
-                }),
-            });
-
-            if (response.ok) {
-                setMessage('Message sent successfully!');
-                e.currentTarget.reset();
-            } else {
-                throw new Error(`HTTP ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            setMessage('Failed to send message. Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
+        const formData = new FormData(e.currentTarget);
+        const response = await csrfFetch('/api/contact', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: formData.get('name'),
+                email: formData.get('email'),
+                message: formData.get('message'),
+            }),
+        });
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-                <input
-                    name="name"
-                    placeholder="Your Name"
-                    required
-                    className="w-full p-2 border rounded"
-                />
-            </div>
-            <div>
-                <input
-                    name="email"
-                    type="email"
-                    placeholder="Your Email"
-                    required
-                    className="w-full p-2 border rounded"
-                />
-            </div>
             <div>
                 <textarea
                     name="message"
@@ -225,17 +189,10 @@ export function ContactForm() {
             </div>
             <button
                 type="submit"
-                disabled={isSubmitting || !csrfToken}
+                disabled={!csrfToken}
                 className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50">
                 {isSubmitting ? 'Sending...' : 'Send Message'}
             </button>
-
-            {message && (
-                <div
-                    className={`p-2 rounded ${message.includes('success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {message}
-                </div>
-            )}
         </form>
     );
 }
@@ -244,37 +201,11 @@ export function ContactForm() {
 ### 6. API Route Example
 
 ```typescript
-// app/api/contact/route.ts
+// app/api/your-route
 import {NextRequest, NextResponse} from 'next/server';
 
 export async function POST(request: NextRequest) {
-    try {
-        // CSRF validation happens automatically in middleware
-        const data = await request.json();
-
-        // Validate input
-        if (!data.name || !data.email || !data.message) {
-            return NextResponse.json(
-                {error: 'Missing required fields'},
-                {status: 400}
-            );
-        }
-
-        // Process the contact form
-        console.log('Contact form data:', data);
-        // Add your email sending logic here
-
-        return NextResponse.json({
-            success: true,
-            message: 'Contact form submitted successfully'
-        });
-    } catch (error) {
-        console.error('Contact form error:', error);
-        return NextResponse.json(
-            {error: 'Internal server error'},
-            {status: 500}
-        );
-    }
+    // CSRF validation happens automatically in middleware
 }
 ```
 
@@ -367,8 +298,7 @@ export function ContactForm() {
     const {csrfToken, csrfFetch} = useCsrf();
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
+        //...
         try {
             const response = await csrfFetch('/api/contact', {
                 method: 'POST',
@@ -625,60 +555,6 @@ const {csrfToken, csrfFetch, updateToken} = useCsrf();
 - `csrfFetch: (input, init?) => Promise<Response>` - Fetch with automatic CSRF headers
 - `updateToken: () => void` - Manually refresh token
 
-**Example with Error Handling:**
-
-```typescript jsx
-'use client';
-import {useCsrf} from '@csrf-armor/nextjs';
-
-export function DataForm() {
-    const {csrfToken, csrfFetch, updateToken, isLoading} = useCsrf();
-    const [error, setError] = useState<string | null>(null);
-
-    const handleSubmit = async (data: any) => {
-        try {
-            setError(null);
-
-            const response = await csrfFetch('/api/data', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data),
-            });
-
-            if (response.status === 403) {
-                // CSRF token might be expired
-                updateToken();
-                setError('Security token expired. Please try again.');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const result = await response.json();
-            // Handle success
-        } catch (error) {
-            setError(error instanceof Error ? error.message : 'An error occurred');
-        }
-    };
-
-    if (isLoading) {
-        return <div>Loading security token ...</div>;
-    }
-
-    return (
-        <form onSubmit={handleSubmit}>
-            {error && <div className="error">{error}</div>}
-            {/* Form fields */}
-            <button type="submit" disabled={!csrfToken}>
-                Submit
-            </button>
-        </form>
-    )
-}
-```
-
 ---
 
 ## 🔒 Security Best Practices
@@ -776,48 +652,6 @@ export async function middleware(request: NextRequest) {
     return result.success ? result.response :
         NextResponse.json({error: 'Forbidden'}, {status: 403});
 }
-```
-
-### Gradual Migration Strategy
-
-For large applications, migrate gradually:
-
-**Phase 1: Install and configure**
-
-```bash
-npm install @csrf-armor/nextjs
-```
-
-**Phase 2: Add middleware (affects only new routes)**
-
-```typescript
-// middleware.ts
-export const config = {
-    matcher: [
-        '/api/new/:path*',  // Only protect new API routes initially
-        '/dashboard/:path*', // And specific page sections
-    ],
-};
-```
-
-**Phase 3: Migrate API routes one by one**
-
-```typescript
-// Start with low-risk routes, then move to critical ones
-const protectedRoutes = [
-    '/api/user/profile',    // Low risk
-    '/api/settings',        // Medium risk  
-    '/api/payments',        // High risk - migrate last
-];
-```
-
-**Phase 4: Expand coverage**
-
-```typescript
-// Gradually expand matcher to cover all routes
-export const config = {
-    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)',],
-};
 ```
 
 ---

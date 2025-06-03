@@ -38,87 +38,6 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 
 ---
 
-## 🚀 Quick Start
-
-### Next.js App Router
-
-```bash
-npm install @csrf-armor/nextjs
-```
-
-```typescript
-// middleware.ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { createCsrfMiddleware } from '@csrf-armor/nextjs';
-
-const csrfProtect = createCsrfMiddleware({
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!,
-});
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const result = await csrfProtect(request, response);
-
-  if (!result.success) {
-    return new NextResponse('CSRF validation failed', { status: 403 });
-  }
-
-  return result.response;
-}
-
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-};
-```
-
-```typescript jsx
-// app/layout.tsx
-import { CsrfProvider } from '@csrf-armor/nextjs';
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html>
-      <body>
-        <CsrfProvider>
-          {children}
-        </CsrfProvider>
-      </body>
-    </html>
-  );
-}
-
-// components/MyForm.tsx
-'use client';
-import { useCsrf } from '@csrf-armor/nextjs';
-
-export function MyForm() {
-  const { csrfToken, csrfFetch } = useCsrf();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const response = await csrfFetch('/api/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'John' }),
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <input type="text" name="name" required />
-      <button type="submit">Submit</button>
-    </form>
-  );
-}
-```
----
-
 ## 🛡️ Security Strategies
 
 ### 1. Signed Token Strategy
@@ -353,7 +272,7 @@ const config = {
 };
 
 // Check secret is set
-if (!config.secret || config.secret === 'default-secret-change-this') {
+if (!config.secret) {
   throw new Error('❌ CSRF secret not properly configured!');
 }
 
