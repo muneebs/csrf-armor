@@ -14,5 +14,4 @@ export {
   signUnsignedToken,
   verifySignedToken,
 } from '@csrf-armor/core';
-export * from './client';
 export { createCsrfMiddleware } from './middleware.js';
