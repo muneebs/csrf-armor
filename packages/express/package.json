@@ -15,7 +15,10 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "pretest": "cd ../core && pnpm run build",
     "test": "vitest run",
+    "pretest:coverage": "cd ../core && pnpm run build",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src/",
     "format": "biome format src/ --write"
