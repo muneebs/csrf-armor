@@ -601,6 +601,10 @@ const dangerousExclusions = {
 };
 ```
 
+### Additional Security Resources
+
+- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+
 This security analysis provides comprehensive coverage of CSRF Armor's security model, best practices, and deployment
 considerations. Regular updates to this document ensure continued alignment with evolving security threats and industry
 standards.
