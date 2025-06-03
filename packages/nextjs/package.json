@@ -1,77 +1,69 @@
 {
-	"name": "@csrf-armor/nextjs",
-	"version": "1.0.0",
-	"description": "CSRF protection middleware for Next.js applications",
-	"type": "module",
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		},
-		"./client": {
-			"types": "./dist/client.d.ts",
-			"import": "./dist/client.js"
-		},
-		"./react": {
-			"types": "./dist/react.d.ts",
-			"import": "./dist/react.js"
-		}
-	},
-	"files": [
-		"dist",
-		"README.md"
-	],
-	"scripts": {
-		"build": "tsc -b tsconfig.json --verbose",
-		"pretest": "cd ../core && pnpm run build",
-		"test": "vitest --run",
-		"pretest:coverage": "cd ../core && pnpm run build",
-		"test:coverage": "vitest run --coverage",
-		"test:watch": "vitest",
-		"type-check": "tsc --noEmit",
-		"clean": "rm -rf dist tsconfig.tsbuildinfo"
-	},
-	"keywords": [
-		"nextjs",
-		"csrf",
-		"security",
-		"middleware",
-		"protection",
-		"app-router",
-		"react"
-	],
-	"author": "Muneeb Samuels",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/muneebs/csrf-armor",
-		"directory": "packages/nextjs"
-	},
-	"publishConfig": {
-		"access": "public",
-		"registry": "https://registry.npmjs.org/"
-	},
-	"bugs": {
-		"url": "https://github.com/muneebs/csrf-armor/issues"
-	},
-	"homepage": "https://github.com/muneebs/csrf-armor#readme",
-	"engines": {
-		"node": ">=18.0.0"
-	},
-	"dependencies": {
-		"@csrf-armor/core": "workspace:*"
-	},
-	"peerDependencies": {
-		"next": "^13.0.0 || ^14.0.0 || ^15.0.0",
-		"react": "^18.2.0 || ^19.0.0"
-	},
-	"devDependencies": {
-		"@testing-library/jest-dom": "^6.6.3",
-		"@testing-library/react": "^16.3.0",
-		"@types/react": "^19.1.6",
-		"next": "^15.0.0",
-		"@typescript/native-preview": "^7.0.0-dev.20250523.1"
-	}
+  "name": "@csrf-armor/nextjs",
+  "version": "1.0.0",
+  "description": "CSRF protection middleware for Next.js applications",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "pretest": "cd ../core && pnpm run build",
+    "test": "vitest --run",
+    "pretest:coverage": "cd ../core && pnpm run build",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "nextjs",
+    "csrf",
+    "security",
+    "middleware",
+    "protection",
+    "app-router",
+    "react"
+  ],
+  "author": "Muneeb Samuels",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muneebs/csrf-armor",
+    "directory": "packages/nextjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/muneebs/csrf-armor/issues"
+  },
+  "homepage": "https://github.com/muneebs/csrf-armor#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@csrf-armor/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": "^13.0.0 || ^14.0.0 || ^15.0.0",
+    "react": "^18.2.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.6",
+    "next": "^15.0.0",
+    "tsdown": "^0.12.6",
+    "typescript": "^5"
+  },
+  "module": "./dist/index.js"
 }

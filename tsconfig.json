@@ -3,7 +3,7 @@
     "target": "ES2020",
     "module": "ESNext",
     "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "allowJs": true,
@@ -21,16 +21,9 @@
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": false
   },
   "include": [],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "coverage"
-  ],
-  "references": [
-    { "path": "packages/core" },
-    { "path": "packages/nextjs" }
-  ]
+  "exclude": ["node_modules", "dist", "coverage"],
+  "references": [{ "path": "packages/core" }, { "path": "packages/nextjs" }]
 }

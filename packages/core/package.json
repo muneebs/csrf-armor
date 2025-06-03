@@ -1,55 +1,55 @@
 {
-	"name": "@csrf-armor/core",
-	"version": "1.0.0",
-	"description": "Framework-agnostic CSRF protection core functionality",
-	"type": "module",
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		}
-	},
-	"files": [
-		"dist",
-		"README.md"
-	],
-	"scripts": {
-		"build": "tsc",
-		"test": "vitest --run",
-		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage",
-		"type-check": "tsc --noEmit",
-		"clean": "rm -rf dist tsconfig.tsbuildinfo"
-	},
-	"keywords": [
-		"csrf",
-		"security",
-		"protection",
-		"framework-agnostic",
-		"token",
-		"validation"
-	],
-	"author": "Muneeb Samuels",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/muneebs/csrf-armor",
-		"directory": "packages/core"
-	},
-	"publishConfig": {
-		"access": "public",
-		"registry": "https://registry.npmjs.org/"
-	},
-	"bugs": {
-		"url": "https://github.com/muneebs/csrf-armor/issues"
-	},
-	"homepage": "https://github.com/muneebs/csrf-armor#readme",
-	"engines": {
-		"node": ">=18.0.0"
-	},
-	"devDependencies": {
-		"@typescript/native-preview": "^7.0.0-dev.20250523.1"
-	}
+  "name": "@csrf-armor/core",
+  "version": "1.0.0",
+  "description": "Framework-agnostic CSRF protection core functionality",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "csrf",
+    "security",
+    "protection",
+    "framework-agnostic",
+    "token",
+    "validation"
+  ],
+  "author": "Muneeb Samuels",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muneebs/csrf-armor",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/muneebs/csrf-armor/issues"
+  },
+  "homepage": "https://github.com/muneebs/csrf-armor#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "tsdown": "^0.12.6",
+    "typescript": "^5"
+  },
+  "module": "./dist/index.js"
 }
