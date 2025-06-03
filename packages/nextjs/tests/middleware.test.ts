@@ -1,7 +1,8 @@
-import { verifySignedToken } from '@csrf-armor/core';
+import { verifySignedToken, createCsrfProtection } from '@csrf-armor/core';
 import { NextRequest, NextResponse } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createCsrfMiddleware } from '../src';
+import { NextjsAdapter } from '../src/adapter.js';
 
 describe('CSRF Middleware', () => {
   it('should allow GET requests without validation', async () => {
@@ -17,19 +18,34 @@ describe('CSRF Middleware', () => {
   });
 
   it('should validate POST requests', async () => {
-    const csrfProtect = createCsrfMiddleware({
+    // Create a test middleware with direct access to the adapter
+    const adapter = new NextjsAdapter();
+    vi.spyOn(adapter, 'extractRequest').mockImplementation((req) => {
+      // Create a properly structured CsrfRequest with origin header
+      return {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([
+          ['origin', 'http://localhost']
+        ]),
+        cookies: new Map(),
+        body: req.body
+      };
+    });
+    
+    // Create middleware with our mocked adapter
+    const csrfProtection = createCsrfProtection(adapter, {
       strategy: 'origin-check',
       allowedOrigins: ['http://localhost'],
     });
-
+    
     const request = new NextRequest('http://localhost/api', {
       method: 'POST',
-      headers: { origin: 'http://localhost' },
     });
     const response = NextResponse.next();
-
-    const result = await csrfProtect(request, response);
-
+    
+    const result = await csrfProtection.protect(request, response);
+    
     expect(result.success).toBe(true);
   });
 
