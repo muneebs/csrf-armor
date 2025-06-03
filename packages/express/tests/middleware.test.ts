@@ -328,7 +328,7 @@ describe('CSRF Middleware', () => {
       expect(mockNext).not.toHaveBeenCalledWith(expect.any(Error));
     });
 
-    it('should use custom token fieldName', async () => {
+    it('should use custom token fieldName and cookie name in full request cycle', async () => {
       const cookieName = 'csrf-token';
       const fieldName = 'xsrf';
 

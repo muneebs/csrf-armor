@@ -33,10 +33,24 @@ const commonConfig = {
 };
 
 // Helper function to generate HTML for the form page
+// Helper function to escape HTML special characters to prevent XSS
+function escapeHtml(unsafe) {
+  if (unsafe === undefined || unsafe === null) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function getDemoPageHtml(strategy, csrfToken) {
+  // Escape values to prevent XSS
+  const safeStrategy = escapeHtml(strategy);
+  const safeToken = escapeHtml(csrfToken);
   let tokenInfo = '';
   if (strategy !== 'origin-check') {
-    tokenInfo = `<p>CSRF Token: <code>${csrfToken || 'N/A (token might be in cookie or not used directly in form)'}</code></p>`;
+    tokenInfo = `<p>CSRF Token: <code>${safeToken || 'N/A (token might be in cookie or not used directly in form)'}</code></p>`;
   }
 
   let notes = '';
@@ -63,15 +77,18 @@ function getDemoPageHtml(strategy, csrfToken) {
       break;
   }
 
+  // Safely escape the field name as well
+  const safeFieldName = escapeHtml(commonConfig.token.fieldName);
+  
   return `
-    <h1>CSRF Armor Express Example: <code>${strategy}</code> Strategy</h1>
+    <h1>CSRF Armor Express Example: <code>${safeStrategy}</code> Strategy</h1>
     <p><a href="/">Back to Strategy List</a></p>
     ${tokenInfo}
-    <form action="/submit/${strategy}" method="POST">
-      ${strategy !== 'origin-check' ? `<input type="hidden" name="${commonConfig.token.fieldName}" value="${csrfToken || ''}">` : ''}
+    <form action="/submit/${safeStrategy}" method="POST">
+      ${strategy !== 'origin-check' ? `<input type="hidden" name="${safeFieldName}" value="${safeToken || ''}">` : ''}
       <label for="data">Enter some data:</label>
-      <input type="text" id="data" name="data" value="Hello ${strategy} CSRF">
-      <button type="submit">Submit with ${strategy}</button>
+      <input type="text" id="data" name="data" value="Hello ${safeStrategy} CSRF">
+      <button type="submit">Submit with ${safeStrategy}</button>
     </form>
     ${notes}
     <hr>
@@ -132,15 +149,31 @@ app.get('/', (req, res) => {
 
 // Global error handler for CSRF errors (and others)
 app.use((err, req, res, next) => {
+  // Sanitize inputs for logging to prevent log injection
+  const sanitizedMessage = err.message ? 
+    String(err.message).replace(/[\n\r]/g, ' ') : 'Unknown error';
+  const sanitizedPath = req.path ? 
+    String(req.path).replace(/[\n\r]/g, ' ') : 'Unknown path';
+    
   if (err.code === 'CSRF_VERIFICATION_ERROR') {
-    console.error('CSRF Error:', err.message, 'Strategy:', req.path); // Log which strategy path caused error
+    // Safe logging with sanitized values
+    console.error('CSRF Error:', sanitizedMessage, 'Strategy:', sanitizedPath);
+    
+    // Use the escapeHtml function we defined earlier to prevent XSS in the response
+    const safeMessage = escapeHtml(err.message);
+    const safePath = escapeHtml(req.path);
+    
     res
       .status(403)
       .send(
-        `CSRF token validation failed for path ${req.path}: ${err.message} <br><a href="/">Try another strategy</a>`
+        `CSRF token validation failed for path ${safePath}: ${safeMessage} <br><a href="/">Try another strategy</a>`
       );
   } else {
-    console.error(err.stack);
+    // For other errors, don't expose details to the client
+    console.error('Server Error:', sanitizedMessage);
+    if (err.stack) {
+      console.error(String(err.stack).replace(/[\n\r]/g, '\n'));
+    }
     res.status(500).send('Something broke!');
   }
 });

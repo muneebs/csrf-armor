@@ -11,10 +11,27 @@ export class ExpressAdapter
   implements CsrfAdapter<express.Request, express.Response>
 {
   extractRequest(req: express.Request): CsrfRequest {
+    // Create a Map for headers with proper type handling
+    const headers = new Map<string, string>();
+    
+    // Safely process headers, handling string, string[], and undefined values
+    if (req.headers) {
+      Object.entries(req.headers).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          // Join array values into a single string
+          headers.set(key.toLowerCase(), value.join(', '));
+        } else if (value !== undefined) {
+          // Set string values directly
+          headers.set(key.toLowerCase(), value);
+        }
+        // Skip undefined values
+      });
+    }
+    
     return {
       method: req.method,
       url: req.url,
-      headers: new Map(Object.entries(req.headers as Record<string, string>)),
+      headers,
       cookies: new Map(Object.entries(req.cookies ?? {})),
       body: req.body,
     };
