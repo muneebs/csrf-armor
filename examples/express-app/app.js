@@ -37,7 +37,7 @@ const commonConfig = {
  *
  * The page displays the current CSRF strategy, shows the CSRF token if applicable, provides explanatory notes about the strategy, and renders a form for submitting test data. For strategies that require a CSRF token, the token is included as a hidden input field.
  *
- * @returns {string} HTML markup for the demo form page.
+ * @returns {string} HTML markup for the demo form page
  * @param unsafe
  */
 // Helper function to generate HTML for the form page
@@ -157,7 +157,7 @@ app.get('/', (req, res) => {
 });
 
 // Global error handler for CSRF errors (and others)
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   // Sanitize inputs for logging to prevent log injection
   const sanitizedMessage = err.message
     ? String(err.message).replace(/[\n\r]/g, ' ')
@@ -170,6 +170,22 @@ app.use((err, req, res, next) => {
     // Safe logging with sanitized values
     console.error('CSRF Error:', sanitizedMessage, 'Strategy:', sanitizedPath);
 
+    // Use the escapeHtml function to prevent XSS in the response
+    const safeMessage = escapeHtml(err.message);
+    const safePath = escapeHtml(req.path);
+
+    // Return 403 Forbidden for CSRF errors
+    res
+      .status(403)
+      .send(
+        `CSRF token validation failed for path ${safePath}: ${safeMessage} <br><a href="/">Try another strategy</a>`
+      );
+  } else {
+    // For other errors, log them and send a generic error response
+    console.error('Server Error:', sanitizedMessage);
+    if (err.stack) {
+      console.error(String(err.stack).replace(/[\n\r]/g, '\n'));
+    }
     res.status(500).send('Something broke!');
   }
 });
