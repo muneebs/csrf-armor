@@ -163,7 +163,7 @@ app.use((err, req, res, next) => {
     ? String(err.message).replace(/[\n\r]/g, ' ')
     : 'Unknown error';
   const sanitizedPath = req.path
-    ? String(req.path).replace(/[\n\r]/g, ' ')
+    ? encodeURIComponent(String(req.path).replace(/[\n\r]/g, ' '))
     : 'Unknown path';
 
   if (err.code === 'CSRF_VERIFICATION_ERROR') {
