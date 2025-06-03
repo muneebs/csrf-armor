@@ -32,7 +32,15 @@ const commonConfig = {
   allowedOrigins: [`http://localhost:${port}`], // For origin-check and hybrid
 };
 
-// Helper function to generate HTML for the form page
+/**
+ * Generates an HTML page for demonstrating a CSRF protection strategy form.
+ *
+ * The page displays the current CSRF strategy, shows the CSRF token if applicable, provides explanatory notes about the strategy, and renders a form for submitting test data. For strategies that require a CSRF token, the token is included as a hidden input field.
+ *
+ * @param {string} strategy - The CSRF protection strategy being demonstrated.
+ * @param {string} [csrfToken] - The CSRF token to include in the form, if required by the strategy.
+ * @returns {string} HTML markup for the demo form page.
+ */
 function getDemoPageHtml(strategy, csrfToken) {
   let tokenInfo = '';
   if (strategy !== 'origin-check') {

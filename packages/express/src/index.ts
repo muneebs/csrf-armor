@@ -8,6 +8,16 @@ import { ExpressAdapter } from './adapter.js';
 
 export type { ExpressAdapter };
 
+/**
+ * Creates Express middleware that enforces CSRF protection on incoming requests.
+ *
+ * If CSRF validation succeeds, attaches the CSRF token (if present) to `req.csrfToken` and proceeds to the next middleware. If validation fails, throws a `CsrfError` with an error code of `'CSRF_VERIFICATION_ERROR'`.
+ *
+ * @param config - Optional CSRF protection configuration.
+ * @returns An asynchronous Express middleware function that validates CSRF tokens.
+ *
+ * @throws {CsrfError} If CSRF token validation fails for the request.
+ */
 export function csrfMiddleware(config?: CsrfConfig) {
   const adapter = new ExpressAdapter();
   const protection = createCsrfProtection(adapter, config);
