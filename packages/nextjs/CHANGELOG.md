@@ -1,5 +1,11 @@
 # @csrf-armor/nextjs
 
+## 1.1.0
+
+### Minor Changes
+
+- [`193281c5a7c82a6fe54fd205c70c4f736db11c66`](https://github.com/muneebs/csrf-armor/commit/193281c5a7c82a6fe54fd205c70c4f736db11c66) - move client-side code to dedicated /client directory for better tree-shaking
+
 ## 1.0.1
 
 ### Patch Changes
