@@ -27,7 +27,7 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 | Package                                      | Description                      | Install                     |
 |----------------------------------------------|----------------------------------|-----------------------------|
 | **[@csrf-armor/nextjs](./packages/nextjs)**  | Next.js App Router middleware    | `npm i @csrf-armor/nextjs`  |
-| **[@csrf-armor/express](./packages/nextjs)** | Express.js middleware | `npm i @csrf-armor/express` |
+| **[@csrf-armor/express](./packages/express)** | Express.js middleware | `npm i @csrf-armor/express` |
 
 > more framework specific packages coming soon.
 

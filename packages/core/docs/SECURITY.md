@@ -9,6 +9,7 @@ security guarantees, and best practices for secure deployment.
 - [CSRF Attack Vectors](#csrf-attack-vectors)
 - [Strategy Security Analysis](#strategy-security-analysis)
 - [Security Best Practices](#security-best-practices)
+- [Additional Security Resources](#additional-security-resources)
 
 ---
 
@@ -601,7 +602,7 @@ const dangerousExclusions = {
 };
 ```
 
-### Additional Security Resources
+## Additional Security Resources
 
 - [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
 

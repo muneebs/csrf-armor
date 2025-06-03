@@ -381,7 +381,7 @@ class MultiFaceMalfaCtorCsrfProtection<TRequest, TResponse> {
 ## Framework Adapters
 
 ### Express.js Production Adapter
-An Express.js package can be downloaded for easy use: [@csrf-armor/express](../../express)
+An Express.js package can be downloaded for easy use: [@csrf-armor/express](../../../packages/express)
 
 ### Fastify Plugin
 
