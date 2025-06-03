@@ -63,7 +63,7 @@ importers:
         specifier: workspace:*
         version: link:../core
       express:
-        specifier: ^4.18.2
+        specifier: ^4.x
         version: 4.21.2
     devDependencies:
       '@types/express':
