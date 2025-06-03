@@ -1,5 +1,14 @@
 # @csrf-armor/nextjs
 
+## 1.0.1
+
+### Patch Changes
+
+- [`99d33a8cfaeb4dabeb380cb248779c5b7610928f`](https://github.com/muneebs/csrf-armor/commit/99d33a8cfaeb4dabeb380cb248779c5b7610928f) - streamline README content by removing outdated examples and enhancing structure for clarity
+
+- Updated dependencies [[`99d33a8cfaeb4dabeb380cb248779c5b7610928f`](https://github.com/muneebs/csrf-armor/commit/99d33a8cfaeb4dabeb380cb248779c5b7610928f)]:
+  - @csrf-armor/core@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
