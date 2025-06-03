@@ -1,3 +1,5 @@
+'use client';
+
 export interface CsrfClientConfig {
   cookieName?: string;
   headerName?: string;
