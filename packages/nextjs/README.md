@@ -156,7 +156,7 @@ export default function MyApp({Component, pageProps}) {
 
 ```typescript jsx
 'use client';
-import {useCsrf} from '@csrf-armor/nextjs';
+import {useCsrf} from '@csrf-armor/nextjs/client';
 import {useState} from 'react';
 
 export function ContactForm() {
@@ -292,7 +292,7 @@ The React hooks work identically in both App Router and Pages Router:
 ```typescript jsx
 'use client'; // Only needed in App Router
 
-import {useCsrf} from '@csrf-armor/nextjs';
+import {useCsrf} from '@csrf-armor/nextjs/client';
 
 export function ContactForm() {
     const {csrfToken, csrfFetch} = useCsrf();
