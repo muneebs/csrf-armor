@@ -1,19 +1,14 @@
-import type { NextRequest, NextResponse } from 'next/server';
 import type {
+  CookieOptions,
   CsrfAdapter,
   CsrfRequest,
   CsrfResponse,
   RequiredCsrfConfig,
-  CookieOptions,
 } from '@csrf-armor/core';
+import type { NextRequest, NextResponse } from 'next/server';
 
 export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
   extractRequest(req: NextRequest): CsrfRequest {
-    const headers = new Map<string, string>();
-    req.headers.forEach((value, key) => {
-      headers.set(key.toLowerCase(), value);
-    });
-
     const cookies = new Map<string, string>();
     for (const { name, value } of req.cookies.getAll()) {
       cookies.set(name, value);
@@ -22,8 +17,9 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     return {
       method: req.method,
       url: req.url,
-      headers,
+      headers: req.headers,
       cookies,
+      body: req,
     };
   }
 
@@ -65,17 +61,29 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     request: CsrfRequest,
     config: RequiredCsrfConfig
   ): Promise<string | undefined> {
-    const headers =
-      request.headers instanceof Map
-        ? request.headers
-        : new Map(Object.entries(request.headers));
+    const headers = request.headers as Headers;
 
     // Try header first
     const headerValue = headers.get(config.token.headerName.toLowerCase());
     if (headerValue) return headerValue;
 
-    // Try form data if available
+    const cookieValue = (request as unknown as NextRequest).cookies.get(
+      config.token.headerName.toLowerCase()
+    )?.value;
+    if (cookieValue) return cookieValue;
+
+    if (headers.get('content-type')?.includes('multipart/form-data')) {
+      const formData = await (request.body as Body).formData();
+      for (const entry of formData.entries().toArray()) {
+        const [key, value] = entry;
+        if (key.includes(config.token.fieldName)) {
+          return value.toString();
+        }
+      }
+    }
+
     if (request.body && typeof request.body === 'object') {
+      // Try form data if available
       const body = request.body as Record<string, unknown>;
       const formValue = body[config.token.fieldName];
       if (typeof formValue === 'string') return formValue;
