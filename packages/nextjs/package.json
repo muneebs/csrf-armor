@@ -1,6 +1,6 @@
 {
   "name": "@csrf-armor/nextjs",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "CSRF protection middleware for Next.js applications",
   "type": "module",
   "main": "./dist/index.js",
