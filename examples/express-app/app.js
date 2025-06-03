@@ -32,6 +32,14 @@ const commonConfig = {
   allowedOrigins: [`http://localhost:${port}`], // For origin-check and hybrid
 };
 
+/**
+ * Generates an HTML page for demonstrating a CSRF protection strategy form.
+ *
+ * The page displays the current CSRF strategy, shows the CSRF token if applicable, provides explanatory notes about the strategy, and renders a form for submitting test data. For strategies that require a CSRF token, the token is included as a hidden input field.
+ *
+ * @returns {string} HTML markup for the demo form page.
+ * @param unsafe
+ */
 // Helper function to generate HTML for the form page
 // Helper function to escape HTML special characters to prevent XSS
 function escapeHtml(unsafe) {
@@ -79,7 +87,7 @@ function getDemoPageHtml(strategy, csrfToken) {
 
   // Safely escape the field name as well
   const safeFieldName = escapeHtml(commonConfig.token.fieldName);
-  
+
   return `
     <h1>CSRF Armor Express Example: <code>${safeStrategy}</code> Strategy</h1>
     <p><a href="/">Back to Strategy List</a></p>
@@ -128,7 +136,8 @@ strategies.forEach((strategy) => {
   });
 
   app.post(`/submit/${strategy}`, (req, res) => {
-    console.log(`Data submitted with ${strategy} strategy:`, req.body.data);
+    const sanitizedData = req.body.data.replace(/[\n\r]/g, '');
+    console.log(`Data submitted with ${strategy} strategy:`, sanitizedData);
     res.send(
       `Form submitted successfully using <strong>${strategy}</strong> strategy! <br><a href="/demo/${strategy}">Go Back</a> <br><a href="/">Strategy List</a>`
     );
@@ -150,30 +159,17 @@ app.get('/', (req, res) => {
 // Global error handler for CSRF errors (and others)
 app.use((err, req, res, next) => {
   // Sanitize inputs for logging to prevent log injection
-  const sanitizedMessage = err.message ? 
-    String(err.message).replace(/[\n\r]/g, ' ') : 'Unknown error';
-  const sanitizedPath = req.path ? 
-    String(req.path).replace(/[\n\r]/g, ' ') : 'Unknown path';
-    
+  const sanitizedMessage = err.message
+    ? String(err.message).replace(/[\n\r]/g, ' ')
+    : 'Unknown error';
+  const sanitizedPath = req.path
+    ? String(req.path).replace(/[\n\r]/g, ' ')
+    : 'Unknown path';
+
   if (err.code === 'CSRF_VERIFICATION_ERROR') {
     // Safe logging with sanitized values
     console.error('CSRF Error:', sanitizedMessage, 'Strategy:', sanitizedPath);
-    
-    // Use the escapeHtml function we defined earlier to prevent XSS in the response
-    const safeMessage = escapeHtml(err.message);
-    const safePath = escapeHtml(req.path);
-    
-    res
-      .status(403)
-      .send(
-        `CSRF token validation failed for path ${safePath}: ${safeMessage} <br><a href="/">Try another strategy</a>`
-      );
-  } else {
-    // For other errors, don't expose details to the client
-    console.error('Server Error:', sanitizedMessage);
-    if (err.stack) {
-      console.error(String(err.stack).replace(/[\n\r]/g, '\n'));
-    }
+
     res.status(500).send('Something broke!');
   }
 });
