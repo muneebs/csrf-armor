@@ -5,5 +5,4 @@ export default defineConfig({
   unbundle: true,
   platform: 'browser',
   tsconfig: './tsconfig.json',
-  exports: true,
 });
