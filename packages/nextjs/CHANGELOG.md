@@ -1,5 +1,11 @@
 # @csrf-armor/nextjs
 
+## 1.1.1
+
+### Patch Changes
+
+- [`c638c501df64852c13a22cbca0c686e7a1174961`](https://github.com/muneebs/csrf-armor/commit/c638c501df64852c13a22cbca0c686e7a1174961) - FIX: add client entry point and update build configuration for client-side code
+
 ## 1.1.0
 
 ### Minor Changes
