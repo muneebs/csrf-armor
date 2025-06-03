@@ -1,9 +1,10 @@
 ---
-"@csrf-armor/expressjs": minor
+"@csrf-armor/express": major
 ---
 
 Added Express.js adapter package:
-- Implemented ExpressAdapter for Express.js integration
-- Added middleware factory with configuration support
-- Added support for Express.js cookie and header handling
-- Included documentation and usage examples
+- Introduced @csrf-armor/express package
+- Implemented csrfMiddleware for CSRF token management
+- Created ExpressAdapter to handle request and response for CSRF operations
+- Added TypeScript definitions for CSRF token in Express request
+- Included tests for adapter and middleware functionality
