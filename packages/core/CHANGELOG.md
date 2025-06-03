@@ -1,5 +1,15 @@
 # @csrf-armor/core
 
+## 1.0.2
+
+### Patch Changes
+
+- [#12](https://github.com/muneebs/csrf-armor/pull/12) [`44fb8ebf2bd3066d4c8e5f7d9dd12b86fb4bcf67`](https://github.com/muneebs/csrf-armor/commit/44fb8ebf2bd3066d4c8e5f7d9dd12b86fb4bcf67) Thanks [@muneebs](https://github.com/muneebs)! - docs: Update documentation
+
+  - Enhanced documentation in ADVANCED.md and SECURITY.md with additional resources and usage examples.
+
+- [`19dab6865f5d66123e20c01a9eff0eaefee5812c`](https://github.com/muneebs/csrf-armor/commit/19dab6865f5d66123e20c01a9eff0eaefee5812c) - Enhance CsrfRequest interface and update NextjsAdapter to handle headers and body correctly
+
 ## 1.0.1
 
 ### Patch Changes
