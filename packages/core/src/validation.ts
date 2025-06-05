@@ -75,7 +75,7 @@ export function validateOrigin(
     reason: new OriginMismatchError(requestOrigin).message,
   };
 }
-
+// DO NOT USE THIS IN PRODUCTION
 export async function validateDoubleSubmit(
   request: CsrfRequest,
   config: RequiredCsrfConfig,

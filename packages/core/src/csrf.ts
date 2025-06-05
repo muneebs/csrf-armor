@@ -18,7 +18,7 @@ import { validateRequest } from './validation.js';
 function extractPathname(url: string): string {
   try {
     // Always return the full pathname for accurate excludePaths matching
-    return new URL(url, 'http://localhost').pathname;
+    return new URL(url).pathname;
   } catch {
     const questionMarkIndex = url.indexOf('?');
     if (questionMarkIndex !== -1) {

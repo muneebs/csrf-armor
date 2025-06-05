@@ -13,7 +13,7 @@ export class ExpressAdapter
   extractRequest(req: express.Request): CsrfRequest {
     // Create a Map for headers with proper type handling
     const headers = new Map<string, string>();
-    
+
     // Safely process headers, handling string, string[], and undefined values
     if (req.headers) {
       Object.entries(req.headers).forEach(([key, value]) => {
@@ -27,7 +27,7 @@ export class ExpressAdapter
         // Skip undefined values
       });
     }
-    
+
     return {
       method: req.method,
       url: req.url,
@@ -99,7 +99,7 @@ export class ExpressAdapter
 
     // Try query parameter
     if (request.url) {
-      const url = new URL(request.url, 'http://localhost');
+      const url = new URL(request.url);
       const queryValue = url.searchParams.get(config.token.fieldName);
       if (queryValue) return queryValue;
     }

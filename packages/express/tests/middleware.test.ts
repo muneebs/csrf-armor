@@ -2,7 +2,7 @@ import { CsrfError } from '@csrf-armor/core';
 import type { Request, Response } from 'express';
 import '../src/types.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { csrfMiddleware } from '../src/index.js';
+import { csrfMiddleware } from '../src';
 
 describe('CSRF Middleware', () => {
   const mockNext = vi.fn();
@@ -58,10 +58,10 @@ describe('CSRF Middleware', () => {
         url: '/api/data',
         headers: {},
         cookies: {},
-        get: vi.fn((header) => {
+        get: vi.fn((_header) => {
           return undefined;
         }),
-        header: vi.fn((header) => {
+        header: vi.fn((_header) => {
           return undefined;
         }),
         accepts: vi.fn(),
@@ -76,7 +76,7 @@ describe('CSRF Middleware', () => {
 
       const getRes = {
         setHeader: vi.fn(),
-        cookie: vi.fn((name, value, options) => {
+        cookie: vi.fn((_name, value, _options) => {
           capturedToken = value;
           return getRes;
         }),
@@ -108,7 +108,7 @@ describe('CSRF Middleware', () => {
 
       const postReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {
           origin: 'http://localhost',
           referer: 'http://localhost/form',
@@ -158,7 +158,7 @@ describe('CSRF Middleware', () => {
     it('should reject POST requests with invalid token', async () => {
       const mockReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {},
         cookies: {
           'csrf-token': 'invalid-token',
@@ -225,7 +225,7 @@ describe('CSRF Middleware', () => {
 
       const getRes = {
         setHeader: vi.fn(),
-        cookie: vi.fn((name, value, options) => {
+        cookie: vi.fn((_name, value, _options) => {
           capturedToken = value;
           return getRes;
         }),
@@ -248,7 +248,7 @@ describe('CSRF Middleware', () => {
 
       const postReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {
           origin: 'http://localhost',
           referer: 'http://localhost/form',
@@ -372,7 +372,7 @@ describe('CSRF Middleware', () => {
 
       const postReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {},
         cookies: {
           [cookieName]: cookieValue,
