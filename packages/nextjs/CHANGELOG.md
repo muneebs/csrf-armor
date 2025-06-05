@@ -1,5 +1,19 @@
 # @csrf-armor/nextjs
 
+## 1.2.1
+
+### Patch Changes
+
+- [#15](https://github.com/muneebs/csrf-armor/pull/15) [`58e501450279dcdd299ca6aa39221689d678c2f3`](https://github.com/muneebs/csrf-armor/commit/58e501450279dcdd299ca6aa39221689d678c2f3) Thanks [@muneebs](https://github.com/muneebs)! - docs: update double-submit strategy security recommendations
+
+  - Reduce security rating from ⭐⭐⭐ to ⭐ for double-submit strategy across all documentation
+  - Update recommendations to specify "Local development" only, not production use
+  - Align package documentation with main README security warnings
+  - Remove references to production use cases like "Content management systems, internal tools"
+
+- Updated dependencies [[`58e501450279dcdd299ca6aa39221689d678c2f3`](https://github.com/muneebs/csrf-armor/commit/58e501450279dcdd299ca6aa39221689d678c2f3), [`58e501450279dcdd299ca6aa39221689d678c2f3`](https://github.com/muneebs/csrf-armor/commit/58e501450279dcdd299ca6aa39221689d678c2f3)]:
+  - @csrf-armor/core@1.0.3
+
 ## 1.2.0
 
 ### Minor Changes
