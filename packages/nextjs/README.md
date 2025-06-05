@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
 
 ## 🔄 Routing System Setup
 
-CSRF Armor supports both Next.js routing systems using the same root `middleware.ts` file. See [Quick Start](#quick-start).
+CSRF Armor supports both Next.js routing systems using the same root `middleware.ts` file. See [Quick Start](#-quick-start).
 
 ### Universal Middleware (Both App Router & Pages Router)
 
