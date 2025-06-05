@@ -333,7 +333,7 @@ Choose the strategy that best fits your security and performance requirements:
 | Strategy                   | Security | Performance | Best For         | Setup Complexity |
 |----------------------------|----------|-------------|------------------|------------------|
 | **Signed Double Submit** ⭐ | ⭐⭐⭐⭐⭐    | ⭐⭐⭐⭐        | Most web apps    | Medium           |
-| **Double Submit**          | ⭐⭐⭐      | ⭐⭐⭐⭐⭐       | Simple apps      | Easy             |
+| **Double Submit**          | ⭐      | ⭐⭐⭐⭐⭐       | Local development      | Easy             |
 | **Signed Token**           | ⭐⭐⭐⭐     | ⭐⭐⭐⭐        | APIs, SPAs       | Medium           |
 | **Origin Check**           | ⭐⭐⭐      | ⭐⭐⭐⭐⭐       | Known origins    | Easy             |
 | **Hybrid**                 | ⭐⭐⭐⭐⭐    | ⭐⭐⭐         | Maximum security | Hard             |
@@ -369,7 +369,7 @@ const csrfProtect = createCsrfMiddleware({
 - Same token stored in cookie and sent in header/form
 - Relies on Same-Origin Policy for protection
 
-**Best for:** Content management systems, internal tools
+**Best for:** Local development (Not recommended for production)
 
 ### Signed Token
 

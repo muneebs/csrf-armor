@@ -60,8 +60,8 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
 }
 ```
 - **How it works**: Same token in cookie and request header
-- **Best for**: Traditional web applications
-- **Security**: Medium (relies on Same-Origin Policy)
+- **Best for**: Local Development
+- **Security**: Very Low (Not recommended for production)
 
 ### 3. Signed Double Submit Cookie Strategy ⭐
 ```typescript

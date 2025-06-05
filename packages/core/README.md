@@ -38,7 +38,7 @@ console.log('Token valid until:', new Date(payload.exp * 1000));
 | Strategy | Security | Performance | Best For | Setup Complexity |
 |----------|----------|-------------|----------|------------------|
 | **Signed Double Submit** ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | E-commerce, finance | Medium |
-| **Double Submit** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Web apps, development | Easy |
+| **Double Submit** | ⭐ | ⭐⭐⭐⭐⭐ | Local development | Easy |
 | **Signed Token** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | APIs, microservices | Medium |
 | **Origin Check** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Mobile backends | Easy |
 | **Hybrid** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Maximum security | Hard |
