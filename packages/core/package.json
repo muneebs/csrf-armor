@@ -1,6 +1,6 @@
 {
   "name": "@csrf-armor/core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Framework-agnostic CSRF protection core functionality",
   "type": "module",
   "main": "./dist/index.js",
