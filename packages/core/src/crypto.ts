@@ -3,9 +3,9 @@ import type { TokenPayload } from './types.js';
 
 class CryptoKeyCache {
   private static instance: CryptoKeyCache;
-  private keyCache = new Map<string, { key: CryptoKey; lastUsed: number }>();
+  private readonly keyCache = new Map<string, { key: CryptoKey; lastUsed: number }>();
   private readonly MAX_CACHE_SIZE = 10;
-  private encoder = new TextEncoder();
+  private readonly encoder = new TextEncoder();
 
   static getInstance(): CryptoKeyCache {
     if (!CryptoKeyCache.instance) {

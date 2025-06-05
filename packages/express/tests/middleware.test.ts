@@ -108,7 +108,7 @@ describe('CSRF Middleware', () => {
 
       const postReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {
           origin: 'http://localhost',
           referer: 'http://localhost/form',
@@ -158,7 +158,7 @@ describe('CSRF Middleware', () => {
     it('should reject POST requests with invalid token', async () => {
       const mockReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {},
         cookies: {
           'csrf-token': 'invalid-token',
@@ -248,7 +248,7 @@ describe('CSRF Middleware', () => {
 
       const postReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {
           origin: 'http://localhost',
           referer: 'http://localhost/form',
@@ -372,7 +372,7 @@ describe('CSRF Middleware', () => {
 
       const postReq = {
         method: 'POST',
-        url: '/api/data',
+        url: 'http://localhost/api/data',
         headers: {},
         cookies: {
           [cookieName]: cookieValue,
