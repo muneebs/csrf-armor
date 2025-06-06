@@ -1,5 +1,11 @@
 # @csrf-armor/nextjs
 
+## 1.2.2
+
+### Patch Changes
+
+- [#17](https://github.com/muneebs/csrf-armor/pull/17) [`45bfce4ebda40296aa2ce4fb0d03bd37972903fd`](https://github.com/muneebs/csrf-armor/commit/45bfce4ebda40296aa2ce4fb0d03bd37972903fd) Thanks [@raulcrisan](https://github.com/raulcrisan)! - Fixed the way formData entries are parsed
+
 ## 1.2.1
 
 ### Patch Changes
