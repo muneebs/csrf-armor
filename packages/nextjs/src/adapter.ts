@@ -74,8 +74,7 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
 
     if (headers.get('content-type')?.includes('multipart/form-data')) {
       const formData = await (request.body as Body).formData();
-      for (const entry of formData.entries().toArray()) {
-        const [key, value] = entry;
+      for (const [key, value] of formData.entries()) {
         if (key.includes(config.token.fieldName)) {
           return value.toString();
         }
