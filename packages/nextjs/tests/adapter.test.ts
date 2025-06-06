@@ -237,9 +237,9 @@ describe('NextjsAdapter', () => {
     it('should extract token from multipart form data', async () => {
       // Create mock FormData with proper entries method
       const mockFormData = {
-        entries: vi.fn().mockReturnValue({
-          toArray: vi.fn().mockReturnValue([['csrf', 'form-token']])
-        })
+        entries: vi.fn().mockReturnValue(
+          [['csrf', 'form-token'], ['other-field', 'other-value']]
+        )
       };
       
       // Create mock Body with formData method
