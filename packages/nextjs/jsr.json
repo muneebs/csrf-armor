@@ -1,0 +1,13 @@
+{
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@csrf-armor/nextjs",
+  "version": "1.2.1",
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client/index.js"
+  },
+  "include": [
+    "dist/",
+    "README.md"
+  ]
+}

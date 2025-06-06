@@ -23,6 +23,8 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "pnpm build && changeset publish",
+    "release:jsr": "pnpm build && pnpm publish:jsr",
+    "publish:jsr": "pnpm -r --filter='./packages/*' exec jsr publish",
     "security:check": "./scripts/security-check.sh",
     "security:secrets": "grep -r 'secret.*:' packages/*/src/ | grep -v 'process.env' | grep -v 'default-secret-change-this' || echo 'No hardcoded secrets found'",
     "security:timing": "grep -r '===' packages/*/src/ | grep -i 'token\\|secret\\|csrf' | grep -v 'timingSafeEqual' || echo 'No timing attack vulnerabilities found'",
