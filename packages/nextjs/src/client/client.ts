@@ -4,6 +4,7 @@ export interface CsrfClientConfig {
   cookieName?: string;
   headerName?: string;
   autoRefresh?: boolean;
+  initialToken?: string;
 }
 
 export function getCsrfToken(config?: CsrfClientConfig): string | null {
@@ -50,4 +51,32 @@ export function csrfFetch(
     ...init,
     headers,
   });
+}
+
+export async function refreshCsrfToken(
+  config?: CsrfClientConfig
+): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    // Make a lightweight request to refresh the token
+    const response = await fetch(window.location.pathname, {
+      method: 'HEAD',
+      credentials: 'same-origin',
+    });
+
+    // Check if server sent a new token
+    const headerName = config?.headerName ?? 'x-csrf-token';
+    const newToken = response.headers.get(headerName);
+
+    if (newToken) {
+      return newToken;
+    }
+
+    // Fallback to reading from cookie
+    return getCsrfToken(config);
+  } catch {
+    // If request fails, return current token
+    return getCsrfToken(config);
+  }
 }

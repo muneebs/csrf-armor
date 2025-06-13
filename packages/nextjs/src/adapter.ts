@@ -62,22 +62,95 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     config: RequiredCsrfConfig
   ): Promise<string | undefined> {
     const headers = request.headers as Headers;
-
     // Try header first
     const headerValue = headers.get(config.token.headerName.toLowerCase());
     if (headerValue) return headerValue;
+
+    const contentType = headers.get('content-type') ?? 'text/plain';
 
     const cookieValue = (request as unknown as NextRequest).cookies.get(
       config.token.headerName.toLowerCase()
     )?.value;
     if (cookieValue) return cookieValue;
 
-    if (headers.get('content-type')?.includes('multipart/form-data')) {
+    if (
+      contentType === 'application/x-www-form-urlencoded' ||
+      contentType.startsWith('multipart/form-data')
+    ) {
       const formData = await (request.body as Body).formData();
       for (const [key, value] of formData.entries()) {
         if (key.includes(config.token.fieldName)) {
           return value.toString();
         }
+      }
+    }
+
+    if (
+      contentType === 'application/json' ||
+      contentType === 'application/ld+json'
+    ) {
+      try {
+        // Handle JSON body - check if it's already parsed or needs to be parsed
+        let json;
+        if (typeof request.body === 'object' && request.body !== null) {
+          // Body is already parsed (test environment or direct object)
+          json = request.body;
+        } else {
+          // Body needs to be parsed from NextRequest
+          const nextRequest = request as unknown as NextRequest;
+          if (typeof nextRequest.json === 'function') {
+            json = await nextRequest.json();
+          } else {
+            // Fallback - body might be a string
+            json = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+          }
+        }
+
+        if (json && typeof json === 'object') {
+          const jsonVal = json[config.token.fieldName];
+          if (typeof jsonVal === 'string') return jsonVal;
+        }
+      } catch {
+        // JSON parsing failed, continue to next extraction method
+      }
+    }
+
+    // Try to get raw text for plain text content
+    let rawVal = '';
+    try {
+      const nextRequest = request as unknown as NextRequest;
+      if (typeof nextRequest.text === 'function') {
+        rawVal = await nextRequest.text();
+      } else if (typeof request.body === 'string') {
+        rawVal = request.body;
+      }
+    } catch {
+      // Text extraction failed, continue
+    }
+    // non-form server actions
+    if (contentType.startsWith('text/plain') && rawVal) {
+      try {
+        // handle array of arguments
+        const args = JSON.parse(rawVal);
+
+        if (!Array.isArray(args) || args.length === 0) return rawVal;
+
+        const args0 = args[0];
+        const typeofArgs0 = typeof args0;
+
+        if (typeofArgs0 === 'string') {
+          // treat first string argument as csrf token
+          return args0;
+        }
+
+        if (typeofArgs0 === 'object') {
+          // if first argument is an object, look for token there
+          return args0[config.token.fieldName] ?? '';
+        }
+
+        return args0;
+      } catch (e) {
+        return rawVal;
       }
     }
 

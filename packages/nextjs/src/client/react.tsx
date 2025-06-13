@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import {
   createContext,
   useCallback,
@@ -8,7 +9,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { type CsrfClientConfig, csrfFetch, getCsrfToken } from './client.js';
+import {type CsrfClientConfig, csrfFetch, getCsrfToken, refreshCsrfToken} from './client.js';
 
 interface CsrfContextValue {
   csrfToken: string | null;
@@ -29,52 +30,40 @@ export function CsrfProvider({
   config?: CsrfClientConfig;
 }>) {
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const pathname = usePathname();
 
   const updateToken = useCallback(() => {
     const newToken = getCsrfToken(config);
     setCsrfToken((prev) => (prev !== newToken ? newToken : prev));
   }, [config]);
 
-  // Initialize token on mount
+  const refreshToken = useCallback(async () => {
+    setTimeout(async () => {
+      const newToken = await refreshCsrfToken(config);
+      setCsrfToken((prev) => (prev !== newToken ? newToken : prev));
+    }, 50);
+  }, [config]);
+
   useEffect(() => {
     updateToken();
   }, [updateToken]);
 
-  // Event-driven updates
+  // Refresh the CSRF token when the route changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
-    if (!config?.autoRefresh) {
-      return;
-    }
+    // Refresh token on navigation
+    refreshToken();
 
-    // Listen for page visibility changes (user returns to tab)
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        updateToken();
-      }
+    // Also refresh when user navigates back (popstate event)
+    const handlePopState = () => {
+      refreshToken();
     };
 
-    // Listen for focus events (user switches back to window)
-    const handleFocus = () => {
-      updateToken();
-    };
-
-    // Listen for storage events (if using localStorage fallback)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'csrf-token') {
-        updateToken();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('storage', handleStorageChange);
-
+    window.addEventListener('popstate', handlePopState);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('popstate', handlePopState);
     };
-  }, [config?.autoRefresh, updateToken]);
+  }, [pathname]);
 
   // Enhanced fetch that automatically updates token from response headers
   const secureFetch = useCallback(
