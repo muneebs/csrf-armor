@@ -43,7 +43,7 @@
     "@vitest/ui": "^1.2.0",
     "jsdom": "^26.1.0",
     "typescript": "^5",
-    "vitest": "^3.1.4"
+    "vitest": "^3.2.3"
   },
   "pnpm": {
     "overrides": {}
