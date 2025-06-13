@@ -1,5 +1,56 @@
 # @csrf-armor/nextjs
 
+## 1.3.0
+
+### Minor Changes
+
+- [#19](https://github.com/muneebs/csrf-armor/pull/19) [`0fea891851d67aa1c0a216c8a607d47b4bdb3101`](https://github.com/muneebs/csrf-armor/commit/0fea891851d67aa1c0a216c8a607d47b4bdb3101) Thanks [@muneebs](https://github.com/muneebs)! - Add JSR publishing support for dual npm/JSR distribution
+
+  This change adds JSR (JavaScript Registry) publishing capability to enable distribution on both npm and JSR registries.
+  Includes jsr.json configuration files for all packages and automated JSR publishing in the release workflow.
+
+  **New Features:**
+
+  - JSR configuration files (jsr.json) for all packages
+  - JSR publishing scripts in package.json
+  - Automated JSR publishing in GitHub release workflow
+  - Updated release summaries with both npm and JSR installation commands
+
+  **Benefits:**
+
+  - Reach broader JavaScript ecosystem including Deno users
+  - Maintain existing npm workflow while adding JSR support
+  - Simplified dual-registry publishing process
+
+### Patch Changes
+
+- [#21](https://github.com/muneebs/csrf-armor/pull/21) [`420ed073cf4d2d1c031b104a41dea08443f2ff6e`](https://github.com/muneebs/csrf-armor/commit/420ed073cf4d2d1c031b104a41dea08443f2ff6e) Thanks [@muneebs](https://github.com/muneebs)! - Fix browser navigation token refresh and adapter robustness
+
+  **Bug Fixes:**
+
+  - **Navigation Token Refresh**: Fixed issue where users navigating back to cached pages would encounter stale CSRF tokens that were already replaced
+  - **Adapter Test Failures**: Resolved adapter test failures in different environments by improving JSON and text body parsing
+  - **Request Body Handling**: Enhanced token extraction to gracefully handle various request body types and mock objects
+
+  **Improvements:**
+
+  - **Navigation Events**: Added comprehensive navigation event listeners (`popstate`, `pageshow`) for automatic token refresh
+  - **Route-based Refresh**: Integrated Next.js `usePathname` for automatic token refresh on route changes
+  - **Robust Extraction**: Improved token extraction with proper fallbacks for production and test environments
+  - **Test Coverage**: Added comprehensive test coverage for concurrent requests and edge cases
+
+  **Technical Changes:**
+
+  - Enhanced React client with navigation-aware token refresh logic
+  - Improved adapter error handling and type safety for different request body formats
+  - Added timing-based token staleness detection to prevent using outdated tokens
+  - Updated type signatures to be more consistent across validation functions
+
+  This update ensures CSRF tokens remain fresh during browser navigation and improves the reliability of token extraction across different environments.
+
+- Updated dependencies [[`420ed073cf4d2d1c031b104a41dea08443f2ff6e`](https://github.com/muneebs/csrf-armor/commit/420ed073cf4d2d1c031b104a41dea08443f2ff6e), [`0fea891851d67aa1c0a216c8a607d47b4bdb3101`](https://github.com/muneebs/csrf-armor/commit/0fea891851d67aa1c0a216c8a607d47b4bdb3101)]:
+  - @csrf-armor/core@1.1.0
+
 ## 1.2.2
 
 ### Patch Changes

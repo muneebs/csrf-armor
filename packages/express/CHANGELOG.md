@@ -1,5 +1,32 @@
 # @csrf-armor/express
 
+## 1.1.0
+
+### Minor Changes
+
+- [#19](https://github.com/muneebs/csrf-armor/pull/19) [`0fea891851d67aa1c0a216c8a607d47b4bdb3101`](https://github.com/muneebs/csrf-armor/commit/0fea891851d67aa1c0a216c8a607d47b4bdb3101) Thanks [@muneebs](https://github.com/muneebs)! - Add JSR publishing support for dual npm/JSR distribution
+
+  This change adds JSR (JavaScript Registry) publishing capability to enable distribution on both npm and JSR registries.
+  Includes jsr.json configuration files for all packages and automated JSR publishing in the release workflow.
+
+  **New Features:**
+
+  - JSR configuration files (jsr.json) for all packages
+  - JSR publishing scripts in package.json
+  - Automated JSR publishing in GitHub release workflow
+  - Updated release summaries with both npm and JSR installation commands
+
+  **Benefits:**
+
+  - Reach broader JavaScript ecosystem including Deno users
+  - Maintain existing npm workflow while adding JSR support
+  - Simplified dual-registry publishing process
+
+### Patch Changes
+
+- Updated dependencies [[`420ed073cf4d2d1c031b104a41dea08443f2ff6e`](https://github.com/muneebs/csrf-armor/commit/420ed073cf4d2d1c031b104a41dea08443f2ff6e), [`0fea891851d67aa1c0a216c8a607d47b4bdb3101`](https://github.com/muneebs/csrf-armor/commit/0fea891851d67aa1c0a216c8a607d47b4bdb3101)]:
+  - @csrf-armor/core@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes
