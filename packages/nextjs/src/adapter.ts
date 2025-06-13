@@ -91,15 +91,13 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     ) {
       try {
         let json: unknown;
-        if (typeof request.body === 'object' && request.body !== null) {
+        const nextRequest = request as unknown as NextRequest;
+        if (typeof nextRequest.json === 'function') {
+          json = await nextRequest.json();
+        } else if (typeof request.body === 'string') {
+          json = JSON.parse(request.body);
+        } else if (typeof request.body === 'object' && request.body !== null) {
           json = request.body;
-        } else {
-          const nextRequest = request as unknown as NextRequest;
-          if (typeof nextRequest.json === 'function') {
-            json = await nextRequest.json();
-          } else {
-            json = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
-          }
         }
 
         if (json && typeof json === 'object') {
