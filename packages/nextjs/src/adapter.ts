@@ -90,24 +90,20 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
       contentType === 'application/ld+json'
     ) {
       try {
-        // Handle JSON body - check if it's already parsed or needs to be parsed
-        let json;
+        let json: unknown;
         if (typeof request.body === 'object' && request.body !== null) {
-          // Body is already parsed (test environment or direct object)
           json = request.body;
         } else {
-          // Body needs to be parsed from NextRequest
           const nextRequest = request as unknown as NextRequest;
           if (typeof nextRequest.json === 'function') {
             json = await nextRequest.json();
           } else {
-            // Fallback - body might be a string
             json = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
           }
         }
 
         if (json && typeof json === 'object') {
-          const jsonVal = json[config.token.fieldName];
+          const jsonVal = (json as Record<string, unknown>)[config.token.fieldName];
           if (typeof jsonVal === 'string') return jsonVal;
         }
       } catch {
@@ -130,26 +126,24 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     // non-form server actions
     if (contentType.startsWith('text/plain') && rawVal) {
       try {
-        // handle array of arguments
-        const args = JSON.parse(rawVal);
+        const parsedData = JSON.parse(rawVal);
 
-        if (!Array.isArray(args) || args.length === 0) return rawVal;
-
-        const args0 = args[0];
-        const typeofArgs0 = typeof args0;
-
-        if (typeofArgs0 === 'string') {
-          // treat first string argument as csrf token
-          return args0;
+        if (Array.isArray(parsedData) && parsedData.length > 0) {
+          return this.extractTokenFromServerActionArgs(parsedData, config);
         }
 
-        if (typeofArgs0 === 'object') {
-          // if first argument is an object, look for token there
-          return args0[config.token.fieldName] ?? '';
+        if (parsedData && typeof parsedData === 'object') {
+          const token = (parsedData as Record<string, unknown>)[config.token.fieldName];
+          return typeof token === 'string' ? token : undefined;
         }
 
-        return args0;
-      } catch (e) {
+        if (typeof parsedData === 'string') {
+          return parsedData;
+        }
+
+        return rawVal;
+      } catch {
+        // Not valid JSON, treat as raw text
         return rawVal;
       }
     }
@@ -161,6 +155,43 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
       if (typeof formValue === 'string') return formValue;
     }
 
+    return undefined;
+  }
+
+  /**
+   * Extracts CSRF token from server action arguments array
+   * Handles various argument patterns used by Next.js server actions
+   */
+  private extractTokenFromServerActionArgs(
+    args: unknown[],
+    config: RequiredCsrfConfig
+  ): string | undefined {
+    const firstArg = args[0];
+
+    // First argument is a string (direct token)
+    if (typeof firstArg === 'string') {
+      return firstArg;
+    }
+
+    // First argument is an object containing the token
+    if (firstArg && typeof firstArg === 'object') {
+      const token = (firstArg as Record<string, unknown>)[config.token.fieldName];
+      if (typeof token === 'string') {
+        return token;
+      }
+    }
+
+    // Search through all arguments for a token field
+    for (const arg of args) {
+      if (arg && typeof arg === 'object') {
+        const token = (arg as Record<string, unknown>)[config.token.fieldName];
+        if (typeof token === 'string') {
+          return token;
+        }
+      }
+    }
+
+    // No token found in arguments
     return undefined;
   }
 
