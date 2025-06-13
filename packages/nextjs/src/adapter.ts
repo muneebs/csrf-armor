@@ -74,7 +74,7 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     if (cookieValue) return cookieValue;
 
     if (
-      contentType === 'application/x-www-form-urlencoded' ||
+      contentType.startsWith('application/x-www-form-urlencoded') ||
       contentType.startsWith('multipart/form-data')
     ) {
       const formData = await (request.body as Body).formData();
