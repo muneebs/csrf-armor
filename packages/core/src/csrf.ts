@@ -26,13 +26,12 @@ import type {
 import { validateRequest } from './validation.js';
 
 /**
- * Extracts the pathname from a URL string for path-based exclusion matching.
+ * Returns the pathname portion of a URL string, supporting both absolute and relative URLs.
  *
- * Handles both absolute URLs and relative paths safely. If URL parsing fails,
- * falls back to manual parsing by finding the query string delimiter.
+ * If the input is not a valid absolute URL, extracts the substring before any query string delimiter.
  *
- * @param url - URL string to extract pathname from
- * @returns The pathname portion of the URL
+ * @param url - The URL string to process.
+ * @returns The pathname segment suitable for path-based exclusion checks.
  *
  * @internal
  */
@@ -50,14 +49,12 @@ function extractPathname(url: string): string {
 }
 
 /**
- * Normalizes request headers to a consistent Map format.
+ * Converts request headers from various formats into a normalized Map of string keys and values.
  *
- * Converts various header formats (Map, Headers object, plain object) into
- * a standardized Map<string, string> for consistent processing throughout
- * the CSRF protection system.
+ * Accepts headers as a Map, Headers object, or plain object, and returns a Map<string, string> for uniform processing.
  *
- * @param rawHeaders - Headers in various formats from the request
- * @returns Normalized headers as a Map
+ * @param rawHeaders - The request headers in any supported format.
+ * @returns A Map containing normalized header names and values.
  *
  * @internal
  */
@@ -72,15 +69,13 @@ function processHeaders(
 }
 
 /**
- * Merges user configuration with default CSRF configuration values.
+ * Combines user-provided CSRF configuration with defaults to produce a fully populated configuration object.
  *
- * Creates a complete configuration object by combining user-provided options
- * with secure defaults. Ensures all required fields are present and properly
- * typed for the CSRF protection system.
+ * Ensures all required fields are present and properly typed, merging nested cookie and token options as needed.
  *
- * @param defaultConfig - Default configuration values
- * @param userConfig - User-provided configuration overrides
- * @returns Complete CSRF configuration with all required fields
+ * @param defaultConfig - The default CSRF configuration values.
+ * @param userConfig - Optional user-supplied configuration overrides.
+ * @returns A complete CSRF configuration object with all required fields.
  *
  * @internal
  */
@@ -598,68 +593,25 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
 }
 
 /**
- * Factory function to create a CSRF protection instance.
+ * Creates and configures a CSRF protection instance for any web framework.
  *
- * Convenient alternative to using the CsrfProtection constructor directly.
- * This function is the recommended way to create CSRF protection instances
- * as it provides better type inference and a cleaner API.
+ * Instantiates {@link CsrfProtection} using the provided framework adapter and optional configuration, returning a ready-to-use protection engine. This is the preferred method for integrating CSRF protection, ensuring type safety and secure defaults.
  *
- * @public
- * @template TRequest - Framework-specific request type
- * @template TResponse - Framework-specific response type
- * @param adapter - Framework adapter implementing CsrfAdapter interface
- * @param config - Optional CSRF configuration (uses secure defaults if not provided)
- * @returns Configured CSRF protection instance ready for use
+ * @param adapter - Adapter implementing the {@link CsrfAdapter} interface for your framework.
+ * @param config - Optional CSRF configuration to override defaults.
+ * @returns A configured {@link CsrfProtection} instance.
  *
  * @example
- * ```typescript
- * import { createCsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
- *
- * // Basic setup with defaults
+ * // Express.js integration
  * const csrf = createCsrfProtection(new ExpressAdapter());
  *
+ * @example
  * // Custom configuration
  * const csrf = createCsrfProtection(new ExpressAdapter(), {
  *   strategy: 'signed-double-submit',
  *   secret: process.env.CSRF_SECRET,
- *   token: {
- *     expiry: 7200, // 2 hours
- *     fieldName: 'authenticity_token'
- *   },
- *   excludePaths: ['/api/public'],
- *   allowedOrigins: ['https://yourdomain.com']
+ *   token: { expiry: 7200 }
  * });
- *
- * // Use in middleware
- * app.use(async (req, res, next) => {
- *   const result = await csrf.protect(req, res);
- *   if (result.success) {
- *     next();
- *   } else {
- *     res.status(403).json({ error: result.reason });
- *   }
- * });
- * ```
- *
- * @example
- * ```typescript
- * // Framework-specific usage
- *
- * // Express.js
- * import { ExpressAdapter } from '@csrf-armor/express';
- * const expressCsrf = createCsrfProtection(new ExpressAdapter(), config);
- *
- * // Next.js
- * import { NextjsAdapter } from '@csrf-armor/nextjs';
- * const nextCsrf = createCsrfProtection(new NextjsAdapter(), config);
- *
- * // Custom framework
- * class MyAdapter implements CsrfAdapter<MyRequest, MyResponse> {
- *   // Implementation...
- * }
- * const customCsrf = createCsrfProtection(new MyAdapter(), config);
- * ```
  */
 export function createCsrfProtection<TRequest = unknown, TResponse = unknown>(
   adapter: CsrfAdapter<TRequest, TResponse>,

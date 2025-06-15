@@ -21,33 +21,10 @@ export interface CsrfClientConfig {
 /**
  * Retrieves the current CSRF token from client-side storage.
  *
- * Attempts to find the CSRF token in the following order:
- * 1. HTTP-only cookie (primary source for most strategies)
- * 2. Meta tag fallback (for server-side rendered pages)
+ * Attempts to read the token from a cookie (default `'csrf-token'`), falling back to a `<meta name="csrf-token">` tag if the cookie is not found.
  *
- * The token retrieval is optimized for client-side access while maintaining
- * security through HTTP-only cookies where possible.
- *
- * @param config - Optional configuration for cookie and header names
- * @returns The CSRF token string, or null if not found or not in browser
- *
- * @example
- * ```typescript
- * // Basic usage
- * const token = getCsrfToken();
- *
- * // With custom configuration
- * const token = getCsrfToken({
- *   cookieName: 'my-csrf-cookie'
- * });
- *
- * if (token) {
- *   // Use token in requests
- *   fetch('/api/data', {
- *     headers: { 'X-CSRF-Token': token }
- *   });
- * }
- * ```
+ * @param config - Optional configuration to specify the cookie name.
+ * @returns The CSRF token string, or `null` if not found or not running in a browser environment.
  */
 export function getCsrfToken(config?: CsrfClientConfig): string | null {
   if (typeof window === 'undefined') return null;
@@ -70,34 +47,12 @@ export function getCsrfToken(config?: CsrfClientConfig): string | null {
 }
 
 /**
- * Creates HTTP headers object with CSRF token for requests.
+ * Generates an HTTP headers object containing the CSRF token.
  *
- * Convenience function that retrieves the current CSRF token and formats
- * it as headers ready to be used with fetch() or other HTTP clients.
+ * Retrieves the current CSRF token and returns an object with the appropriate header for use in HTTP requests. If no token is available, returns an empty object.
  *
- * @param config - Optional configuration for cookie and header names
- * @returns Headers object with CSRF token, or empty object if no token
- *
- * @example
- * ```typescript
- * // Basic usage
- * const headers = createCsrfHeaders();
- * fetch('/api/data', {
- *   method: 'POST',
- *   headers
- * });
- *
- * // With custom header name
- * const headers = createCsrfHeaders({
- *   headerName: 'X-Custom-CSRF'
- * });
- *
- * // Merge with existing headers
- * const headers = {
- *   'Content-Type': 'application/json',
- *   ...createCsrfHeaders()
- * };
- * ```
+ * @param config - Optional configuration for customizing cookie and header names.
+ * @returns An object with the CSRF token header, or an empty object if no token is found.
  */
 export function createCsrfHeaders(config?: CsrfClientConfig): HeadersInit {
   const token = getCsrfToken(config);
@@ -108,37 +63,14 @@ export function createCsrfHeaders(config?: CsrfClientConfig): HeadersInit {
 }
 
 /**
- * Enhanced fetch function with automatic CSRF token injection.
+ * Performs a fetch request with CSRF token headers automatically included.
  *
- * A drop-in replacement for the standard fetch() function that automatically
- * includes the CSRF token in request headers. Merges CSRF headers with any
- * existing headers in the request.
+ * Merges CSRF headers with any existing headers and sends the request using the standard fetch API.
  *
- * @param input - URL or Request object for the fetch
- * @param init - Optional request initialization options
- * @param config - Optional CSRF configuration
- * @returns Promise resolving to fetch Response
- *
- * @example
- * ```typescript
- * // Basic POST request with automatic CSRF protection
- * const response = await csrfFetch('/api/data', {
- *   method: 'POST',
- *   body: JSON.stringify({ name: 'John' }),
- *   headers: { 'Content-Type': 'application/json' }
- * });
- *
- * // GET request (CSRF token included for consistency)
- * const data = await csrfFetch('/api/users').then(r => r.json());
- *
- * // With custom configuration
- * const response = await csrfFetch('/api/data', {
- *   method: 'DELETE'
- * }, {
- *   headerName: 'X-Custom-CSRF',
- *   cookieName: 'my-csrf-token'
- * });
- * ```
+ * @param input - The resource to fetch, specified as a URL or Request object.
+ * @param init - Optional fetch initialization options.
+ * @param config - Optional CSRF configuration to customize token retrieval and header names.
+ * @returns A promise that resolves to the fetch Response.
  */
 export function csrfFetch(
   input: RequestInfo | URL,
@@ -159,42 +91,24 @@ export function csrfFetch(
 }
 
 /**
- * Refreshes the CSRF token by making a lightweight server request.
+ * Refreshes the CSRF token by sending a lightweight request to the server.
  *
- * Sends a HEAD request to the server to trigger token refresh, then returns
- * the new token from response headers or cookies. This is useful when tokens
- * expire or when you need to ensure you have the latest token.
+ * Attempts to obtain a new CSRF token by making a HEAD request to the configured refresh endpoint. Returns the refreshed token from the response headers if available, or falls back to reading the token from cookies. If the refresh request fails, returns the current token if present.
  *
- * The function gracefully handles failures by returning the current token
- * if the refresh request fails.
- *
- * @param config - Optional configuration for endpoints and header names
- * @returns Promise resolving to the refreshed token, or null if unavailable
+ * @param config - Optional configuration for cookie name, header name, initial token, and refresh endpoint.
+ * @returns A promise that resolves to the refreshed CSRF token string, or null if unavailable.
  *
  * @example
- * ```typescript
- * // Basic token refresh
- * const newToken = await refreshCsrfToken();
- * if (newToken) {
- *   console.log('Token refreshed:', newToken);
- * }
+ * // Refresh the CSRF token using default settings
+ * const token = await refreshCsrfToken();
  *
- * // Refresh with custom endpoint
+ * // Refresh with a custom endpoint and header name
  * const token = await refreshCsrfToken({
  *   refreshEndpoint: '/api/csrf/refresh',
  *   headerName: 'X-Custom-CSRF'
  * });
  *
- * // Use in error handling
- * try {
- *   await csrfFetch('/api/data', { method: 'POST' });
- * } catch (error) {
- *   if (error.status === 403) {
- *     await refreshCsrfToken();
- *     // Retry the request
- *   }
- * }
- * ```
+ * @remark Returns null if called outside a browser environment.
  */
 export async function refreshCsrfToken(
   config?: CsrfClientConfig
