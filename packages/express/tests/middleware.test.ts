@@ -202,9 +202,9 @@ describe('CSRF Middleware', () => {
 
   describe('Configuration', () => {
     it('should use custom token fieldName', async () => {
-      let capturedToken: string | undefined;
+      const capturedCookies = new Map<string, string>();
       const customFieldName = 'xsrf';
-      const cookieName = 'csrf';
+      const cookieName = 'csrf-token'; // Use default cookie name
 
       const getReq = {
         method: 'GET',
@@ -225,8 +225,8 @@ describe('CSRF Middleware', () => {
 
       const getRes = {
         setHeader: vi.fn(),
-        cookie: vi.fn((_name, value, _options) => {
-          capturedToken = value;
+        cookie: vi.fn((name, value, _options) => {
+          capturedCookies.set(name, value);
           return getRes;
         }),
       } as unknown as Response;
@@ -242,7 +242,13 @@ describe('CSRF Middleware', () => {
       await middleware(getReq, getRes, mockNext);
       expect(mockNext).toHaveBeenCalled();
       expect(getReq.csrfToken).toBeDefined();
-      expect(capturedToken).toBeDefined();
+      expect(capturedCookies.size).toBeGreaterThan(0);
+
+      // For signed-double-submit strategy, we should have both client and server cookies
+      const clientToken = capturedCookies.get(cookieName);
+      const serverToken = capturedCookies.get(`${cookieName}-server`);
+      expect(clientToken).toBeDefined();
+      expect(serverToken).toBeDefined();
 
       mockNext.mockClear();
 
@@ -254,10 +260,11 @@ describe('CSRF Middleware', () => {
           referer: 'http://localhost/form',
         },
         cookies: {
-          [cookieName]: capturedToken,
+          [cookieName]: clientToken,
+          [`${cookieName}-server`]: serverToken,
         },
         body: {
-          [customFieldName]: capturedToken,
+          [customFieldName]: clientToken,
         },
         get: vi.fn((header) => {
           const headerMap: Record<string, string> = {

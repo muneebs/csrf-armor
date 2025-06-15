@@ -49,58 +49,7 @@ console.log('Token valid until:', new Date(payload.exp * 1000));
 
 ### Express.js
 
-```typescript
-import { CsrfAdapter, createCsrfProtection } from '@csrf-armor/core';
-
-class ExpressAdapter implements CsrfAdapter<express.Request, express.Response> {
-  extractRequest(req: express.Request) {
-    return {
-      method: req.method,
-      url: req.url,
-      headers: new Map(Object.entries(req.headers as Record<string, string>)),
-      cookies: new Map(Object.entries(req.cookies || {})),
-      body: req.body
-    };
-  }
-
-  applyResponse(res: express.Response, csrfResponse: CsrfResponse) {
-    if (csrfResponse.headers instanceof Map) {
-      for (const [key, value] of csrfResponse.headers) {
-        res.setHeader(key, value);
-      }
-    }
-    if (csrfResponse.cookies instanceof Map) {
-      for (const [name, { value, options }] of csrfResponse.cookies) {
-        res.cookie(name, value, options);
-      }
-    }
-    return res;
-  }
-
-  async getTokenFromRequest(request: CsrfRequest, config: RequiredCsrfConfig) {
-    const headers = request.headers instanceof Map 
-      ? request.headers 
-      : new Map(Object.entries(request.headers));
-    return headers.get(config.token.headerName.toLowerCase());
-  }
-}
-
-// Usage
-const csrfProtection = createCsrfProtection(new ExpressAdapter(), {
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!
-});
-
-app.use(async (req, res, next) => {
-  const result = await csrfProtection.protect(req, res);
-  if (result.success) {
-    req.csrfToken = result.token;
-    next();
-  } else {
-    res.status(403).json({ error: 'CSRF validation failed' });
-  }
-});
-```
+> **💡 Complete Express.js solution**: [@csrf-armor/express](../express) with React hooks and simplified setup.
 
 ### Next.js
 
@@ -291,6 +240,7 @@ try {
 ## 📦 Related Packages
 
 - **[@csrf-armor/nextjs](../nextjs)** - Next.js App Router middleware and React hooks
+- **[@csrf-armor/express](../express)** - Express.js middleware adapter
 
 *More framework packages coming based on community demand and contributions!*
 

@@ -2,8 +2,14 @@
   "$schema": "https://jsr.io/schema/config-file.v1.json",
   "name": "@csrf-armor/express",
   "version": "1.0.1",
-  "exports": "./dist/index.js",
+  "exports": "./src/index.ts",
+  "publish": {
+    "exclude": [
+      "!dist/**"
+    ]
+  },
   "include": [
-    "dist/"
+    "src/",
+    "README.md"
   ]
 }

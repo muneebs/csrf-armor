@@ -209,14 +209,17 @@ describe('NextjsAdapter', () => {
           headerName: tokenHeaderName,
           fieldName: 'csrf',
         },
+        cookie: {
+          name: 'csrf-token',
+        },
       } as RequiredCsrfConfig;
 
       // Create mock cookies object with both get and getAll methods
-      // The get method needs to use the lowercase version of the header name
+      // The get method needs to use the lowercase version of the cookie name
       // as that's what the adapter implementation uses
       const mockCookies = {
         get: vi.fn((name) => {
-          if (name === tokenHeaderName.toLowerCase()) {
+          if (name === config.cookie.name.toLowerCase()) {
             return { value: 'cookie-token' };
           }
           return undefined;
@@ -239,6 +242,14 @@ describe('NextjsAdapter', () => {
         configurable: true,
       });
 
+      // Create a mock NextRequest that will be placed in request.body
+      const mockNextRequestForCookie = {
+        cookies: mockCookies,
+        text: vi.fn(),
+        json: vi.fn(),
+        formData: vi.fn(),
+      };
+
       // Skip the adapter.extractRequest and directly create a mock CsrfRequest
       // This avoids any issues with the extraction process
       const csrfRequest = {
@@ -246,13 +257,8 @@ describe('NextjsAdapter', () => {
         url: 'http://localhost/api',
         headers: new Headers(),
         cookies: new Map<string, string>(),
-        body: {},
+        body: mockNextRequestForCookie, // Put the NextRequest mock in body
       };
-
-      // Mock the NextRequest properties needed for getTokenFromRequest
-      Object.defineProperty(csrfRequest, 'cookies', {
-        value: mockCookies,
-      });
 
       // Test the token extraction
       const token = await adapter.getTokenFromRequest(
@@ -263,13 +269,15 @@ describe('NextjsAdapter', () => {
     });
 
     it('should extract token from multipart form data', async () => {
-      // Create mock FormData with proper entries method
+      // Create mock FormData with proper entries method that returns an iterator
       const mockFormData = {
         entries: vi.fn().mockReturnValue([
           ['csrf', 'form-token'],
           ['other-field', 'other-value'],
-        ]),
+        ][Symbol.iterator]()),
       };
+      // Make it an instance of FormData for instanceof check
+      Object.setPrototypeOf(mockFormData, FormData.prototype);
 
       // Create mock Body with formData method
       const mockBody = {
@@ -295,6 +303,9 @@ describe('NextjsAdapter', () => {
           headerName: 'x-csrf-token',
           fieldName: 'csrf',
         },
+        cookie: {
+          name: 'csrf-token',
+        },
       } as RequiredCsrfConfig;
 
       // Test the token extraction
@@ -303,6 +314,18 @@ describe('NextjsAdapter', () => {
     });
 
     it('should extract token from JSON body', async () => {
+      // Create mock NextRequest with json method
+      const mockNextRequest = {
+        json: vi.fn().mockResolvedValue({
+          csrf: 'body-token',
+        }),
+        text: vi.fn(),
+        formData: vi.fn(),
+        cookies: {
+          get: vi.fn(),
+        },
+      };
+
       // Create mock request with token in body
       const request: CsrfRequest = {
         method: 'POST',
@@ -311,15 +334,16 @@ describe('NextjsAdapter', () => {
           'content-type': 'application/json',
         }),
         cookies: new Map(),
-        body: {
-          csrf: 'body-token',
-        },
+        body: mockNextRequest,
       };
 
       const config = {
         token: {
           headerName: 'x-csrf-token',
           fieldName: 'csrf',
+        },
+        cookie: {
+          name: 'csrf-token',
         },
       } as RequiredCsrfConfig;
 
@@ -328,19 +352,32 @@ describe('NextjsAdapter', () => {
     });
 
     it('should return undefined when no token is found', async () => {
+      // Create mock NextRequest with no token
+      const mockNextRequest = {
+        text: vi.fn().mockResolvedValue(''),
+        json: vi.fn().mockResolvedValue({}),
+        formData: vi.fn().mockResolvedValue(new FormData()),
+        cookies: {
+          get: vi.fn().mockReturnValue(undefined),
+        },
+      };
+
       // Create mock request with no token
       const request: CsrfRequest = {
         method: 'POST',
         url: 'http://localhost/api',
         headers: new Headers(),
         cookies: new Map(),
-        body: {},
+        body: mockNextRequest,
       };
 
       const config = {
         token: {
           headerName: 'x-csrf-token',
           fieldName: 'csrf',
+        },
+        cookie: {
+          name: 'csrf-token',
         },
       } as RequiredCsrfConfig;
 
@@ -523,6 +560,9 @@ describe('NextjsAdapter', () => {
           headerName: 'x-csrf-token',
           fieldName: 'csrf',
         },
+        cookie: {
+          name: 'csrf-token',
+        },
       } as RequiredCsrfConfig;
 
       // Create requests with tokens in different locations
@@ -531,7 +571,12 @@ describe('NextjsAdapter', () => {
         url: 'http://localhost/api/1',
         headers: new Headers({ 'x-csrf-token': 'header-token' }),
         cookies: new Map(),
-        body: {},
+        body: {
+          text: vi.fn(),
+          json: vi.fn(),
+          formData: vi.fn(),
+          cookies: { get: vi.fn() },
+        },
       };
 
       const bodyRequest: CsrfRequest = {
@@ -539,13 +584,20 @@ describe('NextjsAdapter', () => {
         url: 'http://localhost/api/2',
         headers: new Headers({ 'content-type': 'application/json' }),
         cookies: new Map(),
-        body: { csrf: 'body-token' },
+        body: {
+          json: vi.fn().mockResolvedValue({ csrf: 'body-token' }),
+          text: vi.fn(),
+          formData: vi.fn(),
+          cookies: { get: vi.fn() },
+        },
       };
 
       // Create mock for form data request
       const mockFormData = {
-        entries: vi.fn().mockReturnValue([['csrf', 'form-token']]),
+        entries: vi.fn().mockReturnValue([['csrf', 'form-token']][Symbol.iterator]()),
       };
+      // Make it an instance of FormData for instanceof check
+      Object.setPrototypeOf(mockFormData, FormData.prototype);
       const mockBody = {
         formData: vi.fn().mockResolvedValue(mockFormData),
       };

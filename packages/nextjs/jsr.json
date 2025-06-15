@@ -3,11 +3,16 @@
   "name": "@csrf-armor/nextjs",
   "version": "1.2.1",
   "exports": {
-    ".": "./dist/index.js",
-    "./client": "./dist/client/index.js"
+    ".": "./src/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "publish": {
+    "exclude": [
+      "!dist/**"
+    ]
   },
   "include": [
-    "dist/",
+    "src/",
     "README.md"
   ]
 }

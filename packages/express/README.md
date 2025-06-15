@@ -58,6 +58,28 @@ app.post('/api/data', (req, res) => {
 
 The middleware accepts all configuration options from `@csrf-armor/core`. See the [core documentation](../core) for detailed configuration options.
 
+### Quick Configuration Reference
+```typescript
+csrfMiddleware({
+  strategy: 'signed-double-submit',    // Security strategy
+  secret: process.env.CSRF_SECRET,     // Required for signed strategies
+  token: {
+    expiry: 3600,                      // Token lifetime (seconds)
+    reissueThreshold: 500,             // Auto-renewal threshold (seconds)
+    headerName: 'X-CSRF-Token',        // Header name
+    fieldName: 'csrf_token'            // Form field name
+  },
+  cookie: {
+    name: 'csrf-token',                // Cookie name
+    secure: true,                      // HTTPS only
+    httpOnly: false,                   // Allow client access
+    sameSite: 'strict'                 // CSRF protection
+  },
+  excludePaths: ['/api/public'],       // Skip protection
+  allowedOrigins: ['https://yourdomain.com'] // Origin allowlist
+})
+```
+
 ---
 
 ## 📄 License
