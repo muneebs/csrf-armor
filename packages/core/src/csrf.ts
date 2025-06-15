@@ -13,6 +13,7 @@ import {
   generateSignedToken,
   parseSignedToken,
   signUnsignedToken,
+  timingSafeEqual,
   verifySignedToken,
 } from './crypto.js';
 import type {
@@ -351,7 +352,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
                 serverCookieTokenFromRequest,
                 this.config.secret
               );
-              if (verifiedToken === clientTokenFromRequest) {
+              if (timingSafeEqual(verifiedToken, clientTokenFromRequest)) {
                 return {
                   clientToken: clientTokenFromRequest,
                   cookieToken: clientTokenFromRequest,
