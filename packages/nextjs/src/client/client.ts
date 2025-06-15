@@ -203,7 +203,8 @@ export async function refreshCsrfToken(
 
   try {
     // Make a lightweight request to refresh the token
-    const response = await csrfFetch(
+    // Using native fetch instead of csrfFetch to avoid sending potentially expired CSRF token
+    const response = await fetch(
       config?.refreshEndpoint ?? window.location.pathname,
       {
         method: 'HEAD',

@@ -110,7 +110,9 @@ export function generateNonce(length = 16): string {
  * @returns Base64-encoded random secret key
  */
 export function generateSecureSecret(): string {
-  return crypto.getRandomValues(new Uint8Array(16)).toString();
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  // Convert to base64 for a compact, high-entropy string without commas
+  return btoa(String.fromCharCode.apply(null, [...bytes]));
 }
 
 /**

@@ -67,7 +67,9 @@ export class ExpressAdapter
       method: req.method,
       url: req.url,
       headers,
-      cookies: new Map(Object.entries(req.cookies ?? {})),
+      cookies: new Map(
+        Object.entries(req.cookies ?? {}).map(([key, value]) => [key.toLowerCase(), String(value)])
+      ),
       body: req.body,
     };
   }
@@ -202,8 +204,10 @@ export class ExpressAdapter
     const cookies =
       request.cookies instanceof Map
         ? request.cookies
-        : new Map(Object.entries(request.cookies || {}));
-    const cookieValue = cookies.get(config.cookie.name);
+        : new Map(
+            Object.entries(request.cookies || {}).map(([key, value]) => [key.toLowerCase(), String(value)])
+          );
+    const cookieValue = cookies.get(config.cookie.name.toLowerCase());
     if (cookieValue) return cookieValue;
 
     // Try query parameter

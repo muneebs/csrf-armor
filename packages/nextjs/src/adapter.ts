@@ -119,7 +119,7 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     // 4. Extract token from the parsed body
     if (parsedBody instanceof FormData) {
       for (const [key, value] of parsedBody.entries()) {
-        if (key.includes(config.token.fieldName)) {
+        if (key === config.token.fieldName) {
           return value.toString();
         }
       }
@@ -133,8 +133,16 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
         return this.extractTokenFromServerActionArgs(parsedBody, config);
       }
     } else if (typeof parsedBody === 'string') {
-      if (parsedBody.includes(config.token.fieldName)) {
-        return parsedBody;
+      try {
+        // Try to parse as URL-encoded form data
+        const params = new URLSearchParams(parsedBody);
+        const tokenValue = params.get(config.token.fieldName);
+        if (tokenValue) {
+          return tokenValue;
+        }
+      } catch (error) {
+        // If parsing fails, we can't extract the token from the string
+        console.warn('Failed to parse string body as URL-encoded form data', error);
       }
     }
 
