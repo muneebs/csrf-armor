@@ -31,8 +31,6 @@ Built for Next.js 12+ with support for both App Router and Pages Router, Edge Ru
 - ⚡ **Edge Runtime Compatible** - Works in Vercel Edge Runtime and serverless environments
 - 🎯 **TypeScript First** - Fully typed with comprehensive TypeScript support
 - 📱 **SSR & Client-Side** - Full support for server-side and client-side rendering
-- 🔄 **Automatic Token Management** - Smart token refresh and validation
-
 ---
 
 ## 🚀 Quick Start

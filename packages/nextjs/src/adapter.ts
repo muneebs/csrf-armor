@@ -8,6 +8,12 @@ import type {
 import type { NextRequest, NextResponse } from 'next/server';
 
 export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
+  private readonly parsedBodyCache = new WeakMap<NextRequest, unknown>();
+
+  constructor() {
+    this.getTokenFromRequest = this.getTokenFromRequest.bind(this);
+  }
+
   extractRequest(req: NextRequest): CsrfRequest {
     const cookies = new Map<string, string>();
     for (const { name, value } of req.cookies.getAll()) {
@@ -24,7 +30,6 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
   }
 
   applyResponse(res: NextResponse, csrfResponse: CsrfResponse): NextResponse {
-    // Set headers
     if (csrfResponse.headers instanceof Map) {
       for (const [key, value] of csrfResponse.headers) {
         res.headers.set(key, value);
@@ -35,7 +40,6 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
       }
     }
 
-    // Set cookies
     if (csrfResponse.cookies instanceof Map) {
       for (const [name, cookieData] of csrfResponse.cookies) {
         const { value, options } = cookieData as {
@@ -62,104 +66,89 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     config: RequiredCsrfConfig
   ): Promise<string | undefined> {
     const headers = request.headers as Headers;
-    // Try header first
+    const nextRequest = request.body as NextRequest;
+
+    // 1. Try header first
     const headerValue = headers.get(config.token.headerName.toLowerCase());
     if (headerValue) return headerValue;
 
-    const contentType = headers.get('content-type') ?? 'text/plain';
-
-    const cookieValue = (request as unknown as NextRequest).cookies.get(
-      config.token.headerName.toLowerCase()
+    // 2. Try cookie
+    const clientCookieValue = nextRequest.cookies?.get(
+      config.cookie.name.toLowerCase()
     )?.value;
-    if (cookieValue) return cookieValue;
+    if (clientCookieValue) return clientCookieValue;
 
-    if (
-      contentType.startsWith('application/x-www-form-urlencoded') ||
-      contentType.startsWith('multipart/form-data')
-    ) {
-      const formData = await (request.body as Body).formData();
-      for (const [key, value] of formData.entries()) {
-        if (key.includes(config.token.fieldName)) {
+    // 3. Attempt to get parsed body from cache or parse it once
+    let parsedBody: unknown;
+    if (this.parsedBodyCache.has(nextRequest)) {
+      parsedBody = this.parsedBodyCache.get(nextRequest);
+    } else {
+      const contentType = headers.get('content-type') ?? 'text/plain';
+      try {
+        if (nextRequest.bodyUsed) {
+          console.warn(
+            'Request body was already consumed externally. CSRF token might not be extractable from body.'
+          );
+          parsedBody = null;
+        } else if (
+          contentType.startsWith('application/x-www-form-urlencoded') ||
+          contentType.startsWith('multipart/form-data')
+        ) {
+          parsedBody = await nextRequest.formData();
+        } else if (
+          contentType === 'application/json' ||
+          contentType === 'application/ld+json'
+        ) {
+          parsedBody = await nextRequest.json();
+        } else if (contentType.startsWith('text/plain')) {
+          parsedBody = await nextRequest.text();
+        } else {
+          parsedBody = null;
+        }
+        this.parsedBodyCache.set(nextRequest, parsedBody);
+      } catch (error) {
+        console.warn(
+          'Failed to parse request body for CSRF token extraction',
+          error
+        );
+        this.parsedBodyCache.set(nextRequest, null);
+        parsedBody = null;
+      }
+    }
+
+    // 4. Extract token from the parsed body
+    if (parsedBody instanceof FormData) {
+      for (const [key, value] of parsedBody.entries()) {
+        if (key === config.token.fieldName) {
           return value.toString();
         }
       }
-    }
+    } else if (parsedBody && typeof parsedBody === 'object') {
+      const jsonVal = (parsedBody as Record<string, unknown>)[
+        config.token.fieldName
+      ];
+      if (typeof jsonVal === 'string') return jsonVal;
 
-    if (
-      contentType === 'application/json' ||
-      contentType === 'application/ld+json'
-    ) {
+      if (Array.isArray(parsedBody) && parsedBody.length > 0) {
+        return this.extractTokenFromServerActionArgs(parsedBody, config);
+      }
+    } else if (typeof parsedBody === 'string') {
       try {
-        let json: unknown;
-        const nextRequest = request as unknown as NextRequest;
-        if (typeof nextRequest.json === 'function') {
-          json = await nextRequest.json();
-        } else if (typeof request.body === 'string') {
-          json = JSON.parse(request.body);
-        } else if (typeof request.body === 'object' && request.body !== null) {
-          json = request.body;
+        // Try to parse as URL-encoded form data
+        const params = new URLSearchParams(parsedBody);
+        const tokenValue = params.get(config.token.fieldName);
+        if (tokenValue) {
+          return tokenValue;
         }
-
-        if (json && typeof json === 'object') {
-          const jsonVal = (json as Record<string, unknown>)[config.token.fieldName];
-          if (typeof jsonVal === 'string') return jsonVal;
-        }
-      } catch {
-        // JSON parsing failed, continue to next extraction method
+      } catch (error) {
+        // If parsing fails, we can't extract the token from the string
+        console.warn('Failed to parse string body as URL-encoded form data', error);
       }
-    }
-
-    // Try to get raw text for plain text content
-    let rawVal = '';
-    try {
-      const nextRequest = request as unknown as NextRequest;
-      if (typeof nextRequest.text === 'function') {
-        rawVal = await nextRequest.text();
-      } else if (typeof request.body === 'string') {
-        rawVal = request.body;
-      }
-    } catch {
-      // Text extraction failed, continue
-    }
-    // non-form server actions
-    if (contentType.startsWith('text/plain') && rawVal) {
-      try {
-        const parsedData = JSON.parse(rawVal);
-
-        if (Array.isArray(parsedData) && parsedData.length > 0) {
-          return this.extractTokenFromServerActionArgs(parsedData, config);
-        }
-
-        if (parsedData && typeof parsedData === 'object') {
-          const token = (parsedData as Record<string, unknown>)[config.token.fieldName];
-          return typeof token === 'string' ? token : undefined;
-        }
-
-        if (typeof parsedData === 'string') {
-          return parsedData;
-        }
-
-        return rawVal;
-      } catch {
-        // Not valid JSON, treat as raw text
-        return rawVal;
-      }
-    }
-
-    if (request.body && typeof request.body === 'object') {
-      // Try form data if available
-      const body = request.body as Record<string, unknown>;
-      const formValue = body[config.token.fieldName];
-      if (typeof formValue === 'string') return formValue;
     }
 
     return undefined;
   }
 
-  /**
-   * Extracts CSRF token from server action arguments array
-   * Handles various argument patterns used by Next.js server actions
-   */
   private extractTokenFromServerActionArgs(
     args: unknown[],
     config: RequiredCsrfConfig
@@ -173,7 +162,9 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
 
     // First argument is an object containing the token
     if (firstArg && typeof firstArg === 'object') {
-      const token = (firstArg as Record<string, unknown>)[config.token.fieldName];
+      const token = (firstArg as Record<string, unknown>)[
+        config.token.fieldName
+      ];
       if (typeof token === 'string') {
         return token;
       }

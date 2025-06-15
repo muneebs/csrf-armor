@@ -4,6 +4,7 @@
   "version": "1.0.1",
   "exports": "./dist/index.js",
   "include": [
-    "dist/"
+    "dist/",
+    "README.md"
   ]
 }
