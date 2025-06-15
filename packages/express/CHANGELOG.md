@@ -1,5 +1,31 @@
 # @csrf-armor/express
 
+## 1.2.0
+
+### Minor Changes
+
+- [#22](https://github.com/muneebs/csrf-armor/pull/22) [`19c15410af4d8faff3c1672bf99129f7d7e43068`](https://github.com/muneebs/csrf-armor/commit/19c15410af4d8faff3c1672bf99129f7d7e43068) Thanks [@muneebs](https://github.com/muneebs)! - # improved-token-expiry
+
+  Improve token expiry handling with automatic reissue
+
+  Adds a token reissue threshold mechanism to automatically refresh CSRF tokens before they expire.
+  This improves user experience by preventing token expiration errors during long user sessions.
+
+  **Key changes:**
+
+  - Add 'reissueThreshold' option (default: 500 seconds) to token configuration
+  - Change default strategy from 'hybrid' to 'signed-double-submit' for better security
+  - Improve token extraction in adapters with better error handling
+  - Add comprehensive JSDoc documentation across all packages
+  - Fix error handling in Express example app
+
+  This change is backward compatible with existing configurations.
+
+### Patch Changes
+
+- Updated dependencies [[`19c15410af4d8faff3c1672bf99129f7d7e43068`](https://github.com/muneebs/csrf-armor/commit/19c15410af4d8faff3c1672bf99129f7d7e43068)]:
+  - @csrf-armor/core@1.2.0
+
 ## 1.1.0
 
 ### Minor Changes
