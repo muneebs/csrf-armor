@@ -37,7 +37,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.1.2",
     "@changesets/changelog-github": "^0.4.8",
-    "@changesets/cli": "^2.26.2",
+    "@changesets/cli": "^2.29.5",
     "@types/node": "^16.18.126",
     "@vitest/coverage-v8": "^3.1.4",
     "@vitest/ui": "^1.2.0",
@@ -47,7 +47,8 @@
   },
   "pnpm": {
     "overrides": {
-      "brace-expansion": "^2.0.2"
+      "brace-expansion": "^2.0.2",
+      "tmp": ">=0.2.4"
     }
   },
   "packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"
