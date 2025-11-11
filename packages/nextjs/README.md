@@ -113,7 +113,7 @@ Wrap your app with the CSRF provider in `app/layout.tsx` (Next.js 13+ App Router
 
 ```typescript jsx
 // app/layout.tsx
-import {CsrfProvider} from '@csrf-armor/nextjs';
+import {CsrfProvider} from '@csrf-armor/nextjs/client';
 import type {Metadata} from 'next';
 
 export const metadata: Metadata = {
@@ -140,7 +140,7 @@ Wrap your app in `_app.tsx` (Next.js 12+ Pages Router):
 
 ```typescript jsx
 // pages/_app.tsx
-import {CsrfProvider} from '@csrf-armor/nextjs';
+import {CsrfProvider} from '@csrf-armor/nextjs/client';
 
 export default function MyApp({Component, pageProps}) {
     return (
@@ -253,7 +253,7 @@ export const config = {
 
 ```typescript jsx
 // app/layout.tsx
-import {CsrfProvider} from '@csrf-armor/nextjs';
+import {CsrfProvider} from '@csrf-armor/nextjs/client';
 
 export default function RootLayout({children}: {
     children: React.ReactNode;
@@ -273,7 +273,7 @@ export default function RootLayout({children}: {
 ```typescript jsx
 // pages/_app.tsx
 import type {AppProps} from 'next/app';
-import {CsrfProvider} from '@csrf-armor/nextjs';
+import {CsrfProvider} from '@csrf-armor/nextjs/client';
 
 export default function App({Component, pageProps}: AppProps) {
     return (
