@@ -33,8 +33,8 @@ All vulnerable dependencies have been updated to patched versions:
 
 ## Other Updates
 
-- Updated @biomejs/biome to 2.3.13
-- Updated @types/node to 25.1.0 (fixes peer dependency warnings)
+- Updated `@biomejs/biome` to 2.3.13
+- Updated `@types/node` to 20.0.0 (fixes peer dependency warnings)
 - Updated vitest and related packages to 4.0.18
 - Updated typescript to 5.9.3
 - Updated jsdom to 27.4.0
