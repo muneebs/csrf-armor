@@ -4,7 +4,7 @@
 "@csrf-armor/nextjs": patch
 ---
 
-**SECURITY FIXES: Critical timing attack vulnerabilities and dependency updates**
+## SECURITY FIXES: Critical timing attack vulnerabilities and dependency updates
 
 This release addresses critical security vulnerabilities and updates all vulnerable dependencies.
 
