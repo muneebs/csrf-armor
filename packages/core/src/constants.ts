@@ -1,3 +1,4 @@
+import { generateSecureSecret } from './crypto.js';
 import type { CookieOptions, CsrfConfig } from './types.js';
 
 /**
@@ -142,7 +143,7 @@ export const DEFAULT_CONFIG: CsrfConfig = {
     reissueThreshold: 500,
   },
   cookie: DEFAULT_COOKIE_OPTIONS,
-  secret: crypto.getRandomValues(new Uint8Array(32)).toString(),
+  secret: generateSecureSecret(),
   allowedOrigins: [],
   excludePaths: [],
   skipContentTypes: [],

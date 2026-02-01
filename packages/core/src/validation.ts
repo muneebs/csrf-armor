@@ -1,5 +1,9 @@
 import { SAFE_METHODS } from './constants.js';
-import { parseSignedToken, verifySignedToken } from './crypto.js';
+import {
+  parseSignedToken,
+  timingSafeEqual,
+  verifySignedToken,
+} from './crypto.js';
 import { OriginMismatchError } from './errors.js';
 import type {
   CsrfRequest,
@@ -97,7 +101,7 @@ export async function validateDoubleSubmit(
     return { isValid: false, reason: 'No CSRF token submitted' };
   }
 
-  if (cookieToken !== submittedToken) {
+  if (!timingSafeEqual(cookieToken, submittedToken)) {
     return { isValid: false, reason: 'Token mismatch' };
   }
 
@@ -135,12 +139,12 @@ export async function validateSignedDoubleSubmit(
     );
 
     // 2. Ensure client cookie matches the verified token
-    if (unsignedCookieToken !== verifiedUnsignedToken) {
+    if (!timingSafeEqual(unsignedCookieToken, verifiedUnsignedToken)) {
       return { isValid: false, reason: 'Cookie integrity check failed' };
     }
 
     // 3. Ensure submitted token matches the unsigned token
-    if (submittedToken !== unsignedCookieToken) {
+    if (!timingSafeEqual(submittedToken, unsignedCookieToken)) {
       return { isValid: false, reason: 'Token mismatch' };
     }
 
