@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      id-token: write
+      id-token: write # Required for provenance-based publishing
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,17 +33,31 @@ jobs:
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Configure NPM
+      # OPTION 1: Provenance-based publishing (RECOMMENDED - no token needed)
+      # Uses OpenID Connect with GitHub's id-token
+      # No NPM_TOKEN required if using this approach
+      # - name: Configure NPM for provenance
+      #   run: |
+      #     npm config set provenance true
+      #     npm config set registry https://registry.npmjs.org/
+
+      # OPTION 2: Granular Access Token (if you prefer token-based auth)
+      # 1. Create a new granular access token at: https://www.npmjs.com/settings/[your-username]/tokens
+      # 2. Set permissions: "Read and write" for the packages you want to publish
+      # 3. Add as NPM_TOKEN secret in GitHub repo settings
+      - name: Configure NPM with Granular Access Token
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          cat ~/.npmrc
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build core package first
         run: pnpm --filter @csrf-armor/core run build
+
       - name: Build all packages
         run: pnpm run build
 
@@ -55,9 +69,6 @@ jobs:
 
       - name: Run tests
         run: pnpm run test
-
-      - name: Build package
-        run: pnpm run build
 
       - name: Create Release PR or Publish to NPM
         id: changesets
