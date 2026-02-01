@@ -29,7 +29,7 @@ All vulnerable dependencies have been updated to patched versions:
 - **qs** (CVE-2025-15284): Updated to >=6.14.1 via pnpm override - fixes DoS vulnerability via memory exhaustion
 - **diff** (CVE-2026-24001): Updated to 8.0.3 via tsdown 0.20.1 - fixes denial of service vulnerability
 - **js-yaml**: Updated via @changesets/cli 2.29.8 - resolves YAML parsing vulnerabilities
-- **next** (CVEs: 1112593, 1112638, 1112649): Updated to 15.4.10+ - fixes multiple security issues
+- **next** (npm advisories: 1112593, 1112638, 1112649): Updated to 16.1.6 - fixes multiple security vulnerabilities including CVE-2025-59471, CVE-2025-59472, and CVE-2026-23864
 
 ## Other Updates
 
