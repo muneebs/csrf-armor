@@ -1,6 +1,6 @@
 {
   "name": "@csrf-armor/express",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Express.js adapter for CSRF Armor - Advanced CSRF protection for Express.js applications",
   "type": "module",
   "main": "./dist/index.js",
