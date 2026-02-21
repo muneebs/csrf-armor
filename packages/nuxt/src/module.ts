@@ -5,6 +5,7 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit';
+import type { NuxtModule } from '@nuxt/schema';
 import type { CsrfConfig } from '@csrf-armor/core';
 
 // Re-export core types for consumer convenience
@@ -27,7 +28,7 @@ export {
 
 export interface ModuleOptions extends CsrfConfig {}
 
-export default defineNuxtModule<ModuleOptions>({
+const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@csrf-armor/nuxt',
     configKey: 'csrfArmor',
@@ -70,3 +71,5 @@ export default defineNuxtModule<ModuleOptions>({
     addPlugin(resolver.resolve('./runtime/plugin.client'));
   },
 });
+
+export default module;

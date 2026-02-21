@@ -20,6 +20,7 @@ import {
   getMethod,
   getRequestURL,
   parseCookies,
+  readBody,
   setCookie,
   setResponseHeader,
 } from 'h3'
@@ -30,6 +31,7 @@ const mockedGetHeaders = vi.mocked(getHeaders)
 const mockedGetHeader = vi.mocked(getHeader)
 const mockedParseCookies = vi.mocked(parseCookies)
 const mockedSetCookie = vi.mocked(setCookie)
+const mockedReadBody = vi.mocked(readBody)
 const mockedSetResponseHeader = vi.mocked(setResponseHeader)
 
 /** Creates an H3Event mock with configured h3 function behaviors. */
@@ -161,7 +163,7 @@ describe('Nuxt CSRF Middleware Integration', () => {
   })
 
   it('should generate signed tokens for signed-double-submit strategy', async () => {
-    const secret = 'test-secret-32-characters-long-123'
+    const secret = 'test-secret-32-characters-long-123' // gitleaks:allow
     const adapter = new NuxtAdapter()
     const protection = createCsrfProtection(adapter, {
       strategy: 'signed-double-submit',
@@ -257,6 +259,33 @@ describe('Nuxt CSRF Middleware Integration', () => {
       { 'x-csrf-token': issuedToken },
       { 'csrf-token': issuedToken },
     )
+    const result = await protection.protect(postEvent, postEvent)
+
+    expect(result.success).toBe(true)
+  })
+
+  it('should accept POST with token in JSON body for double-submit', async () => {
+    const adapter = new NuxtAdapter()
+    const protection = createCsrfProtection(adapter, {
+      strategy: 'double-submit',
+      token: { fieldName: '_csrf' },
+    })
+
+    // Issue a token via GET
+    const getEvent = createGetEvent()
+    await protection.protect(getEvent, getEvent)
+    const issuedToken = getResponseHeaders()['x-csrf-token']!
+
+    vi.clearAllMocks()
+
+    // Submit token in body + cookie (no header)
+    const postEvent = createPostEvent(
+      'http://localhost/api',
+      { 'content-type': 'application/json' },
+      { 'csrf-token': issuedToken },
+    )
+    mockedReadBody.mockResolvedValue({ _csrf: issuedToken })
+
     const result = await protection.protect(postEvent, postEvent)
 
     expect(result.success).toBe(true)

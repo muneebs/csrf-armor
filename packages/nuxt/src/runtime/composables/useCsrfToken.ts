@@ -7,6 +7,7 @@ import {
   csrfFetch as clientCsrfFetch,
   refreshCsrfToken,
 } from '../utils/client';
+import type { CsrfArmorPublicConfig } from '../types';
 
 /**
  * Tracks whether the global listeners have been set up.
@@ -77,10 +78,7 @@ export function useCsrfToken() {
   const runtimeConfig = useRuntimeConfig();
 
   const publicConfig = runtimeConfig.public.csrfArmor as
-    | {
-        cookieName?: string;
-        headerName?: string;
-      }
+    | CsrfArmorPublicConfig
     | undefined;
 
   if (!resolvedConfig) {
@@ -115,8 +113,7 @@ export function useCsrfToken() {
   ): Promise<Response> {
     const response = await clientCsrfFetch(input, init, config);
 
-    const headerName = config.headerName ?? 'x-csrf-token';
-    const newToken = response.headers.get(headerName);
+    const newToken = response.headers.get(config.headerName!);
 
     if (newToken && newToken !== csrfToken.value) {
       csrfToken.value = newToken;
