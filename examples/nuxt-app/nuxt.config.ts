@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   },
   csrfArmor: {
     strategy: 'signed-double-submit',
+    // Override in production via NUXT_CSRF_ARMOR_SECRET env variable
     secret: 'super-secret-key-for-dev-only-32-chars-long-enough',
     token: { expiry: 3600, fieldName: '_csrf' },
     cookie: { secure: false /* must be true in production (HTTPS) */, name: 'x-csrf-token' },
