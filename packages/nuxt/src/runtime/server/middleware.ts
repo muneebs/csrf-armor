@@ -7,7 +7,9 @@ import { useRuntimeConfig } from '#imports';
 
 /**
  * Lazily-initialized CSRF protection singleton.
- * Created on first request to allow runtime config resolution.
+ *
+ * Created on first request and cached for the process lifetime.
+ * Changes to `runtimeConfig.csrfArmor` require a full server restart.
  */
 let csrfProtection: ReturnType<
   typeof createCsrfProtection<H3Event, H3Event>
@@ -24,10 +26,7 @@ export default defineEventHandler(async (event: H3Event) => {
   if (!csrfProtection) {
     const config = useRuntimeConfig().csrfArmor as CsrfConfig | undefined;
     const adapter = new NuxtAdapter();
-    csrfProtection = createCsrfProtection<H3Event, H3Event>(
-      adapter,
-      config ?? undefined
-    );
+    csrfProtection = createCsrfProtection<H3Event, H3Event>(adapter, config);
   }
 
   const result = await csrfProtection.protect(event, event);

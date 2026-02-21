@@ -35,7 +35,7 @@
   "author": "Jordan Labrosse",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jorgagu/csrf-armor",
+    "url": "https://github.com/muneebs/csrf-armor",
     "directory": "packages/nuxt"
   },
   "publishConfig": {
@@ -43,9 +43,9 @@
     "registry": "https://registry.npmjs.org/"
   },
   "bugs": {
-    "url": "https://github.com/Jorgagu/csrf-armor/issues"
+    "url": "https://github.com/muneebs/csrf-armor/issues"
   },
-  "homepage": "https://github.com/Jorgagu/csrf-armor#readme",
+  "homepage": "https://github.com/muneebs/csrf-armor#readme",
   "engines": {
     "node": ">=18.0.0"
   },

@@ -1,4 +1,5 @@
 import { defineNuxtPlugin, useRuntimeConfig, useState } from '#app';
+import type { CsrfArmorPublicConfig } from './types';
 import { getCsrfToken } from './utils/client';
 
 /**
@@ -10,9 +11,7 @@ import { getCsrfToken } from './utils/client';
 export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig();
   const publicConfig = runtimeConfig.public.csrfArmor as
-    | {
-        cookieName?: string;
-      }
+    | CsrfArmorPublicConfig
     | undefined;
 
   const token = getCsrfToken({

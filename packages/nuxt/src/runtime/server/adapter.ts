@@ -124,18 +124,15 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
       // If the body was already read by other middleware, readBody returns the cached result.
       // We still wrap in try/catch to handle edge cases where the stream was consumed externally.
       const contentType = getHeader(event, 'content-type') ?? 'text/plain';
+      const supportedTypes = [
+        'application/x-www-form-urlencoded',
+        'multipart/form-data',
+        'application/json',
+        'application/ld+json',
+        'text/plain',
+      ];
       try {
-        if (
-          contentType.startsWith('application/x-www-form-urlencoded') ||
-          contentType.startsWith('multipart/form-data')
-        ) {
-          parsedBody = await readBody(event);
-        } else if (
-          contentType.startsWith('application/json') ||
-          contentType.startsWith('application/ld+json')
-        ) {
-          parsedBody = await readBody(event);
-        } else if (contentType.startsWith('text/plain')) {
+        if (supportedTypes.some((t) => contentType.startsWith(t))) {
           parsedBody = await readBody(event);
         } else {
           parsedBody = null;

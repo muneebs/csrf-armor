@@ -19,7 +19,7 @@ export interface CsrfClientConfig {
  * @returns The CSRF token string, or null if not found
  */
 export function getCsrfToken(config?: CsrfClientConfig): string | null {
-  if (typeof window === 'undefined') return null;
+  if (!import.meta.client) return null;
 
   const cookieName = config?.cookieName ?? 'csrf-token';
 
@@ -27,8 +27,9 @@ export function getCsrfToken(config?: CsrfClientConfig): string | null {
   const csrfCookie = cookies.find((c) => c.trim().startsWith(`${cookieName}=`));
 
   if (csrfCookie) {
-    const [, value] = csrfCookie.split('=');
-    return decodeURIComponent(value?.trim() ?? '');
+    const eqIndex = csrfCookie.indexOf('=');
+    const value = eqIndex !== -1 ? csrfCookie.slice(eqIndex + 1) : '';
+    return decodeURIComponent(value.trim());
   }
 
   // Fallback to meta tag
@@ -87,7 +88,7 @@ export function csrfFetch(
 export async function refreshCsrfToken(
   config?: CsrfClientConfig
 ): Promise<string | null> {
-  if (typeof window === 'undefined') return null;
+  if (!import.meta.client) return null;
 
   try {
     const response = await fetch(

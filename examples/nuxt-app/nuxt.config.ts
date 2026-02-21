@@ -14,7 +14,7 @@ export default defineNuxtConfig({
     strategy: 'signed-double-submit',
     secret: 'super-secret-key-for-dev-only-32-chars-long-enough',
     token: { expiry: 3600, fieldName: '_csrf' },
-    cookie: { secure: false, name: 'x-csrf-token' },
+    cookie: { secure: false /* must be true in production (HTTPS) */, name: 'x-csrf-token' },
     allowedOrigins: ['http://localhost:3000'],
   },
   devtools: { enabled: false },

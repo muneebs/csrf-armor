@@ -60,8 +60,9 @@ export function getCsrfToken(config?: CsrfClientConfig): string | null {
   const csrfCookie = cookies.find((c) => c.trim().startsWith(`${cookieName}=`));
 
   if (csrfCookie) {
-    const [, value] = csrfCookie.split('=');
-    return decodeURIComponent(value?.trim() ?? '');
+    const eqIndex = csrfCookie.indexOf('=');
+    const value = eqIndex !== -1 ? csrfCookie.slice(eqIndex + 1) : '';
+    return decodeURIComponent(value.trim());
   }
 
   // Fallback to meta tag

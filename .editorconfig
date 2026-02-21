@@ -14,3 +14,4 @@ trim_trailing_whitespace = false
 [{pnpm-lock.yaml,*.lock}]
 indent_size = unset
 insert_final_newline = unset
+trim_trailing_whitespace = unset

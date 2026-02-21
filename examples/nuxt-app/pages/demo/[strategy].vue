@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
-const strategy = route.params.strategy as string
+const rawStrategy = route.params.strategy
+const strategy = Array.isArray(rawStrategy) ? rawStrategy[0] : rawStrategy
 
 useSeoMeta({
   title: `${strategy} Demo`,
@@ -83,7 +84,7 @@ async function handleSubmit() {
     </div>
 
     <div v-if="error" class="error">
-      CSRF validation failed: {{ error }}
+      Error: {{ error }}
     </div>
 
     <hr />

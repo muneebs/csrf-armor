@@ -238,6 +238,30 @@ describe('Nuxt CSRF Middleware Integration', () => {
     expect(result.success).toBe(false)
   })
 
+  it('should accept POST with matching token for double-submit', async () => {
+    const adapter = new NuxtAdapter()
+    const protection = createCsrfProtection(adapter, {
+      strategy: 'double-submit',
+    })
+
+    // Issue a token via GET
+    const getEvent = createGetEvent()
+    await protection.protect(getEvent, getEvent)
+    const issuedToken = getResponseHeaders()['x-csrf-token']!
+
+    vi.clearAllMocks()
+
+    // Submit it back in header + cookie
+    const postEvent = createPostEvent(
+      'http://localhost/api',
+      { 'x-csrf-token': issuedToken },
+      { 'csrf-token': issuedToken },
+    )
+    const result = await protection.protect(postEvent, postEvent)
+
+    expect(result.success).toBe(true)
+  })
+
   it('should reject POST without token for double-submit', async () => {
     const adapter = new NuxtAdapter()
     const protection = createCsrfProtection(adapter, {

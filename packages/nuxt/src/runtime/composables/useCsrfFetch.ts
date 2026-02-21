@@ -1,6 +1,7 @@
 // @ts-expect-error - Nuxt auto-imports resolved at build time
 import { useFetch, useRuntimeConfig } from '#imports';
 import type { UseFetchOptions } from 'nuxt/app';
+import type { CsrfArmorPublicConfig } from '../types';
 import { getCsrfToken } from '../utils/client';
 
 /**
@@ -21,10 +22,7 @@ export function useCsrfFetch<T>(
   const runtimeConfig = useRuntimeConfig();
 
   const publicConfig = runtimeConfig.public.csrfArmor as
-    | {
-        cookieName?: string;
-        headerName?: string;
-      }
+    | CsrfArmorPublicConfig
     | undefined;
 
   const cookieName = publicConfig?.cookieName ?? 'csrf-token';
@@ -32,7 +30,7 @@ export function useCsrfFetch<T>(
 
   return useFetch<T>(url, {
     ...opts,
-    onRequest(context) {
+    async onRequest(context) {
       const token = getCsrfToken({ cookieName });
       if (token) {
         const headers = new Headers(
@@ -42,11 +40,16 @@ export function useCsrfFetch<T>(
         context.options.headers = headers;
       }
 
-      // Chain with any existing onRequest handler
-      if (typeof opts?.onRequest === 'function') {
-        return (
-          opts.onRequest as (ctx: typeof context) => void | Promise<void>
-        )(context);
+      // Chain with any existing onRequest handlers (supports single function or array)
+      if (opts?.onRequest) {
+        const handlers = Array.isArray(opts.onRequest)
+          ? opts.onRequest
+          : [opts.onRequest];
+        for (const handler of handlers) {
+          await (handler as (ctx: typeof context) => void | Promise<void>)(
+            context
+          );
+        }
       }
     },
   } as UseFetchOptions<T>);

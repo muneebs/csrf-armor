@@ -8,10 +8,17 @@ import {
   refreshCsrfToken,
 } from '../utils/client';
 
-/** Tracks whether the global listeners have been set up (client-only). */
+/**
+ * Tracks whether the global listeners have been set up.
+ * Guarded by `import.meta.client` so this is only relevant on the client.
+ */
 let globalListenersInitialized = false;
 
-/** Cached config resolved from runtimeConfig (client-only). */
+/**
+ * Cached config resolved from runtimeConfig.
+ * Set once on first composable call and reused for the process lifetime.
+ * Changes to runtimeConfig require a server/app restart to take effect.
+ */
 let resolvedConfig: CsrfClientConfig | null = null;
 
 /**
@@ -38,12 +45,19 @@ function initGlobalListeners(
     }
   );
 
+  // On browser back/forward, wait briefly for the middleware Set-Cookie
+  // header to settle before reading the updated token from cookies.
   window.addEventListener('popstate', () => {
-    setTimeout(async () => {
-      const newToken = await refreshCsrfToken(config);
-      if (newToken && newToken !== csrfToken.value) {
-        csrfToken.value = newToken;
-      }
+    setTimeout(() => {
+      refreshCsrfToken(config)
+        .then((newToken) => {
+          if (newToken && newToken !== csrfToken.value) {
+            csrfToken.value = newToken;
+          }
+        })
+        .catch(() => {
+          // Silently ignore — refreshCsrfToken falls back to cookie read internally
+        });
     }, 50);
   });
 }
