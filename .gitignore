@@ -8,6 +8,8 @@
 \#*
 node_modules
 .next
+.nuxt
+.output
 .env
 .env*.local
 .env.*

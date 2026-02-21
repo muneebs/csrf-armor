@@ -25,5 +25,5 @@
   },
   "include": [],
   "exclude": ["node_modules", "dist", "coverage"],
-  "references": [{ "path": "packages/core" }, { "path": "packages/nextjs" }]
+  "references": [{ "path": "packages/core" }, { "path": "packages/nextjs" }, { "path": "packages/nuxt" }]
 }
