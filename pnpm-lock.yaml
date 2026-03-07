@@ -137,6 +137,9 @@ importers:
       '@nuxt/schema':
         specifier: ^4.3.1
         version: 4.3.1
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
       h3:
         specifier: ^1.15.3
         version: 1.15.5

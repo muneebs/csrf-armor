@@ -6,6 +6,7 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
+import { defu } from 'defu';
 import type { CsrfConfig } from '@csrf-armor/core';
 
 // Re-export core types for consumer convenience
@@ -40,12 +41,22 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
 
-    // Pass module options to runtime via public config
-    nuxt.options.runtimeConfig['csrfArmor'] = options as CsrfConfig;
-    nuxt.options.runtimeConfig.public['csrfArmor'] = {
-      cookieName: options.cookie?.name ?? 'csrf-token',
-      headerName: options.token?.headerName ?? 'x-csrf-token',
-    };
+    // Merge module options with any existing runtimeConfig (host app values take priority)
+    const mergedConfig = defu(
+      nuxt.options.runtimeConfig['csrfArmor'] as Partial<CsrfConfig> | undefined,
+      options
+    ) as CsrfConfig;
+
+    nuxt.options.runtimeConfig['csrfArmor'] = mergedConfig;
+    nuxt.options.runtimeConfig.public['csrfArmor'] = defu(
+      nuxt.options.runtimeConfig.public['csrfArmor'] as
+        | { cookieName?: string; headerName?: string }
+        | undefined,
+      {
+        cookieName: mergedConfig.cookie?.name ?? 'csrf-token',
+        headerName: mergedConfig.token?.headerName ?? 'x-csrf-token',
+      }
+    );
 
     // Register server middleware for CSRF protection
     addServerHandler({
