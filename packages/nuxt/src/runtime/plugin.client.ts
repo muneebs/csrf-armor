@@ -1,3 +1,4 @@
+// @ts-expect-error - Nuxt auto-imports resolved at build time
 import { defineNuxtPlugin, useRuntimeConfig, useState } from '#app';
 import type { CsrfArmorPublicConfig } from './types';
 import { getCsrfToken } from './utils/client';

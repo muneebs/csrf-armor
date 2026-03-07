@@ -41,8 +41,8 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url);
 
     // Pass module options to runtime via public config
-    nuxt.options.runtimeConfig.csrfArmor = options as CsrfConfig;
-    nuxt.options.runtimeConfig.public.csrfArmor = {
+    nuxt.options.runtimeConfig['csrfArmor'] = options as CsrfConfig;
+    nuxt.options.runtimeConfig.public['csrfArmor'] = {
       cookieName: options.cookie?.name ?? 'csrf-token',
       headerName: options.token?.headerName ?? 'x-csrf-token',
     };
