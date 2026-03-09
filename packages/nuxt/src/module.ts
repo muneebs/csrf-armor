@@ -43,13 +43,17 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     // Merge module options with any existing runtimeConfig (host app values take priority)
     const mergedConfig = defu(
-      nuxt.options.runtimeConfig.csrfArmor as Partial<CsrfConfig> | undefined,
+      // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
+      nuxt.options.runtimeConfig['csrfArmor'] as Partial<CsrfConfig> | undefined,
       options
     ) as CsrfConfig;
 
-    nuxt.options.runtimeConfig.csrfArmor = mergedConfig;
-    nuxt.options.runtimeConfig.public.csrfArmor = defu(
-      nuxt.options.runtimeConfig.public.csrfArmor as
+    // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
+    nuxt.options.runtimeConfig['csrfArmor'] = mergedConfig;
+    // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
+    nuxt.options.runtimeConfig.public['csrfArmor'] = defu(
+      // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
+      nuxt.options.runtimeConfig.public['csrfArmor'] as
         | { cookieName?: string; headerName?: string }
         | undefined,
       {

@@ -40,6 +40,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   if (result.token) {
-    event.context.csrfToken = result.token;
+    // biome-ignore lint/complexity/useLiteralKeys: H3EventContext uses index signatures
+    event.context['csrfToken'] = result.token;
   }
 });
