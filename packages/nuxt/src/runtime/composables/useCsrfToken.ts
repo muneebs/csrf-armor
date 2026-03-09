@@ -113,7 +113,7 @@ export function useCsrfToken() {
   ): Promise<Response> {
     const response = await clientCsrfFetch(input, init, config);
 
-    const newToken = response.headers.get(config.headerName!);
+    const newToken = response.headers.get(config.headerName ?? 'x-csrf-token');
 
     if (newToken && newToken !== csrfToken.value) {
       csrfToken.value = newToken;

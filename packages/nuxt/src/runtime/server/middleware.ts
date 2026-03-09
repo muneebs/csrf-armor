@@ -40,6 +40,6 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   if (result.token) {
-    event.context['csrfToken'] = result.token;
+    event.context.csrfToken = result.token;
   }
 });
