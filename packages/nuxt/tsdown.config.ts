@@ -21,6 +21,8 @@ export default defineConfig({
     'vue',
     'h3',
     '@nuxt/kit',
+    '@nuxt/schema',
     '@csrf-armor/core',
+    'defu',
   ],
 })
