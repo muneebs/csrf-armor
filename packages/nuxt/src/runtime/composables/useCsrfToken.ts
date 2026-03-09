@@ -1,4 +1,4 @@
-import { watch } from 'vue';
+import { effectScope, watch } from 'vue';
 // @ts-expect-error - Nuxt auto-imports resolved at build time
 import { useRoute, useRuntimeConfig, useState } from '#imports';
 import {
@@ -10,10 +10,10 @@ import {
 import type { CsrfArmorPublicConfig } from '../types';
 
 /**
- * Tracks whether the global listeners have been set up.
- * Guarded by `import.meta.client` so this is only relevant on the client.
+ * Detached effect scope for global listeners.
+ * Keeps watchers alive independent of component lifecycle.
  */
-let globalListenersInitialized = false;
+let globalScope: ReturnType<typeof effectScope> | null = null;
 
 /**
  * Cached config resolved from runtimeConfig.
@@ -26,25 +26,31 @@ let resolvedConfig: CsrfClientConfig | null = null;
  * Sets up app-level route watcher and popstate listener.
  * These are registered once and live for the entire SPA session,
  * independent of any component lifecycle.
+ *
+ * Uses a detached effect scope so watchers survive component unmounts.
  */
 function initGlobalListeners(
   config: CsrfClientConfig,
   csrfToken: ReturnType<typeof useState<string | null>>
 ): void {
-  if (globalListenersInitialized || !import.meta.client) return;
-  globalListenersInitialized = true;
+  if (globalScope || !import.meta.client) return;
 
-  const route = useRoute();
+  // Create a detached scope that won't be disposed when the calling component unmounts
+  globalScope = effectScope(true);
 
-  watch(
-    () => route.path,
-    () => {
-      const newToken = getCsrfToken(config);
-      if (newToken !== csrfToken.value) {
-        csrfToken.value = newToken;
+  globalScope.run(() => {
+    const route = useRoute();
+
+    watch(
+      () => route.path,
+      () => {
+        const newToken = getCsrfToken(config);
+        if (newToken !== csrfToken.value) {
+          csrfToken.value = newToken;
+        }
       }
-    }
-  );
+    );
+  });
 
   // On browser back/forward, wait briefly for the middleware Set-Cookie
   // header to settle before reading the updated token from cookies.
