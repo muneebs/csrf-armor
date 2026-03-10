@@ -1,0 +1,72 @@
+{
+  "name": "@csrf-armor/nuxt",
+  "version": "1.0.0",
+  "description": "Nuxt module for CSRF protection powered by csrf-armor",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/module.js",
+  "types": "./dist/module.d.ts",
+  "exports": {
+    ".": "./dist/module.js",
+    "./client": "./dist/runtime/utils/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "pnpm build",
+    "pretest": "cd ../core && pnpm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "nuxt",
+    "nuxt-module",
+    "csrf",
+    "security",
+    "middleware",
+    "protection",
+    "vue"
+  ],
+  "author": "Jordan Labrosse",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muneebs/csrf-armor",
+    "directory": "packages/nuxt"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/muneebs/csrf-armor/issues"
+  },
+  "homepage": "https://github.com/muneebs/csrf-armor#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@csrf-armor/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@nuxt/kit": "^4.3.1",
+    "@nuxt/schema": "^4.3.1",
+    "defu": "^6.1.4",
+    "h3": "^1.15.3",
+    "nuxt": "^4.3.1",
+    "tsdown": "^0.20.1",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  },
+  "peerDependencies": {
+    "@nuxt/kit": "^3.0.0 || ^4.0.0",
+    "h3": "^1.0.0",
+    "nuxt": "^3.0.0 || ^4.0.0",
+    "vue": "^3.3.0"
+  },
+  "module": "./dist/module.js"
+}
