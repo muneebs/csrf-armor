@@ -356,7 +356,7 @@ We welcome contributions! Areas where help is needed:
 
 ## 📄 License
 
-MIT © [Muneeb Samuels](https://github.com/muneebs)
+MIT © [Jordan Labrosse](https://github.com/Jorgagu)
 
 ## 📦 Related Packages
 

@@ -1,13 +1,13 @@
 import { effectScope, watch } from 'vue';
 // @ts-expect-error - Nuxt auto-imports resolved at build time
 import { useRoute, useRuntimeConfig, useState } from '#imports';
+import type { CsrfArmorPublicConfig } from '../types';
 import {
   type CsrfClientConfig,
-  getCsrfToken,
   csrfFetch as clientCsrfFetch,
+  getCsrfToken,
   refreshCsrfToken,
 } from '../utils/client';
-import type { CsrfArmorPublicConfig } from '../types';
 
 /**
  * Detached effect scope for global listeners.
@@ -87,12 +87,10 @@ export function useCsrfToken() {
     | CsrfArmorPublicConfig
     | undefined;
 
-  if (!resolvedConfig) {
-    resolvedConfig = {
-      cookieName: publicConfig?.cookieName ?? 'csrf-token',
-      headerName: publicConfig?.headerName ?? 'x-csrf-token',
-    };
-  }
+  resolvedConfig ??= {
+    cookieName: publicConfig?.cookieName ?? 'csrf-token',
+    headerName: publicConfig?.headerName ?? 'x-csrf-token',
+  };
 
   const config = resolvedConfig;
 
