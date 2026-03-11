@@ -1,9 +1,8 @@
-import type { H3Event } from 'h3';
-import { createError, defineEventHandler } from 'h3';
 import { type CsrfConfig, createCsrfProtection } from '@csrf-armor/core';
-import { NuxtAdapter } from './adapter';
+import type { H3Event } from 'h3';
 // @ts-expect-error - Nuxt auto-imports resolved at build time
-import { useRuntimeConfig } from '#imports';
+import { defineEventHandler, useRuntimeConfig } from '#imports';
+import { NuxtAdapter } from './adapter';
 
 /**
  * Lazily-initialized CSRF protection singleton.
@@ -32,7 +31,7 @@ export default defineEventHandler(async (event: H3Event) => {
   const result = await csrfProtection.protect(event, event);
 
   if (!result.success) {
-    throw createError({
+    throw Object.assign(new Error('CSRF validation failed'), {
       statusCode: 403,
       statusMessage: 'CSRF validation failed',
       data: { reason: result.reason },

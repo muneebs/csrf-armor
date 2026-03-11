@@ -1,203 +1,231 @@
-import { createCsrfProtection, verifySignedToken } from '@csrf-armor/core'
-import type { H3Event } from 'h3'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { NuxtAdapter } from '../src/runtime/server/adapter'
+import { Readable } from 'node:stream';
+import { createCsrfProtection, verifySignedToken } from '@csrf-armor/core';
+import type { H3Event } from 'h3';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NuxtAdapter } from '../src/runtime/server/adapter';
 
-vi.mock('h3', () => ({
-  getMethod: vi.fn(),
-  getRequestURL: vi.fn(),
-  getHeaders: vi.fn(),
-  getHeader: vi.fn(),
-  parseCookies: vi.fn(),
-  setCookie: vi.fn(),
-  setResponseHeader: vi.fn(),
-  readBody: vi.fn(),
-}))
+interface MockServerResponse {
+  setHeader: ReturnType<typeof vi.fn>;
+  getHeader: ReturnType<typeof vi.fn>;
+  _headers: Record<string, string | string[]>;
+}
 
-import {
-  getHeader,
-  getHeaders,
-  getMethod,
-  getRequestURL,
-  parseCookies,
-  readBody,
-  setCookie,
-  setResponseHeader,
-} from 'h3'
+/** Creates a mock Node.js readable stream that emits body then ends. */
+function createMockStream(body?: string | null): Readable {
+  const stream = new Readable({ read() {} });
+  if (body) stream.push(body);
+  stream.push(null);
+  return stream;
+}
 
-const mockedGetMethod = vi.mocked(getMethod)
-const mockedGetRequestURL = vi.mocked(getRequestURL)
-const mockedGetHeaders = vi.mocked(getHeaders)
-const mockedGetHeader = vi.mocked(getHeader)
-const mockedParseCookies = vi.mocked(parseCookies)
-const mockedSetCookie = vi.mocked(setCookie)
-const mockedReadBody = vi.mocked(readBody)
-const mockedSetResponseHeader = vi.mocked(setResponseHeader)
+/** Creates a mock ServerResponse that tracks setHeader calls. */
+function createMockRes(): MockServerResponse {
+  const headers: Record<string, string | string[]> = {};
+  return {
+    setHeader: vi
+      .fn()
+      .mockImplementation((name: string, value: string | string[]) => {
+        headers[name.toLowerCase()] = value;
+      }),
+    getHeader: vi
+      .fn()
+      .mockImplementation((name: string) => headers[name.toLowerCase()]),
+    _headers: headers,
+  };
+}
 
-/** Creates an H3Event mock with configured h3 function behaviors. */
-function createGetEvent(url = 'http://localhost/', headers: Record<string, string> = {}): H3Event {
-  const event = {} as unknown as H3Event
-
-  mockedGetMethod.mockReturnValue('GET')
-  mockedGetRequestURL.mockReturnValue(new URL(url))
-  mockedGetHeaders.mockReturnValue(headers)
-  mockedGetHeader.mockImplementation((_e, name) => headers[name as string])
-  mockedParseCookies.mockReturnValue({})
-
-  return event
+function createGetEvent(
+  url = 'http://localhost/',
+  requestHeaders: Record<string, string> = {}
+): H3Event {
+  const parsedUrl = new URL(url);
+  const headers = new Headers({
+    host: parsedUrl.host,
+    ...requestHeaders,
+  });
+  return {
+    method: 'GET',
+    path: parsedUrl.pathname + parsedUrl.search,
+    headers,
+    node: { req: createMockStream(null), res: createMockRes() },
+    context: {},
+  } as unknown as H3Event;
 }
 
 function createPostEvent(
   url: string,
-  headers: Record<string, string>,
+  requestHeaders: Record<string, string>,
   cookies: Record<string, string>,
+  body?: string | Record<string, unknown>
 ): H3Event {
-  const event = {} as unknown as H3Event
+  const parsedUrl = new URL(url);
+  const cookieStr = Object.entries(cookies)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('; ');
 
-  mockedGetMethod.mockReturnValue('POST')
-  mockedGetRequestURL.mockReturnValue(new URL(url))
-  mockedGetHeaders.mockReturnValue(headers)
-  mockedGetHeader.mockImplementation((_e, name) => headers[name as string])
-  mockedParseCookies.mockReturnValue(cookies)
+  const headers = new Headers({
+    host: parsedUrl.host,
+    ...requestHeaders,
+    ...(cookieStr ? { cookie: cookieStr } : {}),
+  });
 
-  return event
+  const bodyStr =
+    body === undefined
+      ? null
+      : typeof body === 'string'
+        ? body
+        : JSON.stringify(body);
+
+  return {
+    method: 'POST',
+    path: parsedUrl.pathname + parsedUrl.search,
+    headers,
+    node: { req: createMockStream(bodyStr), res: createMockRes() },
+    context: {},
+  } as unknown as H3Event;
 }
 
-/** Collects cookies set via setCookie mock calls. */
-function getSetCookies(): Record<string, string> {
-  const cookies: Record<string, string> = {}
-  for (const call of mockedSetCookie.mock.calls) {
-    cookies[call[1] as string] = call[2] as string
+/** Collects cookies set on the response. Returns name→value map. */
+function getSetCookies(event: H3Event): Record<string, string> {
+  const res = (event.node.res as unknown as MockServerResponse)._headers[
+    'set-cookie'
+  ];
+  const cookieHeaders = Array.isArray(res) ? res : res ? [String(res)] : [];
+  const result: Record<string, string> = {};
+  for (const cookieStr of cookieHeaders) {
+    const [nameValue] = cookieStr.split(';');
+    if (!nameValue) continue;
+    const eqIdx = nameValue.indexOf('=');
+    if (eqIdx === -1) continue;
+    const name = nameValue.slice(0, eqIdx).trim();
+    result[name] = decodeURIComponent(nameValue.slice(eqIdx + 1).trim());
   }
-  return cookies
+  return result;
 }
 
-/** Collects response headers set via setResponseHeader mock calls. */
-function getResponseHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {}
-  for (const call of mockedSetResponseHeader.mock.calls) {
-    headers[call[1] as string] = call[2] as string
+/** Collects non-cookie response headers. */
+function getResponseHeaders(event: H3Event): Record<string, string> {
+  const all = (event.node.res as unknown as MockServerResponse)._headers;
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(all)) {
+    if (k !== 'set-cookie')
+      result[k] = Array.isArray(v) ? v.join(', ') : String(v);
   }
-  return headers
+  return result;
 }
 
 describe('Nuxt CSRF Middleware Integration', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('should allow GET requests without validation', async () => {
-    const adapter = new NuxtAdapter()
-    const protection = createCsrfProtection(adapter)
-    const event = createGetEvent()
+    const adapter = new NuxtAdapter();
+    const protection = createCsrfProtection(adapter);
+    const event = createGetEvent();
 
-    const result = await protection.protect(event, event)
+    const result = await protection.protect(event, event);
 
-    expect(result.success).toBe(true)
-    expect(result.token).toBeDefined()
-  })
+    expect(result.success).toBe(true);
+    expect(result.token).toBeDefined();
+  });
 
   it('should set CSRF token header and cookie on GET', async () => {
-    const adapter = new NuxtAdapter()
-    const protection = createCsrfProtection(adapter)
-    const event = createGetEvent()
+    const adapter = new NuxtAdapter();
+    const protection = createCsrfProtection(adapter);
+    const event = createGetEvent();
 
-    await protection.protect(event, event)
+    await protection.protect(event, event);
 
-    const headers = getResponseHeaders()
-    const cookies = getSetCookies()
+    const headers = getResponseHeaders(event);
+    const cookies = getSetCookies(event);
 
-    expect(headers['x-csrf-token']).toBeDefined()
-    expect(cookies['csrf-token']).toBeDefined()
-  })
+    expect(headers['x-csrf-token']).toBeDefined();
+    expect(cookies['csrf-token']).toBeDefined();
+  });
 
   it('should exclude configured paths from protection', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       excludePaths: ['/api/webhook'],
-    })
+    });
 
-    mockedGetMethod.mockReturnValue('POST')
-    mockedGetRequestURL.mockReturnValue(new URL('http://localhost/api/webhook'))
-    mockedGetHeaders.mockReturnValue({})
-    mockedGetHeader.mockReturnValue(undefined)
-    mockedParseCookies.mockReturnValue({})
+    const event = createPostEvent('http://localhost/api/webhook', {}, {});
+    const result = await protection.protect(event, event);
 
-    const event = {} as unknown as H3Event
-    const result = await protection.protect(event, event)
-
-    expect(result.success).toBe(true)
-  })
+    expect(result.success).toBe(true);
+  });
 
   it('should use custom cookie name', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       cookie: { name: 'my-csrf' },
-    })
+    });
 
-    const event = createGetEvent()
-    await protection.protect(event, event)
+    const event = createGetEvent();
+    await protection.protect(event, event);
 
-    const cookies = getSetCookies()
-    expect(cookies['my-csrf']).toBeDefined()
-  })
+    const cookies = getSetCookies(event);
+    expect(cookies['my-csrf']).toBeDefined();
+  });
 
   it('should generate unsigned tokens for double-submit strategy', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       strategy: 'double-submit',
-    })
+    });
 
-    const event = createGetEvent()
-    const result = await protection.protect(event, event)
+    const event = createGetEvent();
+    await protection.protect(event, event);
 
-    const headers = getResponseHeaders()
-    const cookies = getSetCookies()
+    const headers = getResponseHeaders(event);
+    const cookies = getSetCookies(event);
 
-    expect(headers['x-csrf-token']).toBeDefined()
-    expect(cookies['csrf-token']).toBeDefined()
-    expect(headers['x-csrf-token']).toBe(cookies['csrf-token'])
+    expect(headers['x-csrf-token']).toBeDefined();
+    expect(cookies['csrf-token']).toBeDefined();
+    expect(headers['x-csrf-token']).toBe(cookies['csrf-token']);
 
     // Unsigned tokens have no dots
-    expect(headers['x-csrf-token']!.includes('.')).toBe(false)
-  })
+    expect(headers['x-csrf-token']?.includes('.')).toBe(false);
+  });
 
   it('should generate signed tokens for signed-double-submit strategy', async () => {
-    const secret = 'test-secret-32-characters-long-123' // gitleaks:allow
-    const adapter = new NuxtAdapter()
+    const secret = 'test-secret-32-characters-long-123'; // gitleaks:allow
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       strategy: 'signed-double-submit',
       secret,
-    })
+    });
 
-    const event = createGetEvent()
-    await protection.protect(event, event)
+    const event = createGetEvent();
+    await protection.protect(event, event);
 
-    const headers = getResponseHeaders()
-    const cookies = getSetCookies()
+    const headers = getResponseHeaders(event);
+    const cookies = getSetCookies(event);
 
-    const headerToken = headers['x-csrf-token']
-    const clientCookie = cookies['csrf-token']
-    const serverCookie = cookies['csrf-token-server']
+    const headerToken = headers['x-csrf-token'];
+    const clientCookie = cookies['csrf-token'];
+    const serverCookie = cookies['csrf-token-server'];
 
-    expect(headerToken).toBeDefined()
-    expect(clientCookie).toBeDefined()
-    expect(serverCookie).toBeDefined()
+    expect(headerToken).toBeDefined();
+    expect(clientCookie).toBeDefined();
+    expect(serverCookie).toBeDefined();
 
     // Header and client cookie are unsigned and identical
-    expect(headerToken).toBe(clientCookie)
-    expect(headerToken!.includes('.')).toBe(false)
+    expect(headerToken).toBe(clientCookie);
+    expect(headerToken?.includes('.')).toBe(false);
 
     // Server cookie is signed (contains a dot)
-    expect(serverCookie!.split('.').length).toBe(2)
+    expect(serverCookie?.split('.').length).toBe(2);
 
     // Signed server cookie contains the unsigned token
-    const verified = await verifySignedToken(serverCookie!, secret)
-    expect(verified).toBe(headerToken)
-  })
+    // biome-ignore lint/style/noNonNullAssertion: serverCookie is already assigned
+    const verified = await verifySignedToken(serverCookie!, secret);
+    expect(verified).toBe(headerToken);
+  });
 
   it('should validate origin-check POST with correct origin', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
 
     vi.spyOn(adapter, 'extractRequest').mockImplementation(() => ({
       method: 'POST',
@@ -205,21 +233,21 @@ describe('Nuxt CSRF Middleware Integration', () => {
       headers: new Map([['origin', 'http://localhost']]),
       cookies: new Map(),
       body: undefined,
-    }))
+    }));
 
     const protection = createCsrfProtection(adapter, {
       strategy: 'origin-check',
       allowedOrigins: ['http://localhost'],
-    })
+    });
 
-    const event = {} as unknown as H3Event
-    const result = await protection.protect(event, event)
+    const event = createPostEvent('http://localhost/api', {}, {});
+    const result = await protection.protect(event, event);
 
-    expect(result.success).toBe(true)
-  })
+    expect(result.success).toBe(true);
+  });
 
   it('should reject origin-check POST with wrong origin', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
 
     vi.spyOn(adapter, 'extractRequest').mockImplementation(() => ({
       method: 'POST',
@@ -227,84 +255,83 @@ describe('Nuxt CSRF Middleware Integration', () => {
       headers: new Map([['origin', 'http://evil.com']]),
       cookies: new Map(),
       body: undefined,
-    }))
+    }));
 
     const protection = createCsrfProtection(adapter, {
       strategy: 'origin-check',
       allowedOrigins: ['http://localhost'],
-    })
+    });
 
-    const event = {} as unknown as H3Event
-    const result = await protection.protect(event, event)
+    const event = createPostEvent('http://localhost/api', {}, {});
+    const result = await protection.protect(event, event);
 
-    expect(result.success).toBe(false)
-  })
+    expect(result.success).toBe(false);
+  });
 
   it('should accept POST with matching token for double-submit', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       strategy: 'double-submit',
-    })
+    });
 
     // Issue a token via GET
-    const getEvent = createGetEvent()
-    await protection.protect(getEvent, getEvent)
-    const issuedToken = getResponseHeaders()['x-csrf-token']!
+    const getEvent = createGetEvent();
+    await protection.protect(getEvent, getEvent);
+    const issuedToken = getResponseHeaders(getEvent)['x-csrf-token'];
 
-    vi.clearAllMocks()
+    expect(issuedToken).toBeDefined();
 
     // Submit it back in header + cookie
     const postEvent = createPostEvent(
       'http://localhost/api',
       { 'x-csrf-token': issuedToken },
-      { 'csrf-token': issuedToken },
-    )
-    const result = await protection.protect(postEvent, postEvent)
+      { 'csrf-token': issuedToken }
+    );
+    const result = await protection.protect(postEvent, postEvent);
 
-    expect(result.success).toBe(true)
-  })
+    expect(result.success).toBe(true);
+  });
 
   it('should accept POST with token in JSON body for double-submit', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       strategy: 'double-submit',
       token: { fieldName: '_csrf' },
-    })
+    });
 
     // Issue a token via GET
-    const getEvent = createGetEvent()
-    await protection.protect(getEvent, getEvent)
-    const issuedToken = getResponseHeaders()['x-csrf-token']!
+    const getEvent = createGetEvent();
+    await protection.protect(getEvent, getEvent);
+    const issuedToken = getResponseHeaders(getEvent)['x-csrf-token'];
 
-    vi.clearAllMocks()
+    expect(issuedToken).toBeDefined();
 
     // Submit token in body + cookie (no header)
     const postEvent = createPostEvent(
       'http://localhost/api',
       { 'content-type': 'application/json' },
       { 'csrf-token': issuedToken },
-    )
-    mockedReadBody.mockResolvedValue({ _csrf: issuedToken })
+      { _csrf: issuedToken }
+    );
+    const result = await protection.protect(postEvent, postEvent);
 
-    const result = await protection.protect(postEvent, postEvent)
-
-    expect(result.success).toBe(true)
-  })
+    expect(result.success).toBe(true);
+  });
 
   it('should reject POST without token for double-submit', async () => {
-    const adapter = new NuxtAdapter()
+    const adapter = new NuxtAdapter();
     const protection = createCsrfProtection(adapter, {
       strategy: 'double-submit',
-    })
+    });
 
     const event = createPostEvent(
       'http://localhost/api',
       { 'content-type': 'application/json' },
-      {},
-    )
+      {}
+    );
 
-    const result = await protection.protect(event, event)
+    const result = await protection.protect(event, event);
 
-    expect(result.success).toBe(false)
-  })
-})
+    expect(result.success).toBe(false);
+  });
+});
