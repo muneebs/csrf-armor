@@ -63,7 +63,7 @@ function createMockEvent(
   const headerInit: Record<string, string> = { ...options.headers };
 
   if (options.cookies && Object.keys(options.cookies).length > 0) {
-    headerInit['cookie'] = Object.entries(options.cookies)
+    headerInit.cookie = Object.entries(options.cookies)
       .map(([k, v]) => `${k}=${v}`)
       .join('; ');
   }
@@ -499,7 +499,7 @@ describe('NuxtAdapter', () => {
 
       const cookies = getSetCookies(mockEvent.node.res);
       expect(cookies).toHaveLength(1);
-      const cookieStr = cookies[0]!;
+      const cookieStr = cookies[0] ?? '';
       expect(cookieStr).toContain('test-cookie=test-value');
       expect(cookieStr).toContain('Max-Age=3600');
       expect(cookieStr).toContain('Path=/api');
@@ -552,6 +552,7 @@ describe('NuxtAdapter', () => {
           Promise.resolve(
             adapter.applyResponse(
               event as unknown as H3Event,
+              // biome-ignore lint/style/noNonNullAssertion: csrfResponses and events have equal length
               csrfResponses[i]!
             )
           )
