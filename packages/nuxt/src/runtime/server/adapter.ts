@@ -64,7 +64,6 @@ async function parseBody(
     'application/json',
     'application/ld+json',
     'application/x-www-form-urlencoded',
-    'multipart/form-data',
     'text/plain',
   ];
 
