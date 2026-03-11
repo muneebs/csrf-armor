@@ -363,9 +363,10 @@ describe('NuxtAdapter', () => {
       expect(token).toBe('form-token');
     });
 
-    it('should extract token from multipart/form-data body (as raw string)', async () => {
-      // After removing h3's readBody, multipart comes in as raw string;
-      // the token is extracted via URLSearchParams fallback on the raw body.
+    it('should not parse multipart/form-data body (token must be in header or cookie)', async () => {
+      // multipart/form-data is excluded from body parsing because the raw stream
+      // cannot be reliably parsed without a multipart parser. Callers must include
+      // the CSRF token in a header or cookie for multipart requests.
       const mockEvent = createMockEvent({
         method: 'POST',
         headers: { 'content-type': 'multipart/form-data' },
@@ -381,7 +382,7 @@ describe('NuxtAdapter', () => {
       };
 
       const token = await adapter.getTokenFromRequest(request, baseConfig);
-      expect(token).toBe('formdata-token');
+      expect(token).toBeUndefined();
     });
 
     it('should extract token from URL-encoded string body (text/plain)', async () => {
