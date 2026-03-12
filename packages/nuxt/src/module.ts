@@ -1,3 +1,4 @@
+import type { CsrfConfig } from '@csrf-armor/core';
 import {
   addImports,
   addPlugin,
@@ -6,8 +7,6 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
-import { defu } from 'defu';
-import type { CsrfConfig } from '@csrf-armor/core';
 
 // Re-export core types for consumer convenience
 export type {
@@ -29,6 +28,33 @@ export {
 
 export interface ModuleOptions extends CsrfConfig {}
 
+/**
+ * Deep merges `overrides` into `defaults`, with `overrides` taking priority.
+ * Only plain objects are merged recursively; arrays and primitives are replaced.
+ */
+function mergeDefaults<T>(defaults: T, overrides?: Partial<T> | null): T {
+  if (!overrides) return { ...(defaults as object) } as T;
+  const result = { ...(defaults as object) } as Record<string, unknown>;
+  const src = overrides as Record<string, unknown>;
+  for (const key of Object.keys(src)) {
+    const val = src[key];
+    if (val === undefined || val === null) continue;
+    const existing = result[key];
+    if (
+      typeof val === 'object' &&
+      !Array.isArray(val) &&
+      typeof existing === 'object' &&
+      existing !== null &&
+      !Array.isArray(existing)
+    ) {
+      result[key] = mergeDefaults(existing, val);
+    } else {
+      result[key] = val;
+    }
+  }
+  return result as T;
+}
+
 const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@csrf-armor/nuxt',
@@ -42,24 +68,27 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url);
 
     // Merge module options with any existing runtimeConfig (host app values take priority)
-    const mergedConfig = defu(
+    const mergedConfig = mergeDefaults(
+      options,
       // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
-      nuxt.options.runtimeConfig['csrfArmor'] as Partial<CsrfConfig> | undefined,
-      options
-    ) as CsrfConfig;
+      nuxt.options.runtimeConfig['csrfArmor'] as Partial<CsrfConfig> | undefined
+    );
 
     // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
     nuxt.options.runtimeConfig['csrfArmor'] = mergedConfig;
+
     // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
-    nuxt.options.runtimeConfig.public['csrfArmor'] = defu(
+    nuxt.options.runtimeConfig.public['csrfArmor'] = mergeDefaults(
+      {
+        // biome-ignore lint/complexity/useLiteralKeys: CsrfConfig uses index signatures
+        cookieName: mergedConfig['cookie']?.name ?? 'csrf-token',
+        // biome-ignore lint/complexity/useLiteralKeys: CsrfConfig uses index signatures
+        headerName: mergedConfig['token']?.headerName ?? 'x-csrf-token',
+      },
       // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
       nuxt.options.runtimeConfig.public['csrfArmor'] as
         | { cookieName?: string; headerName?: string }
-        | undefined,
-      {
-        cookieName: mergedConfig.cookie?.name ?? 'csrf-token',
-        headerName: mergedConfig.token?.headerName ?? 'x-csrf-token',
-      }
+        | undefined
     );
 
     // Register server middleware for CSRF protection
