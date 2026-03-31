@@ -40,6 +40,6 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "express": "^4.x"
+    "express": "^4.0.0 || ^5.0.0"
   }
 }
