@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@csrf-armor/nuxt": "workspace:*",
-    "nuxt": "^4.3.1",
+    "nuxt": "^4.4.2",
     "vue": "^3.5.0"
   },
   "author": "Jordan Labrosse",

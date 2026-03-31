@@ -3,10 +3,9 @@
   "version": "1.2.1",
   "description": "Express.js adapter for CSRF Armor - Advanced CSRF protection for Express.js applications",
   "type": "module",
-  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
+    ".": "./dist/index.mjs",
     "./package.json": "./package.json"
   },
   "files": [
@@ -42,6 +41,5 @@
   },
   "peerDependencies": {
     "express": "^4.x"
-  },
-  "module": "./dist/index.js"
+  }
 }
