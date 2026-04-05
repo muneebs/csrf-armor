@@ -34,6 +34,9 @@
     "react"
   ],
   "author": "Muneeb Samuels",
+  "contributors": [
+    { "name": "Raul", "url": "https://github.com/raulcrisan" }
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
