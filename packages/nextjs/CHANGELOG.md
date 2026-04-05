@@ -1,5 +1,16 @@
 # @csrf-armor/nextjs
 
+## 1.4.2
+
+### Patch Changes
+
+- [#46](https://github.com/muneebs/csrf-armor/pull/46) [`2eded88`](https://github.com/muneebs/csrf-armor/commit/2eded88f07c8c199fb16fd84ea13149c8864f56f) Thanks [@muneebs](https://github.com/muneebs)! - fix: resolve high/moderate severity vulnerabilities in transitive dependencies
+
+  Added pnpm overrides to force patched versions of `lodash` (>=4.18.0) and `defu` (>=6.1.5), which were pulled in transitively through the nuxt dependency chain. Addresses GHSA-r5fr-rjxr-66jc (lodash code injection), GHSA-f23m-r3pf-42rh (lodash prototype pollution), and GHSA-737v-mqg7-c878 (defu prototype pollution).
+
+- Updated dependencies [[`2eded88`](https://github.com/muneebs/csrf-armor/commit/2eded88f07c8c199fb16fd84ea13149c8864f56f)]:
+  - @csrf-armor/core@1.2.2
+
 ## 1.4.1
 
 ### Patch Changes
