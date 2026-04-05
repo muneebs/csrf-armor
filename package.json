@@ -4,6 +4,11 @@
   "description": "Framework-agnostic CSRF protection library",
   "type": "module",
   "private": true,
+  "author": "Muneeb Samuels",
+  "contributors": [
+    { "name": "Raul", "url": "https://github.com/raulcrisan" },
+    { "name":  "Jordan Labrosse", "url":  "https://github.com/Jorgagu" }
+  ],
   "workspaces": [
     "packages/*"
   ],
@@ -65,7 +70,9 @@
       "path-to-regexp@>=0.1.0 <0.2.0": "0.1.13",
       "minimatch@>=5.0.0 <6.0.0": "5.1.9",
       "minimatch@>=9.0.0 <10.0.0": "9.0.9",
-      "minimatch@>=10.0.0 <11.0.0": "10.2.4"
+      "minimatch@>=10.0.0 <11.0.0": "10.2.4",
+      "lodash": ">=4.18.0",
+      "defu": ">=6.1.5"
     }
   },
   "packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"

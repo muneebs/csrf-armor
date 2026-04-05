@@ -71,6 +71,43 @@ describe('Validation', () => {
       expect(result.isValid).toBe(false);
       expect(result.reason).toContain('not allowed');
     });
+
+    it('should use referer header as origin fallback when origin is missing', () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['referer', 'http://localhost/page']]),
+        cookies: new Map(),
+      };
+
+      const result = validateOrigin(request, TEST_CONFIG);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should return invalid with reason when both origin and referer are missing on POST', () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map(),
+        cookies: new Map(),
+      };
+
+      const result = validateOrigin(request, TEST_CONFIG);
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe('Missing origin and referer headers');
+    });
+
+    it('should derive origin from referer when no explicit origin header is present', () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['referer', 'http://localhost/some/deep/path?query=1']]),
+        cookies: new Map(),
+      };
+
+      const result = validateOrigin(request, TEST_CONFIG);
+      expect(result.isValid).toBe(true);
+    });
   });
 
   describe('validateSignedToken', () => {
@@ -149,6 +186,40 @@ describe('Validation', () => {
       );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('Token mismatch');
+    });
+
+    it('should return reason when CSRF cookie is missing', async () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['x-csrf-token', 'some-token']]),
+        cookies: new Map(),
+      };
+
+      const result = await validateDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe('No CSRF cookie found');
+    });
+
+    it('should return reason when submitted token is missing', async () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map(),
+        cookies: new Map([['csrf-token', 'some-token']]),
+      };
+
+      const result = await validateDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe('No CSRF token submitted');
     });
   });
 
@@ -409,6 +480,125 @@ describe('Validation', () => {
         mockGetTokenFromRequest
       );
       expect(result.isValid).toBe(true);
+    });
+
+    it('should route origin-check strategy to validateOrigin', async () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['origin', 'http://localhost']]),
+        cookies: new Map(),
+      };
+
+      const config = {
+        ...TEST_CONFIG,
+        strategy: 'origin-check' as const,
+      };
+
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should route signed-token strategy to validateSignedToken', async () => {
+      const token = await generateSignedToken(TEST_CONFIG.secret, 3600);
+
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['x-csrf-token', token]]),
+        cookies: new Map(),
+      };
+
+      const config = {
+        ...TEST_CONFIG,
+        strategy: 'signed-token' as const,
+      };
+
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should validate hybrid strategy when both origin and signed token are valid', async () => {
+      const token = await generateSignedToken(TEST_CONFIG.secret, 3600);
+
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([
+          ['origin', 'http://localhost'],
+          ['x-csrf-token', token],
+        ]),
+        cookies: new Map(),
+      };
+
+      const config = {
+        ...TEST_CONFIG,
+        strategy: 'hybrid' as const,
+      };
+
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should fail hybrid strategy when origin is invalid even with a valid token', async () => {
+      const token = await generateSignedToken(TEST_CONFIG.secret, 3600);
+
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([
+          ['origin', 'http://evil.com'],
+          ['x-csrf-token', token],
+        ]),
+        cookies: new Map(),
+      };
+
+      const config = {
+        ...TEST_CONFIG,
+        strategy: 'hybrid' as const,
+      };
+
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toContain('not allowed');
+    });
+
+    it('should return invalid with reason for an unknown strategy', async () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map(),
+        cookies: new Map(),
+      };
+
+      const config = {
+        ...TEST_CONFIG,
+        strategy: 'unknown-strategy' as never,
+      };
+
+      const result = await validateRequest(
+        request,
+        config,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe('Invalid strategy');
     });
   });
 });

@@ -333,4 +333,175 @@ describe('CSRF Middleware', () => {
     expect(postResult.success).toBe(false);
     expect(postResult.reason).toBe('Cookie integrity check failed');
   });
+
+  it('should generate signed token for signed-token strategy', async () => {
+    const secret = 'test-secret-32-characters-long-123';
+    const csrfProtect = createCsrfMiddleware({
+      strategy: 'signed-token',
+      secret,
+    });
+
+    const request = new NextRequest('http://localhost/');
+    const response = NextResponse.next();
+
+    const result = await csrfProtect(request, response);
+
+    expect(result.success).toBe(true);
+    const headerToken = result.response.headers.get('x-csrf-token');
+    expect(headerToken).toBeDefined();
+    // Signed tokens have 3 parts: exp.nonce.signature
+    expect(headerToken!.split('.').length).toBe(3);
+  });
+
+  it('should validate signed-token POST request', async () => {
+    const secret = 'test-secret-32-characters-long-123';
+    const csrfProtect = createCsrfMiddleware({
+      strategy: 'signed-token',
+      secret,
+    });
+
+    // GET to obtain token
+    const getRequest = new NextRequest('http://localhost/');
+    const getResponse = NextResponse.next();
+    const getResult = await csrfProtect(getRequest, getResponse);
+
+    const signedToken = getResult.response.headers.get('x-csrf-token');
+    expect(signedToken).toBeDefined();
+
+    // POST with valid signed token
+    const postRequest = new NextRequest('http://localhost/api', {
+      method: 'POST',
+      headers: {
+        'x-csrf-token': signedToken!,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    vi.spyOn(postRequest.cookies, 'getAll').mockReturnValue([
+      { name: 'csrf-token', value: signedToken! },
+    ]);
+
+    const postResponse = NextResponse.next();
+    const postResult = await csrfProtect(postRequest, postResponse);
+
+    expect(postResult.success).toBe(true);
+  });
+
+  it('should reject signed-token POST with invalid token', async () => {
+    const secret = 'test-secret-32-characters-long-123';
+    const csrfProtect = createCsrfMiddleware({
+      strategy: 'signed-token',
+      secret,
+    });
+
+    const postRequest = new NextRequest('http://localhost/api', {
+      method: 'POST',
+      headers: {
+        'x-csrf-token': 'invalid.token.signature',
+        'Content-Type': 'application/json',
+      },
+    });
+
+    vi.spyOn(postRequest.cookies, 'getAll').mockReturnValue([
+      { name: 'csrf-token', value: 'invalid.token.signature' },
+    ]);
+
+    const postResponse = NextResponse.next();
+    const postResult = await csrfProtect(postRequest, postResponse);
+
+    expect(postResult.success).toBe(false);
+    expect(postResult.reason).toContain('CSRF token is invalid');
+  });
+
+  it('should handle hybrid strategy (origin + signed token)', async () => {
+    const secret = 'test-secret-32-characters-long-123';
+
+    // Use mocked adapter to properly inject origin header as Map
+    const adapter = new NextjsAdapter();
+    const csrfProtection = createCsrfProtection(adapter, {
+      strategy: 'hybrid',
+      secret,
+      allowedOrigins: ['http://localhost'],
+    });
+
+    // GET to obtain token
+    const getRequest = new NextRequest('http://localhost/');
+    const getResponse = NextResponse.next();
+    const getResult = await csrfProtection.protect(getRequest, getResponse);
+
+    const signedToken = getResult.response.headers.get('x-csrf-token');
+    expect(signedToken).toBeDefined();
+    // Hybrid uses signed tokens (3 parts)
+    expect(signedToken!.split('.').length).toBe(3);
+
+    // POST with valid origin and valid signed token - mock extractRequest to ensure origin is visible
+    const postRequest = new NextRequest('http://localhost/api', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost',
+        'x-csrf-token': signedToken!,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    vi.spyOn(adapter, 'extractRequest').mockImplementation((req) => ({
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([
+        ['origin', 'http://localhost'],
+        ['x-csrf-token', signedToken!],
+        ['content-type', 'application/json'],
+      ]),
+      cookies: new Map([['csrf-token', signedToken!]]),
+      body: req,
+    }));
+
+    const postResponse = NextResponse.next();
+    const postResult = await csrfProtection.protect(postRequest, postResponse);
+
+    expect(postResult.success).toBe(true);
+  });
+
+  it('should reject hybrid POST with invalid origin', async () => {
+    const secret = 'test-secret-32-characters-long-123';
+
+    const adapter = new NextjsAdapter();
+    const csrfProtection = createCsrfProtection(adapter, {
+      strategy: 'hybrid',
+      secret,
+      allowedOrigins: ['http://localhost'],
+    });
+
+    // GET to obtain token
+    const getRequest = new NextRequest('http://localhost/');
+    const getResponse = NextResponse.next();
+    const getResult = await csrfProtection.protect(getRequest, getResponse);
+    const signedToken = getResult.response.headers.get('x-csrf-token');
+
+    // POST with wrong origin
+    const postRequest = new NextRequest('http://localhost/api', {
+      method: 'POST',
+      headers: {
+        origin: 'http://evil.com',
+        'x-csrf-token': signedToken!,
+      },
+    });
+
+    vi.spyOn(adapter, 'extractRequest').mockImplementation((req) => ({
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([
+        ['origin', 'http://evil.com'],
+        ['x-csrf-token', signedToken!],
+      ]),
+      cookies: new Map([['csrf-token', signedToken!]]),
+      body: req,
+    }));
+
+    const postResponse = NextResponse.next();
+    const postResult = await csrfProtection.protect(postRequest, postResponse);
+
+    expect(postResult.success).toBe(false);
+    expect(postResult.reason).toContain('not allowed');
+  });
 });

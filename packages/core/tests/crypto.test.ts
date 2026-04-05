@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   generateNonce,
+  generateSecureSecret,
   generateSignedToken,
   parseSignedToken,
   signUnsignedToken,
+  timingSafeEqual,
   verifySignedToken,
 } from '../src';
 import { TokenExpiredError, TokenInvalidError } from '../src';
@@ -131,6 +133,63 @@ describe('Crypto utilities', () => {
       await expect(verifySignedToken('token.', 'secret')).rejects.toThrow(
         'Token parts cannot be empty'
       );
+    });
+  });
+
+  describe('timingSafeEqual', () => {
+    it('should return true for equal strings', () => {
+      expect(timingSafeEqual('hello', 'hello')).toBe(true);
+    });
+
+    it('should return false for unequal strings', () => {
+      expect(timingSafeEqual('hello', 'world')).toBe(false);
+    });
+
+    it('should return false for strings of different lengths', () => {
+      expect(timingSafeEqual('short', 'longer-string')).toBe(false);
+    });
+
+    it('should return true for empty strings', () => {
+      expect(timingSafeEqual('', '')).toBe(true);
+    });
+
+    it('should detect a single character difference', () => {
+      expect(timingSafeEqual('abcde', 'abcdf')).toBe(false);
+    });
+  });
+
+  describe('generateSecureSecret', () => {
+    it('should return a non-empty string', () => {
+      const secret = generateSecureSecret();
+      expect(secret).toBeTruthy();
+      expect(secret.length).toBeGreaterThan(0);
+    });
+
+    it('should return a base64-encoded string', () => {
+      const secret = generateSecureSecret();
+      expect(secret).toMatch(/^[A-Za-z0-9+/=]+$/);
+    });
+
+    it('should generate unique values on each call', () => {
+      const secret1 = generateSecureSecret();
+      const secret2 = generateSecureSecret();
+      expect(secret1).not.toBe(secret2);
+    });
+
+    it('should return a string of 44 characters (32 bytes base64-encoded)', () => {
+      const secret = generateSecureSecret();
+      expect(secret).toHaveLength(44);
+    });
+  });
+
+  describe('parseSignedToken (edge cases)', () => {
+    it('should throw TokenInvalidError with "Invalid expiration timestamp" for non-numeric exp', async () => {
+      // "abc" is the expStr — parseInt("abc") is NaN, which is checked BEFORE
+      // signature verification in parseSignedToken, so this always throws
+      // regardless of the nonce or signature values.
+      await expect(
+        parseSignedToken('abc.nonce.signature', 'secret')
+      ).rejects.toThrow(new TokenInvalidError('Invalid expiration timestamp'));
     });
   });
 });
