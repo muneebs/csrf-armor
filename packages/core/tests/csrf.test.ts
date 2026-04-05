@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { CsrfProtection, createCsrfProtection } from '../src/csrf.js';
 import type {
   CsrfAdapter,
