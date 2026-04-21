@@ -158,6 +158,40 @@ describe('Client utilities', () => {
       expect(headers.get('Content-Type')).toBe('application/json');
     });
 
+    it('should preserve headers when input is a Request object', async () => {
+      document.cookie = 'csrf-token=req-token';
+      const req = new Request('https://example.com/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Custom': 'keep-me',
+        },
+      });
+      await csrfFetch(req);
+
+      const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock
+        .calls[0];
+      const headers = callArgs[1].headers as Headers;
+      expect(headers.get('x-csrf-token')).toBe('req-token');
+      expect(headers.get('Content-Type')).toBe('application/json');
+      expect(headers.get('X-Custom')).toBe('keep-me');
+    });
+
+    it('should let init headers override Request headers', async () => {
+      document.cookie = 'csrf-token=override-token';
+      const req = new Request('https://example.com/api/data', {
+        method: 'POST',
+        headers: { 'X-Custom': 'original' },
+      });
+      await csrfFetch(req, { headers: { 'X-Custom': 'overridden' } });
+
+      const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock
+        .calls[0];
+      const headers = callArgs[1].headers as Headers;
+      expect(headers.get('X-Custom')).toBe('overridden');
+      expect(headers.get('x-csrf-token')).toBe('override-token');
+    });
+
     it('should work without a token', async () => {
       await csrfFetch('/api/data');
 

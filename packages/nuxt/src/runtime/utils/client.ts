@@ -67,10 +67,13 @@ export function csrfFetch(
   init?: RequestInit,
   config?: CsrfClientConfig
 ): Promise<Response> {
-  const headers = new Headers(init?.headers);
-  const csrfHeaders = createCsrfHeaders(config);
-
-  for (const [key, value] of Object.entries(csrfHeaders)) {
+  const headers = new Headers(
+    input instanceof Request ? input.headers : undefined
+  );
+  for (const [key, value] of new Headers(init?.headers)) {
+    headers.set(key, value);
+  }
+  for (const [key, value] of Object.entries(createCsrfHeaders(config))) {
     headers.set(key, value);
   }
 
