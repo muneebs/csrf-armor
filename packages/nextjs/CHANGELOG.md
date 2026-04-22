@@ -1,5 +1,17 @@
 # @csrf-armor/nextjs
 
+## 1.4.4
+
+### Patch Changes
+
+- [#54](https://github.com/muneebs/csrf-armor/pull/54) [`e3da9dc`](https://github.com/muneebs/csrf-armor/commit/e3da9dcd9b24dff45365bf1a61ff0017c9ce2f57) Thanks [@muneebs](https://github.com/muneebs)! - fix(react): remove unnecessary `csrfToken` dependency from `useCallback`
+
+  `secureFetch` previously listed `csrfToken` in its `useCallback` dependency array, causing the function reference to change every time the token updated. This made the `CsrfContextValue` unstable and triggered unnecessary re-renders in any component consuming `useCsrf()`.
+
+  The token equality check (`newToken !== csrfToken`) was also redundant because React's `setState` already bails out for identical primitive values. Removing both the dependency and the comparison fixes the re-render issue without changing behavior.
+
+  Fixes #53
+
 ## 1.4.3
 
 ### Patch Changes
