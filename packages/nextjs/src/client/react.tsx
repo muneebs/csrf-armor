@@ -169,13 +169,13 @@ export function CsrfProvider({
       const headerName = config?.headerName ?? 'x-csrf-token';
       const newToken = response.headers.get(headerName);
 
-      if (newToken && newToken !== csrfToken) {
+      if (newToken) {
         setCsrfToken(newToken);
       }
 
       return response;
     },
-    [config, csrfToken]
+    [config]
   );
 
   const value = useMemo<CsrfContextValue>(
