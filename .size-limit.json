@@ -1,0 +1,27 @@
+[
+  {
+    "path": "packages/core/dist/index.mjs",
+    "limit": "12 KB",
+    "gzip": true
+  },
+  {
+    "path": "packages/express/dist/index.mjs",
+    "limit": "6 KB",
+    "gzip": true
+  },
+  {
+    "path": "packages/nextjs/dist/index.js",
+    "limit": "8 KB",
+    "gzip": true
+  },
+  {
+    "path": "packages/nextjs/dist/adapter.js",
+    "limit": "6 KB",
+    "gzip": true
+  },
+  {
+    "path": "packages/nextjs/dist/middleware.js",
+    "limit": "7 KB",
+    "gzip": true
+  }
+]
