@@ -160,7 +160,10 @@ export class ExpressAdapter
           : Object.entries(csrfResponse.cookies);
 
       for (const [name, cookie] of entries) {
-        const cookieValue = cookie as { value: string; options?: CookieOptions };
+        const cookieValue = cookie as {
+          value: string;
+          options?: CookieOptions;
+        };
         this.setCookie(res, name, cookieValue.value, cookieValue.options);
       }
     }
