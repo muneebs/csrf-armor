@@ -45,19 +45,6 @@ export class CsrfError extends Error {
  * from the time the token was generated.
  *
  * @public
- * @example
- * ```typescript
- * import { TokenExpiredError } from '@csrf-armor/core';
- *
- * try {
- *   await csrfProtection.protect(req, res);
- * } catch (error) {
- *   if (error instanceof TokenExpiredError) {
- *     // Redirect to refresh the page and get a new token
- *     res.redirect(req.url);
- *   }
- * }
- * ```
  */
 export class TokenExpiredError extends CsrfError {
   constructor() {
@@ -75,21 +62,6 @@ export class TokenExpiredError extends CsrfError {
  * - Tampered token content
  *
  * @public
- * @example
- * ```typescript
- * import { TokenInvalidError } from '@csrf-armor/core';
- *
- * try {
- *   await csrfProtection.protect(req, res);
- * } catch (error) {
- *   if (error instanceof TokenInvalidError) {
- *     console.log('Invalid token received:', error.message);
- *     // Generate and provide a new valid token
- *     const newToken = await csrfProtection.generateToken();
- *     res.status(400).json({ error: error.message, newToken });
- *   }
- * }
- * ```
  */
 export class TokenInvalidError extends CsrfError {
   /**
@@ -110,22 +82,6 @@ export class TokenInvalidError extends CsrfError {
  * malicious websites.
  *
  * @public
- * @example
- * ```typescript
- * import { OriginMismatchError } from '@csrf-armor/core';
- *
- * try {
- *   await csrfProtection.protect(req, res);
- * } catch (error) {
- *   if (error instanceof OriginMismatchError) {
- *     console.log('Blocked request from unauthorized origin:', error.message);
- *     res.status(403).json({
- *       error: 'Request from unauthorized origin',
- *       origin: req.headers.origin
- *     });
- *   }
- * }
- * ```
  */
 export class OriginMismatchError extends CsrfError {
   /**
@@ -135,5 +91,91 @@ export class OriginMismatchError extends CsrfError {
    */
   constructor(origin: string) {
     super(`Origin "${origin}" is not allowed`, 'ORIGIN_MISMATCH');
+  }
+}
+
+/**
+ * Error thrown when a request is rejected by Fetch Metadata validation.
+ *
+ * Indicates that `Sec-Fetch-Site` (and optionally `Sec-Fetch-Mode` / `Sec-Fetch-Dest`)
+ * signaled a cross-site or otherwise untrusted request.
+ *
+ * @public
+ */
+export class FetchMetadataError extends CsrfError {
+  constructor(reason = 'Fetch metadata indicates untrusted request') {
+    super(reason, 'FETCH_METADATA_MISMATCH');
+  }
+}
+
+/**
+ * Error thrown when a request's Content-Type is missing or not in the allowlist.
+ *
+ * @public
+ */
+export class ContentTypeError extends CsrfError {
+  constructor(reason = 'Invalid or missing Content-Type') {
+    super(reason, 'CONTENT_TYPE_INVALID');
+  }
+}
+
+/**
+ * Error thrown when a session-bound token does not match the current session.
+ *
+ * @public
+ */
+export class SessionMismatchError extends CsrfError {
+  constructor() {
+    super(
+      'CSRF token session binding does not match the current session',
+      'SESSION_MISMATCH'
+    );
+  }
+}
+
+/**
+ * Error thrown when the Web Crypto API is unavailable.
+ *
+ * This happens in unsupported runtimes or non-secure contexts (plain HTTP).
+ *
+ * @public
+ */
+export class CryptoUnavailableError extends CsrfError {
+  constructor() {
+    super(
+      '@csrf-armor requires Web Crypto API (crypto.subtle). Ensure you are running in a secure context (HTTPS) or a supported runtime (Node.js 18+, Deno, Cloudflare Workers, Bun).',
+      'CRYPTO_UNAVAILABLE',
+      500
+    );
+  }
+}
+
+/**
+ * Error thrown when the configured secret does not meet minimum strength requirements.
+ *
+ * @public
+ */
+export class WeakSecretError extends CsrfError {
+  constructor() {
+    super(
+      'CSRF secret must be at least 32 characters. Use generateSecureSecret() to create a strong secret.',
+      'WEAK_SECRET',
+      500
+    );
+  }
+}
+
+/**
+ * Error thrown when no secret is provided and the library is running in production.
+ *
+ * @public
+ */
+export class MissingSecretError extends CsrfError {
+  constructor() {
+    super(
+      'No CSRF secret provided. Set a strong secret in config.secret.',
+      'MISSING_SECRET',
+      500
+    );
   }
 }

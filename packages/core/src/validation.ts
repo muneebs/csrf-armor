@@ -1,10 +1,17 @@
 import { SAFE_METHODS } from './constants.js';
 import {
+  hashSessionId,
   parseSignedToken,
   timingSafeEqual,
   verifySignedToken,
 } from './crypto.js';
-import { OriginMismatchError } from './errors.js';
+import {
+  ContentTypeError,
+  FetchMetadataError,
+  OriginMismatchError,
+  SessionMismatchError,
+  TokenInvalidError,
+} from './errors.js';
 import type {
   CsrfRequest,
   RequiredCsrfConfig,
@@ -16,35 +23,111 @@ function getHeaders(request: CsrfRequest): Map<string, string> {
     return request.headers;
   }
 
-  return new Map(Object.entries(request.headers));
+  if (request.headers instanceof Headers) {
+    const map = new Map<string, string>();
+    for (const [key, value] of request.headers.entries()) {
+      map.set(key.toLowerCase(), value);
+    }
+    return map;
+  }
+
+  const map = new Map<string, string>();
+  for (const [key, value] of Object.entries(request.headers)) {
+    if (value !== undefined) {
+      map.set(key.toLowerCase(), String(value));
+    }
+  }
+  return map;
 }
 
-function getCookies(request: CsrfRequest): Map<string, string> {
+export function getCookies(request: CsrfRequest): Map<string, string> {
   if (request.cookies instanceof Map) {
     return request.cookies;
   }
-
-  return new Map(Object.entries(request.cookies));
+  return new Map(Object.entries(request.cookies ?? {}));
 }
 
+function getHeader(request: CsrfRequest, name: string): string | undefined {
+  return getHeaders(request).get(name.toLowerCase());
+}
+
+/**
+ * Normalizes an origin string to its canonical form.
+ *
+ * Returns `null` for the literal `"null"` origin or unparseable inputs.
+ *
+ * @internal
+ */
+export function normalizeOrigin(origin: string): string | null {
+  if (origin === 'null' || origin.trim().toLowerCase() === 'null') {
+    return null;
+  }
+
+  try {
+    return new URL(origin).origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts the media type from a Content-Type header, ignoring parameters.
+ *
+ * @internal
+ */
+export function parseMediaType(contentType: string): string {
+  const beforeSemicolon = contentType.split(';')[0] ?? '';
+  return beforeSemicolon.trim().toLowerCase();
+}
+
+/**
+ * Validates a signed CSRF token, optionally checking session binding.
+ *
+ * @internal
+ */
 export async function validateSignedToken(
   request: CsrfRequest,
   config: RequiredCsrfConfig,
   getTokenFromRequest: (
     req: CsrfRequest,
     config: RequiredCsrfConfig
-  ) => Promise<string | undefined>
+  ) => Promise<string | undefined>,
+  sessionId?: string
 ): Promise<ValidationResult> {
   try {
     const token = await getTokenFromRequest(request, config);
-
     if (!token) {
       return { isValid: false, reason: 'No CSRF token provided' };
     }
 
-    await parseSignedToken(token, config.secret);
+    console.log(
+      'DEBUG validateSignedToken token:',
+      token.slice(0, 20),
+      'sessionId:',
+      sessionId
+    );
+
+    const payload = await parseSignedToken(
+      token,
+      config.secret,
+      config.previousSecrets
+    );
+
+    if (payload.sidHash) {
+      if (!sessionId) {
+        return { isValid: false, reason: new SessionMismatchError().message };
+      }
+      const expectedHash = await hashSessionId(sessionId);
+      if (!timingSafeEqual(payload.sidHash, expectedHash)) {
+        return { isValid: false, reason: new SessionMismatchError().message };
+      }
+    }
+
     return { isValid: true };
   } catch (error) {
+    if (error instanceof TokenInvalidError) {
+      return { isValid: false, reason: error.message };
+    }
     if (error instanceof Error) {
       return { isValid: false, reason: error.message };
     }
@@ -52,25 +135,41 @@ export async function validateSignedToken(
   }
 }
 
+/**
+ * Validates request origin against the configured allowlist.
+ *
+ * @internal
+ */
 export function validateOrigin(
   request: CsrfRequest,
   config: RequiredCsrfConfig
 ): ValidationResult {
-  const headers = getHeaders(request);
-  const origin = headers.get('origin');
-  const referer = headers.get('referer');
+  if (config.allowedOrigins.length === 0) {
+    return { isValid: true };
+  }
 
-  if (!origin && !referer && !SAFE_METHODS.includes(request.method as never)) {
+  const headers = getHeaders(request);
+  const originHeader = headers.get('origin');
+  const refererHeader = headers.get('referer');
+
+  if (!originHeader && !refererHeader) {
     return { isValid: false, reason: 'Missing origin and referer headers' };
   }
 
-  const requestOrigin = origin ?? (referer ? new URL(referer).origin : null);
-
-  if (!requestOrigin) {
+  const rawOrigin = originHeader ?? refererHeader;
+  if (!rawOrigin) {
     return { isValid: false, reason: 'No origin or referer header' };
   }
 
-  if (config.allowedOrigins.includes(requestOrigin)) {
+  const requestOrigin = normalizeOrigin(rawOrigin);
+  if (!requestOrigin) {
+    return { isValid: false, reason: 'Invalid or null origin' };
+  }
+
+  const normalizedAllowed = config.allowedOrigins.map((o) =>
+    normalizeOrigin(o)
+  );
+  if (normalizedAllowed.includes(requestOrigin)) {
     return { isValid: true };
   }
 
@@ -79,35 +178,109 @@ export function validateOrigin(
     reason: new OriginMismatchError(requestOrigin).message,
   };
 }
-// DO NOT USE THIS IN PRODUCTION
-export async function validateDoubleSubmit(
+
+/**
+ * Validates Fetch Metadata headers (`Sec-Fetch-Site`, `Sec-Fetch-Mode`, `Sec-Fetch-Dest`).
+ *
+ * Absent headers are treated as pass-through (defense-in-depth, not a gate).
+ *
+ * @internal
+ */
+export function validateFetchMetadata(
   request: CsrfRequest,
-  config: RequiredCsrfConfig,
-  getTokenFromRequest: (
-    req: CsrfRequest,
-    config: RequiredCsrfConfig
-  ) => Promise<string | undefined>
-): Promise<ValidationResult> {
-  const cookies = getCookies(request);
-  const cookieName = config.cookie.name;
-  const cookieToken = cookies.get(cookieName);
-  const submittedToken = await getTokenFromRequest(request, config);
+  _config: RequiredCsrfConfig
+): ValidationResult {
+  const secFetchSite = getHeader(request, 'sec-fetch-site');
 
-  if (!cookieToken) {
-    return { isValid: false, reason: 'No CSRF cookie found' };
+  if (!secFetchSite) {
+    return { isValid: true };
   }
 
-  if (!submittedToken) {
-    return { isValid: false, reason: 'No CSRF token submitted' };
+  const site = secFetchSite.toLowerCase();
+  const method = request.method.toUpperCase();
+
+  // Safe methods are not state-changing; cross-site GETs are normal user navigation.
+  if (SAFE_METHODS.includes(method)) {
+    return { isValid: true };
   }
 
-  if (!timingSafeEqual(cookieToken, submittedToken)) {
-    return { isValid: false, reason: 'Token mismatch' };
+  if (site === 'cross-site') {
+    return {
+      isValid: false,
+      reason: new FetchMetadataError(
+        'Sec-Fetch-Site: cross-site on state-changing request'
+      ).message,
+    };
+  }
+
+  if (site === 'none') {
+    // Direct navigation can produce a POST in rare cases; reject to be safe.
+    return {
+      isValid: false,
+      reason: new FetchMetadataError(
+        'Sec-Fetch-Site: none on state-changing request'
+      ).message,
+    };
+  }
+
+  // same-origin and same-site are acceptable.
+  return { isValid: true };
+}
+
+/**
+ * Validates Content-Type header for state-changing requests.
+ *
+ * @internal
+ */
+export function validateContentType(
+  request: CsrfRequest,
+  config: RequiredCsrfConfig
+): ValidationResult {
+  const method = request.method.toUpperCase();
+  if (SAFE_METHODS.includes(method)) {
+    return { isValid: true };
+  }
+
+  const headers = getHeaders(request);
+  const rawContentType = headers.get('content-type') ?? '';
+  const contentType = parseMediaType(rawContentType);
+
+  const skipList = config.contentType.skipValidation ?? [];
+  if (skipList.some((type) => contentType === parseMediaType(type))) {
+    return { isValid: true };
+  }
+
+  if (config.contentType.enforcePresence && !contentType) {
+    return {
+      isValid: false,
+      reason: new ContentTypeError(
+        'Missing Content-Type on state-changing request'
+      ).message,
+    };
+  }
+
+  const allowedTypes = config.contentType.allowedTypes ?? [];
+  if (
+    allowedTypes.length > 0 &&
+    contentType &&
+    !allowedTypes.includes(contentType)
+  ) {
+    return {
+      isValid: false,
+      reason: new ContentTypeError(
+        `Content-Type "${contentType}" is not in the allowlist`
+      ).message,
+    };
   }
 
   return { isValid: true };
 }
 
+/**
+ * Validates the signed double-submit cookie pattern.
+ *
+ * @internal
+ */
 export async function validateSignedDoubleSubmit(
   request: CsrfRequest,
   config: RequiredCsrfConfig,
@@ -117,7 +290,6 @@ export async function validateSignedDoubleSubmit(
   ) => Promise<string | undefined>
 ): Promise<ValidationResult> {
   const cookies = getCookies(request);
-
   const cookieName = config.cookie.name;
   const unsignedCookieToken = cookies.get(cookieName);
   const signedCookieToken = cookies.get(`${cookieName}-server`);
@@ -132,18 +304,16 @@ export async function validateSignedDoubleSubmit(
   }
 
   try {
-    // 1. Verify the server cookie signature
     const verifiedUnsignedToken = await verifySignedToken(
       signedCookieToken,
-      config.secret
+      config.secret,
+      config.previousSecrets
     );
 
-    // 2. Ensure client cookie matches the verified token
     if (!timingSafeEqual(unsignedCookieToken, verifiedUnsignedToken)) {
       return { isValid: false, reason: 'Cookie integrity check failed' };
     }
 
-    // 3. Ensure submitted token matches the unsigned token
     if (!timingSafeEqual(submittedToken, unsignedCookieToken)) {
       return { isValid: false, reason: 'Token mismatch' };
     }
@@ -157,23 +327,34 @@ export async function validateSignedDoubleSubmit(
   }
 }
 
+/**
+ * Dispatches validation to the configured strategy.
+ *
+ * @internal
+ */
 export async function validateRequest(
   request: CsrfRequest,
   config: RequiredCsrfConfig,
   getTokenFromRequest: (
     req: CsrfRequest,
     config: RequiredCsrfConfig
-  ) => Promise<string | undefined>
+  ) => Promise<string | undefined>,
+  sessionId?: string
 ): Promise<ValidationResult> {
   switch (config.strategy) {
     case 'signed-token':
-      return await validateSignedToken(request, config, getTokenFromRequest);
+      return await validateSignedToken(
+        request,
+        config,
+        getTokenFromRequest,
+        sessionId
+      );
 
     case 'origin-check':
       return validateOrigin(request, config);
 
-    case 'double-submit':
-      return await validateDoubleSubmit(request, config, getTokenFromRequest);
+    case 'fetch-metadata':
+      return validateFetchMetadata(request, config);
 
     case 'signed-double-submit':
       return await validateSignedDoubleSubmit(
@@ -183,10 +364,21 @@ export async function validateRequest(
       );
 
     case 'hybrid': {
+      const fetchMetadataResult = validateFetchMetadata(request, config);
+      if (!fetchMetadataResult.isValid) return fetchMetadataResult;
+
       const originResult = validateOrigin(request, config);
       if (!originResult.isValid) return originResult;
 
-      return await validateSignedToken(request, config, getTokenFromRequest);
+      const contentTypeResult = validateContentType(request, config);
+      if (!contentTypeResult.isValid) return contentTypeResult;
+
+      return await validateSignedToken(
+        request,
+        config,
+        getTokenFromRequest,
+        sessionId
+      );
     }
 
     default:

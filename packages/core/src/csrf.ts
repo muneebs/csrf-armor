@@ -3,11 +3,14 @@ import {
   CSRF_TOKEN_HEADER,
   DEFAULT_CONFIG,
   DEFAULT_NONCE_LENGTH,
+  DEFAULT_ROTATION_GRACE_PERIOD,
+  HOST_COOKIE_PREFIX,
   ORIGIN_CHECK_NONCE_LENGTH,
   SAFE_METHODS,
   SERVER_CSRF_COOKIE_SUFFIX,
 } from './constants.js';
 import {
+  assertWebCrypto,
   generateNonce,
   generateSecureSecret,
   generateSignedToken,
@@ -16,30 +19,22 @@ import {
   timingSafeEqual,
   verifySignedToken,
 } from './crypto.js';
+import { WeakSecretError } from './errors.js';
 import type {
   CsrfAdapter,
   CsrfConfig,
   CsrfRequest,
   CsrfResponse,
+  OnFailureContext,
   RequiredCookieOptions,
   RequiredCsrfConfig,
+  ValidationResult,
 } from './types.js';
-import { validateRequest } from './validation.js';
+import { getCookies, validateRequest } from './validation.js';
 
-/**
- * Extracts the pathname from a URL string for path-based exclusion matching.
- *
- * Handles both absolute URLs and relative paths safely. If URL parsing fails,
- * falls back to manual parsing by finding the query string delimiter.
- *
- * @param url - URL string to extract pathname from
- * @returns The pathname portion of the URL
- *
- * @internal
- */
+/** Extracts the pathname from a URL string for path-based exclusion matching. */
 function extractPathname(url: string): string {
   try {
-    // Always return the full pathname for accurate excludePaths matching
     return new URL(url).pathname;
   } catch {
     const questionMarkIndex = url.indexOf('?');
@@ -50,18 +45,15 @@ function extractPathname(url: string): string {
   }
 }
 
-/**
- * Normalizes request headers to a consistent Map format.
- *
- * Converts various header formats (Map, Headers object, plain object) into
- * a standardized Map<string, string> for consistent processing throughout
- * the CSRF protection system.
- *
- * @param rawHeaders - Headers in various formats from the request
- * @returns Normalized headers as a Map
- *
- * @internal
- */
+/** Normalizes a path for excludePaths matching. */
+function normalizePath(path: string): string {
+  try {
+    return decodeURIComponent(path).replace(/\/+/g, '/');
+  } catch {
+    return path.replace(/\/+/g, '/');
+  }
+}
+
 function processHeaders(
   rawHeaders: CsrfRequest['headers']
 ): Map<string, string> {
@@ -69,189 +61,106 @@ function processHeaders(
     return rawHeaders;
   }
 
-  return new Map(Object.entries(rawHeaders));
+  if (rawHeaders instanceof Headers) {
+    const map = new Map<string, string>();
+    for (const [key, value] of rawHeaders.entries()) {
+      map.set(key.toLowerCase(), value);
+    }
+    return map;
+  }
+
+  const map = new Map<string, string>();
+  for (const [key, value] of Object.entries(rawHeaders)) {
+    if (value !== undefined) {
+      map.set(key.toLowerCase(), String(value));
+    }
+  }
+  return map;
 }
 
-/**
- * Merges user configuration with default CSRF configuration values.
- *
- * Creates a complete configuration object by combining user-provided options
- * with secure defaults. Ensures all required fields are present and properly
- * typed for the CSRF protection system.
- *
- * @param defaultConfig - Default configuration values
- * @param userConfig - User-provided configuration overrides
- * @returns Complete CSRF configuration with all required fields
- *
- * @internal
- */
+function parseMediaType(contentType: string): string {
+  return (contentType.split(';')[0] ?? '').trim().toLowerCase();
+}
+
 function mergeConfig(
   defaultConfig: CsrfConfig,
   userConfig?: CsrfConfig
 ): RequiredCsrfConfig {
-  const merged = {
-    ...defaultConfig,
-    ...userConfig,
-    cookie: {
-      ...defaultConfig.cookie,
-      ...userConfig?.cookie,
-    },
-    token: {
-      ...defaultConfig.token,
-      ...userConfig?.token,
-    },
+  const mergedCookie = {
+    ...defaultConfig.cookie,
+    ...userConfig?.cookie,
   };
 
-  // Ensure all required properties are present
+  const hostCookiePrefix = userConfig?.hostCookiePrefix ?? false;
+  if (hostCookiePrefix) {
+    const baseName = mergedCookie.name ?? 'csrf-token';
+    mergedCookie.name = `${HOST_COOKIE_PREFIX}${baseName}`;
+    mergedCookie.secure = true;
+    mergedCookie.path = '/';
+    delete mergedCookie.domain;
+  }
+
+  const mergedToken = {
+    ...defaultConfig.token,
+    ...userConfig?.token,
+  };
+
+  const contentType = {
+    ...defaultConfig.contentType,
+    ...userConfig?.contentType,
+    allowedTypes: [
+      ...(defaultConfig.contentType?.allowedTypes ?? []),
+      ...(userConfig?.contentType?.allowedTypes ?? []),
+    ],
+    skipValidation: [
+      ...(defaultConfig.contentType?.skipValidation ?? []),
+      ...(userConfig?.contentType?.skipValidation ?? []),
+    ],
+  };
+
   const config: RequiredCsrfConfig = {
     strategy: userConfig?.strategy ?? defaultConfig.strategy ?? 'hybrid',
     secret:
       userConfig?.secret ?? defaultConfig.secret ?? generateSecureSecret(),
+    previousSecrets: userConfig?.previousSecrets ?? [],
     token: {
-      expiry: merged.token?.expiry ?? 3600,
-      headerName: merged.token?.headerName ?? 'X-CSRF-Token',
-      fieldName: merged.token?.fieldName ?? 'csrf_token',
-      reissueThreshold: merged.token?.reissueThreshold ?? 300,
+      expiry: mergedToken.expiry ?? 3600,
+      headerName: mergedToken.headerName ?? 'X-CSRF-Token',
+      fieldName: mergedToken.fieldName ?? 'csrf_token',
+      reissueThreshold: mergedToken.reissueThreshold ?? 500,
     },
     cookie: {
-      name: merged.cookie?.name ?? 'csrf-token',
-      secure: merged.cookie?.secure ?? true,
-      httpOnly: merged.cookie?.httpOnly ?? false,
-      sameSite: merged.cookie?.sameSite ?? 'lax',
-      path: merged.cookie?.path ?? '/',
+      name: mergedCookie.name ?? 'csrf-token',
+      secure: mergedCookie.secure ?? true,
+      httpOnly: mergedCookie.httpOnly ?? false,
+      sameSite: mergedCookie.sameSite ?? 'lax',
+      path: mergedCookie.path ?? '/',
     },
-    allowedOrigins: merged.allowedOrigins ?? [],
-    excludePaths: merged.excludePaths ?? [],
-    skipContentTypes: merged.skipContentTypes ?? [],
+    allowedOrigins: userConfig?.allowedOrigins ?? [],
+    excludePaths: userConfig?.excludePaths ?? [],
+    contentType: {
+      enforcePresence: contentType.enforcePresence ?? false,
+      allowedTypes: contentType.allowedTypes,
+      skipValidation: contentType.skipValidation,
+    },
+    hostCookiePrefix,
+    rotateOnUse: userConfig?.rotateOnUse ?? false,
+    getSessionId: userConfig?.getSessionId,
+    logger: userConfig?.logger,
+    metrics: userConfig?.metrics,
+    onFailure: userConfig?.onFailure,
   };
 
-  // Add optional properties if they exist
-  if (merged.cookie?.domain) {
-    config.cookie.domain = merged.cookie.domain;
+  if (mergedCookie.domain && !hostCookiePrefix) {
+    config.cookie.domain = mergedCookie.domain;
   }
-  if (merged.cookie?.maxAge) {
-    config.cookie.maxAge = merged.cookie.maxAge;
+  if (mergedCookie.maxAge !== undefined) {
+    config.cookie.maxAge = mergedCookie.maxAge;
   }
 
   return config;
 }
 
-/**
- * Core CSRF protection engine that provides framework-agnostic CSRF security.
- *
- * This class implements multiple CSRF protection strategies and works with
- * framework-specific adapters to provide comprehensive protection against
- * Cross-Site Request Forgery attacks. It supports various strategies including
- * double-submit cookies, signed tokens, origin validation, and hybrid approaches.
- *
- * **Features:**
- * - Multiple CSRF protection strategies (double-submit, signed-double-submit, etc.)
- * - Framework-agnostic design with adapter pattern
- * - Configurable token expiration and validation
- * - Origin-based validation with whitelist support
- * - Path exclusion for public endpoints
- * - Content-type based skipping for certain request types
- * - Secure cryptographic operations using Web Crypto API
- * - Timing-safe token comparisons to prevent timing attacks
- *
- * **Available Strategies:**
- * - `double-submit`: Classic double-submit cookie pattern
- * - `signed-double-submit`: Enhanced double-submit with cryptographic signatures
- * - `signed-token`: Server-side token validation with signing
- * - `origin-check`: Validates request origin against allowed domains
- * - `hybrid`: Combines multiple strategies for maximum security
- *
- * @template TRequest - Framework-specific request type
- * @template TResponse - Framework-specific response type
- * @public
- *
- * @example
- * ```typescript
- * import { CsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
- *
- * // Create CSRF protection with Express adapter
- * const csrf = new CsrfProtection(new ExpressAdapter(), {
- *   strategy: 'signed-double-submit',
- *   secret: 'your-secret-key',
- *   token: {
- *     expiry: 3600, // 1 hour
- *     headerName: 'X-CSRF-Token',
- *     fieldName: 'csrf_token'
- *   },
- *   cookie: {
- *     name: 'csrf-token',
- *     secure: true,
- *     httpOnly: false,
- *     sameSite: 'strict'
- *   },
- *   allowedOrigins: ['https://yourdomain.com'],
- *   excludePaths: ['/api/public', '/health']
- * });
- *
- * // Use in middleware
- * app.use(async (req, res, next) => {
- *   try {
- *     const result = await csrf.protect(req, res);
- *     if (result.success) {
- *       req.csrfToken = result.token;
- *       next();
- *     } else {
- *       res.status(403).json({ error: result.reason });
- *     }
- *   } catch (error) {
- *     next(error);
- *   }
- * });
- * ```
- * // Basic setup with Express
- * import { CsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
- *
- * const csrf = new CsrfProtection(new ExpressAdapter(), {
- *   secret: 'your-32-character-secret-key-here',
- *   strategy: 'signed-double-submit',
- *   allowedOrigins: ['https://yourdomain.com'],
- *   excludePaths: ['/api/public']
- * });
- *
- * // In middleware
- * app.use(async (req, res, next) => {
- *   const result = await csrf.protect(req, res);
- *   if (!result.success) {
- *     return res.status(403).json({ error: 'CSRF validation failed' });
- *   }
- *   next();
- * });
- * ```
- *
- * @example
- * ```typescript
- * // Advanced configuration
- * const csrf = new CsrfProtection(adapter, {
- *   strategy: 'hybrid',
- *   secret: process.env.CSRF_SECRET,
- *   token: {
- *     expiry: 7200, // 2 hours
- *     headerName: 'X-Custom-CSRF-Token',
- *     fieldName: 'custom_csrf_token'
- *   },
- *   cookie: {
- *     name: 'custom-csrf',
- *     secure: true,
- *     httpOnly: true,
- *     sameSite: 'strict'
- *   },
- *   excludePaths: ['/health', '/api/webhook'],
- *   skipContentTypes: ['application/json']
- * });
- * ```
- */
-
-/**
- * Interface for token data used throughout the CSRF protection process.
- * @internal
- */
 interface TokenData {
   clientToken: string;
   cookieToken: string;
@@ -262,59 +171,64 @@ interface TokenData {
 export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
   private readonly config: RequiredCsrfConfig;
   private readonly adapter: CsrfAdapter<TRequest, TResponse>;
+  private readonly rotationCache = new Map<string, number>();
 
-  /**
-   * Creates a new CSRF protection instance.
-   *
-   * @param adapter - Framework-specific adapter for request/response handling
-   * @param userConfig - Optional configuration overrides
-   */
   constructor(
     adapter: CsrfAdapter<TRequest, TResponse>,
     userConfig?: CsrfConfig
   ) {
+    assertWebCrypto();
     this.adapter = adapter;
+
+    if (!userConfig?.secret && !DEFAULT_CONFIG.secret) {
+      console.warn(
+        '[@csrf-armor] No CSRF secret provided; a random secret was generated. Set a persistent secret in production or tokens will be invalidated on restart.'
+      );
+    }
+
     this.config = mergeConfig(DEFAULT_CONFIG, userConfig);
+
+    if (this.config.secret.length < 32) {
+      throw new WeakSecretError();
+    }
+
+    for (const previous of this.config.previousSecrets) {
+      if (previous.length < 32) {
+        throw new WeakSecretError();
+      }
+    }
   }
 
-  /**
-   * Checks if a request should be excluded from CSRF protection.
-   *
-   * @param request - The CSRF request to check
-   * @returns true if the request should be skipped
-   * @internal
-   */
   private shouldSkipProtection(request: CsrfRequest): boolean {
-    const pathname = extractPathname(request.url);
-    if (this.config.excludePaths.some((path) => pathname.startsWith(path))) {
-      return true;
+    const pathname = normalizePath(extractPathname(request.url));
+
+    for (const excluded of this.config.excludePaths) {
+      const normalizedExcluded = normalizePath(excluded);
+      if (
+        pathname === normalizedExcluded ||
+        (normalizedExcluded.endsWith('/') &&
+          pathname.startsWith(normalizedExcluded)) ||
+        pathname === `${normalizedExcluded}/`
+      ) {
+        return true;
+      }
     }
 
     const headers = processHeaders(request.headers);
-    const contentType = headers.get('content-type') ?? '';
-    return this.config.skipContentTypes.some((type) =>
-      contentType.includes(type)
-    );
+    const contentType = parseMediaType(headers.get('content-type') ?? '');
+    const skipList = this.config.contentType.skipValidation ?? [];
+    return skipList.some((type) => contentType === parseMediaType(type));
   }
 
-  /**
-   * Attempts to reuse existing CSRF tokens if they are still valid.
-   *
-   * @param request - The CSRF request containing potential existing tokens
-   * @returns Token data if reuse is possible, null otherwise
-   * @internal
-   */
   private async attemptTokenReuse(
     request: CsrfRequest
   ): Promise<TokenData | null> {
-    if (!SAFE_METHODS.includes(request.method as never)) {
+    const method = request.method.toUpperCase();
+    if (!SAFE_METHODS.includes(method)) {
       return null;
     }
 
-    const cookies =
-      request.cookies instanceof Map
-        ? request.cookies
-        : new Map(Object.entries(request.cookies));
+    const cookies = getCookies(request);
 
     const clientTokenFromRequest = cookies.get(this.config.cookie.name);
     const serverCookieTokenFromRequest = cookies.get(
@@ -331,10 +245,12 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     try {
       switch (this.config.strategy) {
         case 'signed-token':
-        case 'hybrid': {
+        case 'hybrid':
+        case 'fetch-metadata': {
           const payload = await parseSignedToken(
             clientTokenFromRequest,
-            this.config.secret
+            this.config.secret,
+            this.config.previousSecrets
           );
           if (payload.exp > currentTime + reissueThreshold) {
             return {
@@ -345,12 +261,14 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
           }
           break;
         }
+
         case 'signed-double-submit': {
           if (serverCookieTokenFromRequest && clientTokenFromRequest) {
             try {
               const verifiedToken = await verifySignedToken(
                 serverCookieTokenFromRequest,
-                this.config.secret
+                this.config.secret,
+                this.config.previousSecrets
               );
               if (timingSafeEqual(verifiedToken, clientTokenFromRequest)) {
                 return {
@@ -366,24 +284,29 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
           }
           break;
         }
+
+        case 'origin-check': {
+          if (clientTokenFromRequest.length >= ORIGIN_CHECK_NONCE_LENGTH / 2) {
+            return {
+              clientToken: clientTokenFromRequest,
+              cookieToken: clientTokenFromRequest,
+              cookieOptions: { ...this.config.cookie, httpOnly: false },
+            };
+          }
+        }
       }
-    } catch (error) {
-      // Token invalid or expired, return null to generate new tokens
+    } catch {
       return null;
     }
 
     return null;
   }
 
-  /**
-   * Builds the CSRF response with headers and cookies.
-   *
-   * @param tokenData - The token data to include in the response
-   * @returns The CSRF response object
-   * @internal
-   */
   private buildCsrfResponse(tokenData: TokenData): CsrfResponse {
-    const cookies = new Map([
+    const cookies = new Map<
+      string,
+      { value: string; options?: RequiredCookieOptions }
+    >([
       [
         this.config.cookie.name,
         {
@@ -404,7 +327,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     }
 
     return {
-      headers: new Map([
+      headers: new Map<string, string>([
         [CSRF_TOKEN_HEADER, tokenData.clientToken],
         [CSRF_STRATEGY_HEADER, this.config.strategy],
       ]),
@@ -412,146 +335,22 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     };
   }
 
-  /**
-   * Protects a request/response pair against CSRF attacks.
-   *
-   * This is the main method that applies CSRF protection to incoming requests.
-   * It handles both token generation for safe methods (GET, HEAD, OPTIONS) and
-   * token validation for state-changing methods (POST, PUT, DELETE, etc.).
-   *
-   * The method:
-   * 1. Extracts request data using the framework adapter
-   * 2. Checks if the request should be excluded or skipped
-   * 3. For safe methods: generates and sets new CSRF tokens
-   * 4. For unsafe methods: validates existing tokens using the configured strategy
-   * 5. Applies response data (headers, cookies) using the adapter
-   *
-   * @param request - Framework-specific request object
-   * @param response - Framework-specific response object
-   * @returns Promise resolving to protection result with success status and modified response
-   *
-   * @example
-   * ```typescript
-   * // Basic usage in middleware
-   * const result = await csrf.protect(req, res);
-   * if (!result.success) {
-   *   return res.status(403).json({
-   *     error: 'CSRF validation failed',
-   *     reason: result.reason
-   *   });
-   * }
-   *
-   * // Token is available for safe methods
-   * if (result.token) {
-   *   console.log('Generated CSRF token:', result.token);
-   * }
-   *
-   * // Continue with the modified response
-   * return result.response;
-   * ```
-   *
-   * @example
-   * ```typescript
-   * // Error handling with specific reasons
-   * const result = await csrf.protect(req, res);
-   * if (!result.success) {
-   *   switch (result.reason) {
-   *     case 'Invalid token':
-   *       return res.status(403).json({ error: 'CSRF token is invalid' });
-   *     case 'Token expired':
-   *       return res.status(403).json({ error: 'CSRF token has expired' });
-   *     case 'Origin mismatch':
-   *       return res.status(403).json({ error: 'Request origin not allowed' });
-   *     default:
-   *       return res.status(403).json({ error: 'CSRF validation failed' });
-   *   }
-   * }
-   * ```
-   */
-  async protect(
-    request: TRequest,
-    response: TResponse
-  ): Promise<{
-    success: boolean;
-    response: TResponse;
-    token?: string;
-    reason?: string;
-  }> {
-    const csrfRequest = this.adapter.extractRequest(request);
-
-    // Check if request should be skipped
-    if (this.shouldSkipProtection(csrfRequest)) {
-      return { success: true, response };
-    }
-
-    // Attempt to reuse existing tokens or generate new ones
-    let tokenData = await this.attemptTokenReuse(csrfRequest);
-    tokenData ??= await this.generateTokensForStrategy();
-
-    // Build CSRF response
-    const csrfResponse = this.buildCsrfResponse(tokenData);
-
-    // Apply response modifications
-    const modifiedResponse = this.adapter.applyResponse(response, csrfResponse);
-
-    // Skip validation for safe methods
-    if (
-      SAFE_METHODS.includes(csrfRequest.method as (typeof SAFE_METHODS)[number])
-    ) {
-      return {
-        success: true,
-        response: modifiedResponse,
-        token: tokenData.clientToken,
-      };
-    }
-
-    // Validate based on strategy
-    const validationResult = await validateRequest(
-      csrfRequest,
-      this.config,
-      this.adapter.getTokenFromRequest
-    );
-
-    if (!validationResult.isValid) {
-      return {
-        success: false,
-        response: modifiedResponse,
-        reason: validationResult.reason ?? 'CSRF Validation failed',
-      };
-    }
-
-    return {
-      success: true,
-      response: modifiedResponse,
-      token: tokenData.clientToken,
-    };
+  private async getSessionId(
+    request: CsrfRequest
+  ): Promise<string | undefined> {
+    if (!this.config.getSessionId) return undefined;
+    const result = await this.config.getSessionId(request);
+    return result;
   }
 
-  private async generateTokensForStrategy(): Promise<TokenData> {
+  private async generateTokensForStrategy(
+    sessionId?: string
+  ): Promise<TokenData> {
     const baseOptions = this.config.cookie;
 
     switch (this.config.strategy) {
-      case 'double-submit': {
-        const token = generateNonce(DEFAULT_NONCE_LENGTH);
-        if (!token) {
-          throw new Error(
-            'CSRF Error: Failed to generate nonce for strategy "double-submit".'
-          );
-        }
-        return {
-          clientToken: token,
-          cookieToken: token,
-          cookieOptions: { ...baseOptions, httpOnly: false },
-        };
-      }
-
       case 'signed-double-submit': {
         const unsignedToken = generateNonce(DEFAULT_NONCE_LENGTH);
-        if (!unsignedToken) {
-          throw new Error(
-            'CSRF Error: Failed to generate nonce for strategy "signed-double-submit".'
-          );
-        }
         const signedToken = await signUnsignedToken(
           unsignedToken,
           this.config.secret
@@ -565,10 +364,12 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
       }
 
       case 'signed-token':
-      case 'hybrid': {
+      case 'hybrid':
+      case 'fetch-metadata': {
         const signedToken = await generateSignedToken(
           this.config.secret,
-          this.config.token.expiry
+          this.config.token.expiry,
+          sessionId
         );
         return {
           clientToken: signedToken,
@@ -579,11 +380,6 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
 
       case 'origin-check': {
         const nonce = generateNonce(ORIGIN_CHECK_NONCE_LENGTH);
-        if (!nonce) {
-          throw new Error(
-            'CSRF Error: Failed to generate nonce for strategy "origin-check".'
-          );
-        }
         return {
           clientToken: nonce,
           cookieToken: nonce,
@@ -596,71 +392,206 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
       }
     }
   }
+
+  private log(
+    level: 'warn' | 'error',
+    message: string,
+    context: Record<string, unknown> | OnFailureContext
+  ): void {
+    if (!this.config.logger) return;
+    if (level === 'warn') {
+      this.config.logger.warn(message, context);
+    } else {
+      this.config.logger.error(message, context);
+    }
+  }
+
+  private reportMetric(
+    event: 'accept' | 'reject' | 'rotated',
+    context: Record<string, unknown>
+  ): void {
+    if (!this.config.metrics) return;
+    if (event === 'accept') {
+      this.config.metrics.onAccept(context);
+    } else if (event === 'reject') {
+      this.config.metrics.onReject(context);
+    } else {
+      this.config.metrics.onTokenRotated(context);
+    }
+  }
+
+  private async invokeOnFailure(context: OnFailureContext): Promise<void> {
+    try {
+      await this.config.onFailure?.(context);
+    } catch (error) {
+      this.log('error', 'onFailure hook threw an error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private isRotatedTokenValid(token: string): boolean {
+    const expiry = this.rotationCache.get(token);
+    if (!expiry) return false;
+    if (Date.now() > expiry) {
+      this.rotationCache.delete(token);
+      return false;
+    }
+    return true;
+  }
+
+  private pruneRotationCache(): void {
+    const now = Date.now();
+    for (const [token, expiry] of this.rotationCache.entries()) {
+      if (now > expiry) {
+        this.rotationCache.delete(token);
+      }
+    }
+  }
+
+  private async validateWithRotationGrace(
+    csrfRequest: CsrfRequest,
+    sessionId?: string
+  ): Promise<ValidationResult> {
+    this.pruneRotationCache();
+
+    const token = await this.adapter.getTokenFromRequest(
+      csrfRequest,
+      this.config
+    );
+    if (token && this.isRotatedTokenValid(token)) {
+      return { isValid: true };
+    }
+
+    return validateRequest(
+      csrfRequest,
+      this.config,
+      this.adapter.getTokenFromRequest,
+      sessionId
+    );
+  }
+
+  async protect(
+    request: TRequest,
+    response: TResponse
+  ): Promise<{
+    success: boolean;
+    response: TResponse;
+    token?: string;
+    reason?: string;
+  }> {
+    const csrfRequest = this.adapter.extractRequest(request);
+    csrfRequest.method = csrfRequest.method.toUpperCase();
+
+    if (this.shouldSkipProtection(csrfRequest)) {
+      return { success: true, response };
+    }
+
+    const method = csrfRequest.method;
+    const pathname = extractPathname(csrfRequest.url);
+
+    if (SAFE_METHODS.includes(method)) {
+      let tokenData = await this.attemptTokenReuse(csrfRequest);
+      const sessionId = await this.getSessionId(csrfRequest);
+      tokenData ??= await this.generateTokensForStrategy(sessionId);
+
+      const csrfResponse = this.buildCsrfResponse(tokenData);
+      const modifiedResponse = this.adapter.applyResponse(
+        response,
+        csrfResponse
+      );
+
+      this.reportMetric('accept', {
+        strategy: this.config.strategy,
+        method,
+        path: pathname,
+      });
+
+      return {
+        success: true,
+        response: modifiedResponse,
+        token: tokenData.clientToken,
+      };
+    }
+
+    // Unsafe methods: validate BEFORE applying any tokens to the response.
+    const sessionId = await this.getSessionId(csrfRequest);
+    const validationResult = this.config.rotateOnUse
+      ? await this.validateWithRotationGrace(csrfRequest, sessionId)
+      : await validateRequest(
+          csrfRequest,
+          this.config,
+          this.adapter.getTokenFromRequest,
+          sessionId
+        );
+
+    if (!validationResult.isValid) {
+      const failureContext: OnFailureContext = {
+        strategy: this.config.strategy,
+        method,
+        path: pathname,
+        reason: validationResult.reason ?? 'CSRF validation failed',
+        origin: processHeaders(csrfRequest.headers).get('origin'),
+        secFetchSite: processHeaders(csrfRequest.headers).get('sec-fetch-site'),
+      };
+
+      this.log('warn', 'CSRF validation rejected request', failureContext);
+      this.reportMetric('reject', {
+        strategy: this.config.strategy,
+        method,
+        path: pathname,
+        reason: validationResult.reason ?? 'CSRF validation failed',
+      });
+      await this.invokeOnFailure(failureContext);
+
+      return {
+        success: false,
+        response,
+        reason: validationResult.reason ?? 'CSRF validation failed',
+      };
+    }
+
+    // Validation succeeded: now generate/rotate tokens and apply them.
+    const tokenData = await this.generateTokensForStrategy(sessionId);
+
+    if (this.config.rotateOnUse) {
+      const previousToken = await this.adapter.getTokenFromRequest(
+        csrfRequest,
+        this.config
+      );
+      if (previousToken) {
+        this.rotationCache.set(
+          previousToken,
+          Date.now() + DEFAULT_ROTATION_GRACE_PERIOD * 1000
+        );
+      }
+      this.reportMetric('rotated', {
+        strategy: this.config.strategy,
+        path: pathname,
+      });
+    }
+
+    const csrfResponse = this.buildCsrfResponse(tokenData);
+    const modifiedResponse = this.adapter.applyResponse(response, csrfResponse);
+
+    this.reportMetric('accept', {
+      strategy: this.config.strategy,
+      method,
+      path: pathname,
+    });
+
+    return {
+      success: true,
+      response: modifiedResponse,
+      token: tokenData.clientToken,
+    };
+  }
 }
 
 /**
  * Factory function to create a CSRF protection instance.
  *
- * Convenient alternative to using the CsrfProtection constructor directly.
- * This function is the recommended way to create CSRF protection instances
- * as it provides better type inference and a cleaner API.
- *
  * @public
- * @template TRequest - Framework-specific request type
- * @template TResponse - Framework-specific response type
- * @param adapter - Framework adapter implementing CsrfAdapter interface
- * @param config - Optional CSRF configuration (uses secure defaults if not provided)
- * @returns Configured CSRF protection instance ready for use
- *
- * @example
- * ```typescript
- * import { createCsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
- *
- * // Basic setup with defaults
- * const csrf = createCsrfProtection(new ExpressAdapter());
- *
- * // Custom configuration
- * const csrf = createCsrfProtection(new ExpressAdapter(), {
- *   strategy: 'signed-double-submit',
- *   secret: process.env.CSRF_SECRET,
- *   token: {
- *     expiry: 7200, // 2 hours
- *     fieldName: 'authenticity_token'
- *   },
- *   excludePaths: ['/api/public'],
- *   allowedOrigins: ['https://yourdomain.com']
- * });
- *
- * // Use in middleware
- * app.use(async (req, res, next) => {
- *   const result = await csrf.protect(req, res);
- *   if (result.success) {
- *     next();
- *   } else {
- *     res.status(403).json({ error: result.reason });
- *   }
- * });
- * ```
- *
- * @example
- * ```typescript
- * // Framework-specific usage
- *
- * // Express.js
- * import { ExpressAdapter } from '@csrf-armor/express';
- * const expressCsrf = createCsrfProtection(new ExpressAdapter(), config);
- *
- * // Next.js
- * import { NextjsAdapter } from '@csrf-armor/nextjs';
- * const nextCsrf = createCsrfProtection(new NextjsAdapter(), config);
- *
- * // Custom framework
- * class MyAdapter implements CsrfAdapter<MyRequest, MyResponse> {
- *   // Implementation...
- * }
- * const customCsrf = createCsrfProtection(new MyAdapter(), config);
- * ```
  */
 export function createCsrfProtection<TRequest = unknown, TResponse = unknown>(
   adapter: CsrfAdapter<TRequest, TResponse>,

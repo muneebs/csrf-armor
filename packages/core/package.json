@@ -1,6 +1,6 @@
 {
   "name": "@csrf-armor/core",
-  "version": "1.2.3",
+  "version": "2.0.0",
   "description": "Framework-agnostic CSRF protection core functionality",
   "type": "module",
   "main": "./dist/index.mjs",
@@ -48,6 +48,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "fast-check": "^4.1.1",
     "tsdown": "^0.20.1",
     "typescript": "^5"
   },

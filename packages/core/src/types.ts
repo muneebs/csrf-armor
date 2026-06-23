@@ -3,17 +3,17 @@
  *
  * Each strategy provides different levels of security and compatibility:
  *
- * - `double-submit`: Classic double-submit cookie pattern. Good for most applications.
- * - `signed-double-submit`: Enhanced double-submit with cryptographic signatures. Recommended for high-security applications.
- * - `signed-token`: Server-side token validation with cryptographic signing. Most secure but requires server state.
- * - `origin-check`: Validates request origin against allowed domains. Simple but less robust.
- * - `hybrid`: Combines multiple strategies for maximum security and flexibility.
+ * - `signed-double-submit`: Enhanced double-submit with cryptographic signatures. Recommended stateless option.
+ * - `signed-token`: Server-side token validation with cryptographic signing.
+ * - `origin-check`: Validates request origin against allowed domains.
+ * - `fetch-metadata`: Uses Fetch Metadata headers (`Sec-Fetch-Site`) as a defense-in-depth layer.
+ * - `hybrid`: Combines origin validation, Fetch Metadata, Content-Type enforcement, and signed token validation.
  */
 export type CsrfStrategy =
-  | 'double-submit'
   | 'signed-double-submit'
   | 'signed-token'
   | 'origin-check'
+  | 'fetch-metadata'
   | 'hybrid';
 
 /**
@@ -58,6 +58,22 @@ export interface RequiredCookieOptions {
 }
 
 /**
+ * Content-Type enforcement options for CSRF protection.
+ *
+ * Helps prevent Content-Type manipulation attacks such as the Hono bypass
+ * (GHSA-2234-fmw7-43wr) by requiring or whitelisting Content-Type headers on
+ * state-changing requests.
+ */
+export interface ContentTypeOptions {
+  /** Reject missing Content-Type on state-changing requests (default: false) */
+  enforcePresence?: boolean;
+  /** Whitelist of allowed media types (default includes common API types) */
+  allowedTypes?: readonly string[];
+  /** Content types whose requests skip CSRF validation (replaces v1 `skipContentTypes`) */
+  skipValidation?: readonly string[];
+}
+
+/**
  * Token configuration options for CSRF protection.
  *
  * Controls how CSRF tokens are generated, transmitted, and validated.
@@ -91,6 +107,72 @@ export interface RequiredTokenOptions {
 }
 
 /**
+ * Context passed to the `onFailure` hook when CSRF validation rejects a request.
+ *
+ * @public
+ */
+export interface OnFailureContext {
+  /** CSRF strategy that rejected the request */
+  strategy: CsrfStrategy;
+  /** HTTP method of the rejected request */
+  method: string;
+  /** URL path of the rejected request */
+  path: string;
+  /** Machine-readable rejection reason */
+  reason: string;
+  /** Request origin, if available */
+  origin?: string | undefined;
+  /** Value of `Sec-Fetch-Site` header, if available */
+  secFetchSite?: string | undefined;
+}
+
+/**
+ * Pluggable logger interface for security monitoring.
+ *
+ * The library never logs token values or secrets — only fingerprints and
+ * diagnostic context. Both `console` and structured loggers (pino, winston,
+ * etc.) can be adapted to this interface.
+ *
+ * @public
+ */
+export interface CsrfLogger {
+  warn(
+    message: string,
+    context?: Record<string, unknown> | OnFailureContext
+  ): void;
+  error(
+    message: string,
+    context?: Record<string, unknown> | OnFailureContext
+  ): void;
+}
+
+/**
+ * Pluggable metrics interface for CSRF acceptance/rejection counters.
+ *
+ * Separated from `CsrfLogger` because metrics are counters for dashboards
+ * (Prometheus, StatsD, OpenTelemetry), while logs are diagnostic text.
+ *
+ * @public
+ */
+export interface CsrfMetrics {
+  onAccept(context: Record<string, unknown>): void;
+  onReject(context: Record<string, unknown>): void;
+  onTokenRotated(context: Record<string, unknown>): void;
+}
+
+/**
+ * Callback used to retrieve a session identifier for session-bound tokens.
+ *
+ * The returned value is hashed before being included in the token, so the
+ * raw session ID is never exposed in the token payload.
+ *
+ * @public
+ */
+export type GetSessionId = (
+  req: CsrfRequest
+) => string | undefined | Promise<string | undefined>;
+
+/**
  * Main CSRF protection configuration interface.
  *
  * Defines all available options for configuring CSRF protection behavior,
@@ -100,7 +182,7 @@ export interface RequiredTokenOptions {
  * @example
  * ```typescript
  * const config: CsrfConfig = {
- *   strategy: 'signed-double-submit',
+ *   strategy: 'hybrid',
  *   secret: 'your-32-character-secret-key-here',
  *   token: {
  *     expiry: 3600,
@@ -116,7 +198,10 @@ export interface RequiredTokenOptions {
  *   },
  *   allowedOrigins: ['https://yourdomain.com'],
  *   excludePaths: ['/api/public', '/health'],
- *   skipContentTypes: ['application/json']
+ *   contentType: {
+ *     enforcePresence: true,
+ *     allowedTypes: ['application/json']
+ *   }
  * };
  * ```
  */
@@ -127,14 +212,28 @@ export interface CsrfConfig {
   token?: TokenOptions;
   /** Cookie storage and security options */
   cookie?: CookieOptions;
-  /** Secret key for cryptographic operations (auto-generated if not provided) */
+  /** Secret key for cryptographic operations (must be provided in production) */
   secret?: string;
+  /** Previous secrets accepted for verification during key rotation */
+  previousSecrets?: readonly string[];
   /** List of allowed request origins for origin-check strategy */
   allowedOrigins?: readonly string[];
   /** URL paths to exclude from CSRF protection */
   excludePaths?: readonly string[];
-  /** Content types to skip CSRF validation for */
-  skipContentTypes?: readonly string[];
+  /** Content-Type enforcement options (replaces v1 `skipContentTypes`) */
+  contentType?: ContentTypeOptions;
+  /** Enable `__Host-` cookie prefix as defense-in-depth (default: false) */
+  hostCookiePrefix?: boolean;
+  /** Rotate tokens after each successful state-changing request (default: false) */
+  rotateOnUse?: boolean;
+  /** Session ID callback to bind tokens to user sessions */
+  getSessionId?: GetSessionId | undefined;
+  /** Optional logger for security monitoring */
+  logger?: CsrfLogger | undefined;
+  /** Optional metrics sink for dashboards/SIEM */
+  metrics?: CsrfMetrics | undefined;
+  /** Optional hook invoked on validation failure */
+  onFailure?: ((context: OnFailureContext) => void | Promise<void>) | undefined;
 }
 
 /**
@@ -150,9 +249,16 @@ export interface RequiredCsrfConfig {
   token: RequiredTokenOptions;
   cookie: RequiredCookieOptions;
   secret: string;
+  previousSecrets: readonly string[];
   allowedOrigins: readonly string[];
   excludePaths: readonly string[];
-  skipContentTypes: readonly string[];
+  contentType: Required<ContentTypeOptions>;
+  hostCookiePrefix: boolean;
+  rotateOnUse: boolean;
+  getSessionId?: GetSessionId | undefined;
+  logger?: CsrfLogger | undefined;
+  metrics?: CsrfMetrics | undefined;
+  onFailure?: ((context: OnFailureContext) => void | Promise<void>) | undefined;
 }
 
 /**
@@ -175,8 +281,10 @@ export interface ValidationResult {
  * @internal
  */
 export interface TokenPayload {
+  readonly ver: number;
   readonly exp: number;
   readonly nonce: string;
+  readonly sidHash?: string | undefined;
 }
 
 /**
@@ -192,8 +300,8 @@ export interface CsrfRequest {
   url: string;
   /** Request headers in various formats */
   headers: Map<string, string> | Record<string, string> | Headers;
-  /** Request cookies in various formats */
-  cookies: Map<string, string> | Record<string, string>;
+  /** Request cookies */
+  cookies: Map<string, string>;
   /** Request body (can be any format depending on framework) */
   body?: unknown;
 }
@@ -208,9 +316,7 @@ export interface CsrfResponse {
   /** Headers to add to the response */
   headers: Map<string, string> | Record<string, string>;
   /** Cookies to set on the response with their options */
-  cookies:
-    | Map<string, { value: string; options?: CookieOptions }>
-    | Record<string, { value: string; options?: CookieOptions }>;
+  cookies: Map<string, { value: string; options?: CookieOptions }>;
 }
 
 /**

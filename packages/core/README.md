@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Framework-agnostic CSRF protection with multiple security strategies and zero dependencies.**
+**Framework-agnostic CSRF protection with multiple security strategies and zero runtime dependencies.**
 
 Built for modern web applications that need flexible, high-performance CSRF protection without vendor lock-in.
 
@@ -21,11 +21,11 @@ npm install @csrf-armor/core
 ```typescript
 import { generateSignedToken, parseSignedToken } from '@csrf-armor/core';
 
-// Generate a secure token
-const token = await generateSignedToken('your-32-char-secret', 3600);
+// Generate a secure, session-bound token
+const token = await generateSignedToken('your-32-character-secret-key', 3600);
 
 // Validate the token later
-const payload = await parseSignedToken(submittedToken, 'your-32-char-secret');
+const payload = await parseSignedToken(submittedToken, 'your-32-character-secret-key');
 console.log('Token valid until:', new Date(payload.exp * 1000));
 ```
 
@@ -37,25 +37,25 @@ console.log('Token valid until:', new Date(payload.exp * 1000));
 
 | Strategy | Security | Performance | Best For | Setup Complexity |
 |----------|----------|-------------|----------|------------------|
-| **Signed Double Submit** ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | E-commerce, finance | Medium |
-| **Double Submit** | ⭐ | ⭐⭐⭐⭐⭐ | Local development | Easy |
+| **Hybrid** ⭐ (default) | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Maximum security | Medium |
+| **Signed Double Submit** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | E-commerce, finance | Medium |
 | **Signed Token** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | APIs, microservices | Medium |
 | **Origin Check** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Mobile backends | Easy |
-| **Hybrid** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Maximum security | Hard |
+| **Fetch Metadata** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Defense-in-depth only | Easy |
+
+> **Note:** `double-submit` (plain token comparison) has been removed in v2. Use `signed-double-submit` or `hybrid`.
 
 ---
 
 ## 🔧 Framework Integration
 
-### Express.js
+- **[@csrf-armor/express](../express)** — Express.js middleware adapter
+- **[@csrf-armor/nextjs](../nextjs)** — Next.js App Router middleware + React hooks
+- **[@csrf-armor/nuxt](../nuxt)** — Nuxt module + composables
+- **[@csrf-armor/hono](../hono)** — Hono middleware adapter (v2.0 staged)
+- **[@csrf-armor/sveltekit](../sveltekit)** — SvelteKit `handle` hook (v2.0 staged)
 
-> **💡 Complete Express.js solution**: [@csrf-armor/express](../express) with React hooks and simplified setup.
-
-### Next.js
-
-> **💡 Complete Next.js solution**: [@csrf-armor/nextjs](../nextjs) with React hooks and simplified setup.
-
-**🔌 More framework examples and adapters**: [Advanced Configuration Guide →](./docs/ADVANCED.md)
+For custom frameworks, implement the `CsrfAdapter<TRequest, TResponse>` interface.
 
 ---
 
@@ -68,11 +68,11 @@ import { createCsrfProtection } from '@csrf-armor/core';
 
 // Recommended for most applications
 const csrfProtection = createCsrfProtection(adapter, {
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET!, // ⚠️ Required in production
+  strategy: 'hybrid',               // or 'signed-double-submit', 'signed-token', 'origin-check', 'fetch-metadata'
+  secret: process.env.CSRF_SECRET!,   // ⚠️ Required in production (min 32 chars)
   cookie: {
-    secure: true,      // HTTPS only
-    sameSite: 'strict' // Strict same-site policy
+    secure: true,                     // HTTPS only
+    sameSite: 'lax'
   }
 });
 ```
@@ -80,20 +80,51 @@ const csrfProtection = createCsrfProtection(adapter, {
 ### Strategy-Specific Configuration
 
 ```typescript
-// High Security (Financial, Healthcare)
+// Maximum security (Financial, Healthcare)
 { strategy: 'hybrid', secret: process.env.CSRF_SECRET!, allowedOrigins: ['https://app.com'] }
 
-// High Performance (Public APIs)  
+// High Performance (Public APIs)
 { strategy: 'origin-check', allowedOrigins: ['https://mobile.app'] }
 
 // Balanced (Most Web Apps)
 { strategy: 'signed-double-submit', secret: process.env.CSRF_SECRET! }
 
-// Development
-{ strategy: 'double-submit', cookie: { secure: false } }
+// Defense-in-depth (requires modern browser)
+{ strategy: 'fetch-metadata' }
 ```
 
-**📚 Complete configuration options**: [Advanced Configuration Guide →](./docs/ADVANCED.md)
+### New v2 Options
+
+```typescript
+{
+  // Bind tokens to the user session to prevent token replay across sessions
+  getSessionId: (req) => req.cookies.get('session') ?? undefined,
+
+  // Rotate tokens after every successful state-changing request
+  rotateOnUse: true,
+
+  // Accept tokens signed with a previous secret during key rotation
+  previousSecrets: [process.env.OLD_CSRF_SECRET!],
+
+  // Prefix the cookie name with __Host- to enforce path=/ and no domain
+  hostCookiePrefix: true,
+
+  // Enforce a whitelist of Content-Types for state-changing requests
+  contentType: {
+    enforcePresence: true,
+    allowedTypes: ['application/json', 'application/x-www-form-urlencoded'],
+  },
+
+  // Security observability hooks
+  logger: console,
+  metrics: {
+    onAccept: ({ strategy, method, path }) => { /* ... */ },
+    onReject: ({ strategy, method, path, reason }) => { /* ... */ },
+    onTokenRotated: ({ strategy, path }) => { /* ... */ },
+  },
+  onFailure: ({ strategy, method, path, reason, origin, secFetchSite }) => { /* ... */ },
+}
+```
 
 ---
 
@@ -101,22 +132,26 @@ const csrfProtection = createCsrfProtection(adapter, {
 
 ### ❓ Getting "Token mismatch" errors?
 
-```typescript
-// Ensure your adapter extracts tokens from all sources
-async getTokenFromRequest(request: CsrfRequest, config: RequiredCsrfConfig) {
-  const headers = request.headers instanceof Map 
-    ? request.headers 
-    : new Map(Object.entries(request.headers));
+Ensure your adapter extracts tokens from all sources (header, cookie, body) and does not lowercase cookie names:
 
-  // Try header first
+```typescript
+async getTokenFromRequest(request: CsrfRequest, config: RequiredCsrfConfig) {
+  const headers = request.headers instanceof Map
+    ? request.headers
+    : new Map(Object.entries(request.headers ?? {}));
+
   const headerValue = headers.get(config.token.headerName.toLowerCase());
   if (headerValue) return headerValue;
 
-  // Try form data
+  const cookies = request.cookies instanceof Map
+    ? request.cookies
+    : new Map(Object.entries(request.cookies ?? {}));
+  const cookieValue = cookies.get(config.cookie.name); // exact case
+  if (cookieValue) return cookieValue;
+
   if (request.body && typeof request.body === 'object') {
-    const body = request.body as Record<string, unknown>;
-    const formValue = body[config.token.fieldName];
-    if (typeof formValue === 'string') return formValue;
+    const value = request.body[config.token.fieldName];
+    if (typeof value === 'string') return value;
   }
 
   return undefined;
@@ -129,7 +164,7 @@ async getTokenFromRequest(request: CsrfRequest, config: RequiredCsrfConfig) {
 const config = {
   cookie: {
     domain: '.yourdomain.com', // Note the leading dot
-    sameSite: 'lax' // 'strict' blocks cross-subdomain
+    sameSite: 'lax'            // 'strict' blocks cross-subdomain
   }
 };
 ```
@@ -139,7 +174,9 @@ const config = {
 ```typescript
 const config = {
   excludePaths: ['/api/webhooks', '/api/public', '/health'],
-  skipContentTypes: ['application/json'] // For JSON-only APIs
+  contentType: {
+    skipValidation: ['multipart/form-data'] // For file uploads
+  }
 };
 ```
 
@@ -149,9 +186,9 @@ Choose a faster strategy or exclude read-only endpoints:
 
 ```typescript
 // Option 1: Faster strategy
-{ strategy: 'double-submit' } // No crypto overhead
+{ strategy: 'origin-check', allowedOrigins: ['https://app.example.com'] }
 
-// Option 2: Exclude read-only paths  
+// Option 2: Exclude read-only paths
 { excludePaths: ['/api/read', '/api/search'] }
 ```
 
@@ -163,14 +200,17 @@ Choose a faster strategy or exclude read-only endpoints:
 
 ```typescript
 // Generate signed tokens
-const token = await generateSignedToken('secret', 3600);
+const token = await generateSignedToken(secret, 3600);
+
+// Generate session-bound signed tokens
+const token = await generateSignedToken(secret, 3600, sessionId);
 
 // Parse and validate
-const payload = await parseSignedToken(token, 'secret');
+const payload = await parseSignedToken(token, secret, previousSecrets);
 console.log('Expires:', new Date(payload.exp * 1000));
 
 // Generate random nonces
-const nonce = generateNonce(32); // 64 hex characters
+const nonce = generateNonce(32);
 ```
 
 ### Protection Class
@@ -202,52 +242,30 @@ try {
 }
 ```
 
-**📖 Complete API documentation**: [Advanced Configuration Guide →](./docs/ADVANCED.md)
-
 ---
 
 ## 📚 Documentation
 
-- **[Advanced Configuration Guide](./docs/ADVANCED.md)** - Complex setups, custom strategies, all config options
-- **[Security Analysis](./docs/SECURITY.md)** - Security model deep-dive and best practices
-- **[Migration Guide](./docs/MIGRATION.md)** - How to migrate from existing CSRF libraries
+- **[Advanced Configuration Guide](./docs/ADVANCED.md)** — Complex setups, custom adapters, all config options
+- **[Security Analysis](./docs/SECURITY.md)** — Security model deep-dive and best practices
+- **[Migration Guide](./docs/MIGRATION.md)** — Migrating from v1 and other CSRF libraries
 
 ---
 
 ## 🤝 Contributing
 
-**Community contributions welcome!** This project would benefit from:
-
-**🎯 High-Impact Contributions:**
-- **Framework adapters**: Express, Fastify, Koa, SvelteKit, Remix
-- **Performance optimizations**: Benchmark improvements, edge cases
-- **Security enhancements**: Vulnerability reports, new strategies
-- **Developer experience**: Better examples, TypeScript improvements
-
-**🚀 Getting Started:**
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/express-adapter`
-3. Make your changes with tests
-4. Submit a PR with clear description
-
-**💬 Get Help:**
-- 🐛 [Report bugs](https://github.com/muneebs/csrf-armor/issues/new)
-- 💡 [Request features](https://github.com/muneebs/csrf-armor/issues/new)
-- 💬 [Ask questions](https://github.com/muneebs/csrf-armor/discussions)
+Community contributions welcome! High-impact areas include framework adapters, performance optimizations, security enhancements, and developer experience improvements.
 
 ---
 
 ## 📦 Related Packages
 
-- **[@csrf-armor/nextjs](../nextjs)** - Next.js App Router middleware and React hooks
-- **[@csrf-armor/express](../express)** - Express.js middleware adapter
-
-*More framework packages coming based on community demand and contributions!*
+- **[@csrf-armor/nextjs](../nextjs)** — Next.js App Router middleware and React hooks
+- **[@csrf-armor/express](../express)** — Express.js middleware adapter
+- **[@csrf-armor/nuxt](../nuxt)** — Nuxt module and composables
 
 ---
 
 ## 📄 License
 
 MIT © [Muneeb Samuels](https://github.com/muneebs)
-
-**Questions?** Open an issue or start a discussion!

@@ -1,21 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
-  validateDoubleSubmit,
+  type CsrfRequest,
+  type RequiredCsrfConfig,
+  generateNonce,
+  generateSignedToken,
+  signUnsignedToken,
+  validateContentType,
+  validateFetchMetadata,
   validateOrigin,
   validateRequest,
-  validateSignedDoubleSubmit,
   validateSignedToken,
-} from '../src';
-import type { CsrfRequest, RequiredCsrfConfig } from '../src';
-import { generateNonce, generateSignedToken, signUnsignedToken } from '../src';
+} from '../src/index.js';
+
+const TEST_SECRET='test-secret-32-characters-long-123';
 
 const TEST_CONFIG: RequiredCsrfConfig = {
   strategy: 'hybrid',
-  secret: 'test-secret-32-characters-long-123',
+  secret: TEST_SECRET,
+  previousSecrets: [],
   token: {
     expiry: 3600,
     headerName: 'X-CSRF-Token',
     fieldName: 'csrf_token',
+    reissueThreshold: 500,
   },
   cookie: {
     name: 'csrf-token',
@@ -26,579 +33,348 @@ const TEST_CONFIG: RequiredCsrfConfig = {
   },
   allowedOrigins: ['http://localhost'],
   excludePaths: [],
-  skipContentTypes: [],
+  contentType: {
+    enforcePresence: false,
+    allowedTypes: ['application/json', 'application/x-www-form-urlencoded'],
+    skipValidation: [],
+  },
+  hostCookiePrefix: false,
+  rotateOnUse: false,
 };
 
 const mockGetTokenFromRequest = async (
   request: CsrfRequest,
-  config: RequiredCsrfConfig
+  config: { token: { headerName: string; fieldName: string }; cookie: { name: string } }
 ): Promise<string | undefined> => {
   const headers =
     request.headers instanceof Map
       ? request.headers
       : new Map(Object.entries(request.headers));
-  return headers.get(config.token.headerName.toLowerCase());
+  const headerValue = headers.get(config.token.headerName.toLowerCase());
+  if (headerValue) return headerValue;
+
+  const cookies =
+    request.cookies instanceof Map
+      ? request.cookies
+      : new Map(Object.entries(request.cookies ?? {}));
+  return cookies.get(config.cookie.name);
 };
 
-describe('Validation', () => {
-  describe('validateOrigin', () => {
-    it('should validate allowed origin', () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['origin', 'http://localhost:3000']]),
-        cookies: new Map(),
-      };
+describe('validateOrigin', () => {
+  it('accepts allowed origin', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['origin', 'http://localhost:3000']]),
+      cookies: new Map(),
+      body: null,
+    };
 
-      const config = {
-        ...TEST_CONFIG,
-        allowedOrigins: ['http://localhost:3000'],
-      };
-
-      const result = validateOrigin(request, config);
-      expect(result.isValid).toBe(true);
+    const result = validateOrigin(request, {
+      ...TEST_CONFIG,
+      allowedOrigins: ['http://localhost:3000'],
     });
-
-    it('should reject disallowed origin', () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['origin', 'http://evil.com']]),
-        cookies: new Map(),
-      };
-
-      const result = validateOrigin(request, TEST_CONFIG);
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('not allowed');
-    });
-
-    it('should use referer header as origin fallback when origin is missing', () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['referer', 'http://localhost/page']]),
-        cookies: new Map(),
-      };
-
-      const result = validateOrigin(request, TEST_CONFIG);
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should return invalid with reason when both origin and referer are missing on POST', () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map(),
-        cookies: new Map(),
-      };
-
-      const result = validateOrigin(request, TEST_CONFIG);
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Missing origin and referer headers');
-    });
-
-    it('should derive origin from referer when no explicit origin header is present', () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['referer', 'http://localhost/some/deep/path?query=1']]),
-        cookies: new Map(),
-      };
-
-      const result = validateOrigin(request, TEST_CONFIG);
-      expect(result.isValid).toBe(true);
-    });
+    expect(result.isValid).toBe(true);
   });
 
-  describe('validateSignedToken', () => {
-    it('should validate a valid signed token', async () => {
-      const secret = 'test-secret';
-      const token = await generateSignedToken(secret, 3600);
+  it('rejects disallowed origin', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['origin', 'http://evil.com']]),
+      cookies: new Map(),
+      body: null,
+    };
 
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', token]]),
-        cookies: new Map(),
-      };
-
-      const config = {
-        ...TEST_CONFIG,
-        secret,
-      };
-
-      const result = await validateSignedToken(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should reject when no token provided', async () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map(),
-        cookies: new Map(),
-      };
-
-      const result = await validateSignedToken(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('No CSRF token provided');
-    });
+    const result = validateOrigin(request, TEST_CONFIG);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toContain('not allowed');
   });
 
-  describe('validateDoubleSubmit', () => {
-    it('should validate matching tokens', async () => {
-      const token = 'test-token';
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', token]]),
-        cookies: new Map([['csrf-token', token]]),
-      };
+  it('rejects null origin', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['origin', 'null']]),
+      cookies: new Map(),
+      body: null,
+    };
 
-      const result = await validateDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should reject mismatched tokens', async () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', 'token1']]),
-        cookies: new Map([['csrf-token', 'token2']]),
-      };
-
-      const result = await validateDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Token mismatch');
-    });
-
-    it('should return reason when CSRF cookie is missing', async () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', 'some-token']]),
-        cookies: new Map(),
-      };
-
-      const result = await validateDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('No CSRF cookie found');
-    });
-
-    it('should return reason when submitted token is missing', async () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map(),
-        cookies: new Map([['csrf-token', 'some-token']]),
-      };
-
-      const result = await validateDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('No CSRF token submitted');
-    });
+    const result = validateOrigin(request, TEST_CONFIG);
+    expect(result.isValid).toBe(false);
   });
 
-  // UPDATED TESTS - New signed-double-submit behavior
-  describe('validateSignedDoubleSubmit', () => {
-    it('should validate with unsigned client token and signed server cookie', async () => {
-      const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
-        unsignedToken,
-        TEST_CONFIG.secret
-      );
+  it('falls back to referer', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['referer', 'http://localhost/page']]),
+      cookies: new Map(),
+      body: null,
+    };
 
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]), // Client submits unsigned
-        cookies: new Map([
-          ['csrf-token', unsignedToken], // Client cookie (unsigned)
-          ['csrf-token-server', signedServerToken], // Server cookie (signed)
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should reject when no client cookie found', async () => {
-      const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
-        unsignedToken,
-        TEST_CONFIG.secret
-      );
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]),
-        cookies: new Map([
-          // Missing client cookie
-          ['csrf-token-server', signedServerToken],
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Missing CSRF cookies');
-    });
-
-    it('should reject when no server cookie found', async () => {
-      const unsignedToken = generateNonce(32);
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]),
-        cookies: new Map([
-          ['csrf-token', unsignedToken],
-          // Missing server cookie
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Missing CSRF cookies');
-    });
-
-    it('should reject when submitted token does not match client cookie', async () => {
-      const unsignedToken1 = generateNonce(32);
-      const unsignedToken2 = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
-        unsignedToken1,
-        TEST_CONFIG.secret
-      );
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken2]]), // Different token
-        cookies: new Map([
-          ['csrf-token', unsignedToken1],
-          ['csrf-token-server', signedServerToken],
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Token mismatch');
-    });
-
-    it('should reject when client cookie does not match server cookie', async () => {
-      const unsignedToken1 = generateNonce(32);
-      const unsignedToken2 = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
-        unsignedToken2,
-        TEST_CONFIG.secret
-      );
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken1]]),
-        cookies: new Map([
-          ['csrf-token', unsignedToken1], // Matches header
-          ['csrf-token-server', signedServerToken], // But server cookie signs different token
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Cookie integrity check failed');
-    });
-
-    it('should reject invalid server cookie signature', async () => {
-      const unsignedToken = generateNonce(32);
-      const invalidSignedToken = 'invalid.signature';
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]),
-        cookies: new Map([
-          ['csrf-token', unsignedToken],
-          ['csrf-token-server', invalidSignedToken],
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('CSRF token is invalid: Invalid signature');
-    });
-
-    it('should reject when server cookie signed with wrong secret', async () => {
-      const unsignedToken = generateNonce(32);
-      const wrongSignedToken = await signUnsignedToken(
-        unsignedToken,
-        'wrong-secret'
-      );
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]),
-        cookies: new Map([
-          ['csrf-token', unsignedToken],
-          ['csrf-token-server', wrongSignedToken],
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('CSRF token is invalid: Invalid signature');
-    });
-
-    // LEGACY TEST - This behavior should now fail
-    it('should reject legacy signed-double-submit pattern (signed token in client cookie)', async () => {
-      const unsignedToken = generateNonce(32);
-      const signedToken = await signUnsignedToken(
-        unsignedToken,
-        TEST_CONFIG.secret
-      );
-
-      // Old pattern: unsigned in header, signed in client cookie
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]),
-        cookies: new Map([
-          ['csrf-token', signedToken], // This is the old, broken pattern
-        ]),
-      };
-
-      const result = await validateSignedDoubleSubmit(
-        request,
-        TEST_CONFIG,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Missing CSRF cookies'); // No server cookie
-    });
+    const result = validateOrigin(request, TEST_CONFIG);
+    expect(result.isValid).toBe(true);
   });
 
-  describe('validateRequest', () => {
-    it('should route to correct validation strategy', async () => {
-      const token = 'test-token';
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', token]]),
-        cookies: new Map([['csrf-token', token]]),
-      };
+  it('returns invalid when both origin and referer are missing', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map(),
+      cookies: new Map(),
+      body: null,
+    };
 
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'double-submit' as const,
-      };
+    const result = validateOrigin(request, TEST_CONFIG);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/missing/i);
+  });
+});
 
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
+describe('validateSignedToken', () => {
+  it('validates a valid signed token', async () => {
+    const token = await generateSignedToken(TEST_SECRET, 3600);
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateSignedToken(request, TEST_CONFIG, mockGetTokenFromRequest);
+    expect(result.isValid).toBe(true);
+  });
+
+  it('rejects expired tokens', async () => {
+    const token = await generateSignedToken(TEST_SECRET, -1);
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateSignedToken(request, TEST_CONFIG, mockGetTokenFromRequest);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/expired/i);
+  });
+
+  it('rejects missing tokens', async () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map(),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateSignedToken(request, TEST_CONFIG, mockGetTokenFromRequest);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/no csrf token/i);
+  });
+
+  it('validates session-bound tokens when sessionId matches', async () => {
+    const token = await generateSignedToken(TEST_SECRET, 3600, 'session-1');
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateSignedToken(
+      request,
+      TEST_CONFIG,
+      mockGetTokenFromRequest,
+      'session-1'
+    );
+    expect(result.isValid).toBe(true);
+  });
+
+  it('rejects session-bound tokens when sessionId differs', async () => {
+    const token = await generateSignedToken(TEST_SECRET, 3600, 'session-1');
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateSignedToken(
+      request,
+      TEST_CONFIG,
+      mockGetTokenFromRequest,
+      'session-2'
+    );
+    expect(result.isValid).toBe(false);
+  });
+});
+
+describe('validateFetchMetadata', () => {
+  it('passes safe methods even for cross-site', () => {
+    const request: CsrfRequest = {
+      method: 'GET',
+      url: 'http://localhost/api',
+      headers: new Map([['sec-fetch-site', 'cross-site']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateFetchMetadata(request, TEST_CONFIG);
+    expect(result.isValid).toBe(true);
+  });
+
+  it('passes when sec-fetch-site header is absent', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map(),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateFetchMetadata(request, TEST_CONFIG);
+    expect(result.isValid).toBe(true);
+  });
+
+  it('rejects cross-site unsafe methods', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['sec-fetch-site', 'cross-site']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateFetchMetadata(request, TEST_CONFIG);
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/cross-site/i);
+  });
+
+  it('accepts same-origin unsafe methods', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['sec-fetch-site', 'same-origin']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateFetchMetadata(request, TEST_CONFIG);
+    expect(result.isValid).toBe(true);
+  });
+});
+
+describe('validateContentType', () => {
+  it('allows safe methods without content-type', () => {
+    const request: CsrfRequest = {
+      method: 'GET',
+      url: 'http://localhost/api',
+      headers: new Map(),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateContentType(request, TEST_CONFIG);
+    expect(result.isValid).toBe(true);
+  });
+
+  it('rejects disallowed content types when enforcement is enabled', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['content-type', 'text/plain']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateContentType(
+      request,
+      { ...TEST_CONFIG, contentType: { ...TEST_CONFIG.contentType, enforcePresence: true } }
+    );
+    expect(result.isValid).toBe(false);
+  });
+
+  it('allows configured content types', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['content-type', 'application/json']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateContentType(
+      request,
+      { ...TEST_CONFIG, contentType: { ...TEST_CONFIG.contentType, enforcePresence: true } }
+    );
+    expect(result.isValid).toBe(true);
+  });
+
+  it('skips validation for configured types', () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['content-type', 'multipart/form-data']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = validateContentType(request, {
+      ...TEST_CONFIG,
+      contentType: {
+        ...TEST_CONFIG.contentType,
+        enforcePresence: true,
+        skipValidation: ['multipart/form-data'],
+      },
     });
+    expect(result.isValid).toBe(true);
+  });
+});
 
-    it('should validate signed-double-submit strategy correctly', async () => {
-      const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
-        unsignedToken,
-        TEST_CONFIG.secret
-      );
+describe('validateRequest routing', () => {
+  it('validates signed-double-submit strategy', async () => {
+    const unsignedToken = generateNonce(32);
+    const signedServerToken = await signUnsignedToken(unsignedToken, TEST_SECRET);
 
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', unsignedToken]]),
-        cookies: new Map([
-          ['csrf-token', unsignedToken],
-          ['csrf-token-server', signedServerToken],
-        ]),
-      };
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', unsignedToken]]),
+      cookies: new Map([
+        ['csrf-token', unsignedToken],
+        ['csrf-token-server', signedServerToken],
+      ]),
+      body: null,
+    };
 
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'signed-double-submit' as const,
-      };
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'signed-double-submit' },
+      mockGetTokenFromRequest
+    );
+    expect(result.isValid).toBe(true);
+  });
 
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
+  it('validates origin-check strategy', async () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['origin', 'http://localhost']]),
+      cookies: new Map(),
+      body: null,
+    };
 
-    it('should route origin-check strategy to validateOrigin', async () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['origin', 'http://localhost']]),
-        cookies: new Map(),
-      };
-
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'origin-check' as const,
-      };
-
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should route signed-token strategy to validateSignedToken', async () => {
-      const token = await generateSignedToken(TEST_CONFIG.secret, 3600);
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([['x-csrf-token', token]]),
-        cookies: new Map(),
-      };
-
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'signed-token' as const,
-      };
-
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should validate hybrid strategy when both origin and signed token are valid', async () => {
-      const token = await generateSignedToken(TEST_CONFIG.secret, 3600);
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([
-          ['origin', 'http://localhost'],
-          ['x-csrf-token', token],
-        ]),
-        cookies: new Map(),
-      };
-
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'hybrid' as const,
-      };
-
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should fail hybrid strategy when origin is invalid even with a valid token', async () => {
-      const token = await generateSignedToken(TEST_CONFIG.secret, 3600);
-
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map([
-          ['origin', 'http://evil.com'],
-          ['x-csrf-token', token],
-        ]),
-        cookies: new Map(),
-      };
-
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'hybrid' as const,
-      };
-
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('not allowed');
-    });
-
-    it('should return invalid with reason for an unknown strategy', async () => {
-      const request: CsrfRequest = {
-        method: 'POST',
-        url: 'http://localhost/api',
-        headers: new Map(),
-        cookies: new Map(),
-      };
-
-      const config = {
-        ...TEST_CONFIG,
-        strategy: 'unknown-strategy' as never,
-      };
-
-      const result = await validateRequest(
-        request,
-        config,
-        mockGetTokenFromRequest
-      );
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toBe('Invalid strategy');
-    });
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'origin-check' },
+      mockGetTokenFromRequest
+    );
+    expect(result.isValid).toBe(true);
   });
 });

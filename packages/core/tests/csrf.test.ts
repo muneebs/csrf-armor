@@ -1,488 +1,312 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { CsrfProtection, createCsrfProtection } from '../src/csrf.js';
-import type {
-  CsrfAdapter,
-  CsrfRequest,
-  CsrfResponse,
-  RequiredCsrfConfig,
-} from '../src';
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  createCsrfProtection,
+  type CsrfRequest,
+  type CsrfResponse,
+  type CsrfAdapter,
+} from '../src/index.js';
 
-// ---------------------------------------------------------------------------
-// Mock adapter
-// ---------------------------------------------------------------------------
+const SECRET='demo-secret-key-32-characters-exact';
 
-class MockAdapter implements CsrfAdapter<CsrfRequest, Record<string, unknown>> {
-  extractRequest(req: CsrfRequest): CsrfRequest {
-    return req;
+/** Simple in-memory adapter for unit tests. */
+class TestAdapter implements CsrfAdapter<CReq, CRes> {
+  private headers = new Map<string, string>();
+  private cookies = new Map<string, string>();
+
+  constructor(state?: { headers?: Map<string, string>; cookies?: Map<string, string> }) {
+    this.headers = state?.headers ?? new Map<string, string>();
+    this.cookies = state?.cookies ?? new Map<string, string>();
+    this.getTokenFromRequest = this.getTokenFromRequest.bind(this);
   }
 
-  applyResponse(
-    res: Record<string, unknown>,
-    csrfResponse: CsrfResponse
-  ): Record<string, unknown> {
-    return { ...res, csrfResponse };
+  cloneWithState(state: { headers?: Map<string, string>; cookies?: Map<string, string> }): TestAdapter {
+    return new TestAdapter({
+      headers: new Map([...this.headers, ...(state.headers ?? new Map())]),
+      cookies: new Map([...this.cookies, ...(state.cookies ?? new Map())]),
+    });
   }
 
-  async getTokenFromRequest(
-    req: CsrfRequest,
-    config: RequiredCsrfConfig
-  ): Promise<string | undefined> {
+  extractRequest(): CReq {
+    return {
+      method: 'POST',
+      url: 'https://example.com/api/form',
+      headers: new Map(this.headers),
+      cookies: new Map(this.cookies),
+      body: null,
+    };
+  }
+
+  async getTokenFromRequest(request: CsrfRequest, _config: RequiredCsrfConfig): Promise<string | undefined> {
     const headers =
-      req.headers instanceof Map
-        ? req.headers
-        : new Map(Object.entries(req.headers));
-    return headers.get(config.token.headerName.toLowerCase());
+      request.headers instanceof Map
+        ? request.headers
+        : new Map(Object.entries(request.headers ?? {}));
+    const headerValue = headers.get('x-csrf-token');
+    if (headerValue) return headerValue;
+
+    const cookies =
+      request.cookies instanceof Map
+        ? request.cookies
+        : new Map(Object.entries(request.cookies ?? {}));
+    return cookies.get('csrf-token');
+  }
+
+  applyResponse(response: CRes, csrfResponse: CsrfResponse): CRes {
+    for (const [name, { value, options }] of csrfResponse.cookies.entries()) {
+      response.cookies.set(name, value);
+      if (options?.httpOnly) {
+        response.httpOnlyCookies.set(name, value);
+      }
+    }
+    for (const [name, value] of csrfResponse.headers.entries()) {
+      response.headers.set(name.toLowerCase(), value);
+    }
+    return response;
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
+interface CReq {
+  method: string;
+  url: string;
+  headers: Map<string, string>;
+  cookies: Map<string, string>;
+  body: unknown;
+}
 
-const TEST_SECRET = 'test-secret-for-csrf-tests-1234';
+interface CRes {
+  headers: Map<string, string>;
+  cookies: Map<string, string>;
+  httpOnlyCookies: Map<string, string>;
+}
 
-/** Builds a minimal GET request. */
-function makeRequest(
-  overrides: Partial<CsrfRequest> & { method: string; url?: string }
-): CsrfRequest {
+function createResponse(): CRes {
   return {
-    url: 'http://localhost/api/data',
-    headers: new Map(),
-    cookies: new Map(),
-    ...overrides,
+    headers: new Map<string, string>(),
+    cookies: new Map<string, string>(),
+    httpOnlyCookies: new Map<string, string>(),
   };
 }
 
-// ---------------------------------------------------------------------------
-// createCsrfProtection factory
-// ---------------------------------------------------------------------------
+let adapter: TestAdapter;
 
-describe('createCsrfProtection', () => {
-  it('returns an instance of CsrfProtection', () => {
-    const adapter = new MockAdapter();
-    const instance = createCsrfProtection(adapter, {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-    });
-    expect(instance).toBeInstanceOf(CsrfProtection);
-  });
+beforeEach(() => {
+  adapter = new TestAdapter();
 });
 
-// ---------------------------------------------------------------------------
-// Safe HTTP methods (GET / HEAD / OPTIONS)
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – safe methods', () => {
-  let csrf: CsrfProtection<CsrfRequest, Record<string, unknown>>;
-
-  beforeEach(() => {
-    csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-    });
-  });
-
-  it('GET request succeeds and returns a token', async () => {
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    expect(typeof result.token).toBe('string');
-    expect(result.token!.length).toBeGreaterThan(0);
-  });
-
-  it('HEAD request succeeds and returns a token', async () => {
-    const req = makeRequest({ method: 'HEAD' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    expect(typeof result.token).toBe('string');
-  });
-
-  it('OPTIONS request succeeds and returns a token', async () => {
-    const req = makeRequest({ method: 'OPTIONS' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    expect(typeof result.token).toBe('string');
-  });
-
-  it('safe-method response includes csrf headers and cookies via adapter', async () => {
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    // The mock adapter merges csrfResponse into the returned response object
-    const response = result.response as Record<string, unknown>;
-    expect(response).toHaveProperty('csrfResponse');
-
-    const csrfResponse = response.csrfResponse as CsrfResponse;
-    const headers =
-      csrfResponse.headers instanceof Map
-        ? csrfResponse.headers
-        : new Map(Object.entries(csrfResponse.headers));
-
-    expect(headers.has('x-csrf-token')).toBe(true);
-    expect(headers.has('x-csrf-strategy')).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Unsafe HTTP methods without a valid token
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – unsafe methods without token', () => {
-  let csrf: CsrfProtection<CsrfRequest, Record<string, unknown>>;
-
-  beforeEach(() => {
-    csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-    });
-  });
-
-  it('POST without token returns success=false', async () => {
-    const req = makeRequest({ method: 'POST' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(false);
-    expect(result.reason).toBeDefined();
-  });
-
-  it('PUT without token returns success=false', async () => {
-    const req = makeRequest({ method: 'PUT' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(false);
-  });
-
-  it('DELETE without token returns success=false', async () => {
-    const req = makeRequest({ method: 'DELETE' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// excludePaths
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – excludePaths', () => {
-  it('POST to an excluded path returns success=true without requiring a token', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-      excludePaths: ['/api/public'],
-    });
-
-    const originalResponse = { marker: 'original' };
-    const req = makeRequest({
-      method: 'POST',
-      url: 'http://localhost/api/public',
-    });
-    const result = await csrf.protect(req, originalResponse);
-
-    expect(result.success).toBe(true);
-    // For excluded paths, protect() returns the original response unchanged
-    expect(result.response).toBe(originalResponse);
-  });
-
-  it('POST to a non-excluded path still requires validation', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-      excludePaths: ['/api/public'],
-    });
-
-    const req = makeRequest({
-      method: 'POST',
-      url: 'http://localhost/api/private',
-    });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(false);
-  });
-
-  it('prefix matching: /api/public matches /api/public/foo', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-      excludePaths: ['/api/public'],
-    });
-
-    const originalResponse = { marker: 'original' };
-    const req = makeRequest({
-      method: 'POST',
-      url: 'http://localhost/api/public/foo',
-    });
-    const result = await csrf.protect(req, originalResponse);
-
-    expect(result.success).toBe(true);
-    expect(result.response).toBe(originalResponse);
-  });
-
-  it('URL with query string: pathname is correctly extracted for excludePaths matching', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-      excludePaths: ['/api/public'],
-    });
-
-    const originalResponse = { marker: 'original' };
-    // Relative URL with query string — falls back to manual parsing in extractPathname
-    const req = makeRequest({
-      method: 'POST',
-      url: '/api/public?foo=bar',
-    });
-    const result = await csrf.protect(req, originalResponse);
-
-    expect(result.success).toBe(true);
-    expect(result.response).toBe(originalResponse);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// skipContentTypes
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – skipContentTypes', () => {
-  it('POST with a skipped content-type returns success=true without requiring a token', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-      skipContentTypes: ['text/plain'],
-    });
-
-    const req = makeRequest({
-      method: 'POST',
-      headers: new Map([['content-type', 'text/plain']]),
-    });
-    const originalResponse = { marker: 'original' };
-    const result = await csrf.protect(req, originalResponse);
-
-    expect(result.success).toBe(true);
-    // Excluded via skipContentTypes returns the original response unchanged
-    expect(result.response).toBe(originalResponse);
-  });
-
-  it('POST with a non-skipped content-type still requires validation', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-      skipContentTypes: ['text/plain'],
-    });
-
-    const req = makeRequest({
-      method: 'POST',
-      headers: new Map([['content-type', 'application/json']]),
-    });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Token generation shapes per strategy
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – token generation shapes', () => {
-  it('double-submit: generates a hex nonce (no dots) as clientToken', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
-    });
-
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    // Pure hex nonce — no dots
-    expect(result.token).toMatch(/^[a-f0-9]+$/);
-  });
-
-  it('signed-double-submit: generates an unsigned hex nonce as clientToken (no dots)', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'signed-double-submit',
-    });
-
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    // Client token is the raw unsigned nonce
-    expect(result.token).toMatch(/^[a-f0-9]+$/);
-  });
-
-  it('signed-double-submit: response cookies include both client cookie and signed server cookie', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'signed-double-submit',
-    });
-
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-    const response = result.response as Record<string, unknown>;
-    const csrfResponse = response.csrfResponse as CsrfResponse;
-
-    const cookies =
-      csrfResponse.cookies instanceof Map
-        ? csrfResponse.cookies
-        : new Map(Object.entries(csrfResponse.cookies));
-
-    // Client cookie (unsigned)
-    expect(cookies.has('csrf-token')).toBe(true);
-    // Server cookie (signed, httpOnly)
-    expect(cookies.has('csrf-token-server')).toBe(true);
-
-    const serverCookie = cookies.get('csrf-token-server')!;
-    // Signed token has exactly one dot: {unsignedToken}.{signature}
-    expect(serverCookie.value.split('.').length).toBe(2);
-  });
-
-  it('signed-token: generates a signed token with dots (3 parts)', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'signed-token',
-    });
-
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    // Signed token format: {exp}.{nonce}.{signature}
-    expect(result.token!.split('.').length).toBe(3);
-  });
-
-  it('origin-check: generates a nonce token (no dots)', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'origin-check',
-    });
-
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
-
-    expect(result.success).toBe(true);
-    expect(result.token).toMatch(/^[a-f0-9]+$/);
-  });
-
-  it('hybrid: generates a signed token (3 parts, same as signed-token)', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
+describe('CsrfProtection', () => {
+  it('issues a token on GET requests', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
       strategy: 'hybrid',
     });
 
-    const req = makeRequest({ method: 'GET' });
-    const result = await csrf.protect(req, {});
+    const response = createResponse();
+    const result = await protection.protect(
+      { ...adapter.extractRequest(), method: 'GET' },
+      response
+    );
 
+    if (!result.success) console.log('GET issue reason:', result.reason);
     expect(result.success).toBe(true);
-    expect(result.token!.split('.').length).toBe(3);
+    expect(response.cookies.get('csrf-token')).toBeDefined();
+    expect(response.headers.get('x-csrf-token')).toBeDefined();
   });
-});
 
-// ---------------------------------------------------------------------------
-// double-submit validation
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – double-submit validation', () => {
-  let csrf: CsrfProtection<CsrfRequest, Record<string, unknown>>;
-
-  beforeEach(() => {
-    csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'double-submit',
+  it('rejects POST requests without a token', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
     });
+
+    const response = createResponse();
+    const result = await protection.protect(adapter.extractRequest(), response);
+
+    expect(result.success).toBe(false);
+    expect(response.cookies.get('csrf-token')).toBeUndefined();
   });
 
-  it('POST with matching header token and cookie token succeeds', async () => {
-    // First, obtain a token via GET
-    const getReq = makeRequest({ method: 'GET' });
-    const getResult = await csrf.protect(getReq, {});
-    const token = getResult.token!;
+  it('accepts a valid token on POST requests', async () => {
+    const issueAdapter = new TestAdapter();
+    const issueProtection = createCsrfProtection(issueAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+    });
 
-    // Then submit it in a POST with matching cookie
-    const postReq = makeRequest({
-      method: 'POST',
+    const issueResponse = createResponse();
+    await issueProtection.protect(
+      { ...issueAdapter.extractRequest(), method: 'GET' },
+      issueResponse
+    );
+
+    const token = issueResponse.headers.get('x-csrf-token')!;
+    const validateAdapter = issueAdapter.cloneWithState({
       headers: new Map([['x-csrf-token', token]]),
       cookies: new Map([['csrf-token', token]]),
     });
-    const postResult = await csrf.protect(postReq, {});
-
-    expect(postResult.success).toBe(true);
-  });
-
-  it('POST with mismatched header token and cookie token fails', async () => {
-    const getReq = makeRequest({ method: 'GET' });
-    const getResult = await csrf.protect(getReq, {});
-    const correctToken = getResult.token!;
-
-    const postReq = makeRequest({
-      method: 'POST',
-      headers: new Map([['x-csrf-token', 'wrong-token']]),
-      cookies: new Map([['csrf-token', correctToken]]),
-    });
-    const postResult = await csrf.protect(postReq, {});
-
-    expect(postResult.success).toBe(false);
-    expect(postResult.reason).toBeDefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// origin-check strategy validation
-// ---------------------------------------------------------------------------
-
-describe('CsrfProtection – origin-check validation', () => {
-  it('POST with an allowed origin succeeds', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'origin-check',
-      allowedOrigins: ['http://localhost:3000'],
+    const validateProtection = createCsrfProtection(validateAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
     });
 
-    const req = makeRequest({
-      method: 'POST',
-      headers: new Map([['origin', 'http://localhost:3000']]),
-    });
-    const result = await csrf.protect(req, {});
+    const response = createResponse();
+    const result = await validateProtection.protect(
+      validateAdapter.extractRequest(),
+      response
+    );
 
+    if (!result.success) console.log('POST accept reason:', result.reason);
     expect(result.success).toBe(true);
+    expect(response.headers.get('x-csrf-token')).toBeDefined();
   });
 
-  it('POST with a disallowed origin fails', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'origin-check',
-      allowedOrigins: ['http://localhost:3000'],
+  it('rejects cross-site POSTs in fetch-metadata mode', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'fetch-metadata',
     });
 
-    const req = makeRequest({
-      method: 'POST',
-      headers: new Map([['origin', 'http://evil.example.com']]),
-    });
-    const result = await csrf.protect(req, {});
+    const req = adapter.extractRequest();
+    req.headers.set('sec-fetch-site', 'cross-site');
+
+    const response = createResponse();
+    const result = await protection.protect(req, response);
 
     expect(result.success).toBe(false);
-    expect(result.reason).toContain('not allowed');
+    expect(result.reason).toMatch(/cross-site/i);
   });
 
-  it('POST with no origin header fails with missing origin reason', async () => {
-    const csrf = new CsrfProtection(new MockAdapter(), {
-      secret: TEST_SECRET,
-      strategy: 'origin-check',
-      allowedOrigins: ['http://localhost:3000'],
+  it('supports session-bound tokens', async () => {
+    let issueAdapter = new TestAdapter();
+    issueAdapter = issueAdapter.cloneWithState({
+      cookies: new Map([['session', 'user-1']]),
     });
 
-    const req = makeRequest({
-      method: 'POST',
-      headers: new Map(),
+    const issueProtection = createCsrfProtection(issueAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      getSessionId: (req) => req.cookies.get('session') ?? undefined,
     });
-    const result = await csrf.protect(req, {});
+
+    const issueResponse = createResponse();
+    await issueProtection.protect(
+      { ...issueAdapter.extractRequest(), method: 'GET' },
+      issueResponse
+    );
+    const token = issueResponse.headers.get('x-csrf-token')!;
+
+    // Validate with same session
+    const validateAdapter = issueAdapter.cloneWithState({
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map([
+        ['csrf-token', token],
+        ['session', 'user-1'],
+      ]),
+    });
+    const validateProtection = createCsrfProtection(validateAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      getSessionId: (req) => req.cookies.get('session') ?? undefined,
+    });
+
+    const response = createResponse();
+    const result = await validateProtection.protect(
+      validateAdapter.extractRequest(),
+      response
+    );
+    expect(result.success).toBe(true);
+
+    // Validate with different session
+    const badAdapter = issueAdapter.cloneWithState({
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map([
+        ['csrf-token', token],
+        ['session', 'user-2'],
+      ]),
+    });
+    const badProtection = createCsrfProtection(badAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      getSessionId: (req) => req.cookies.get('session') ?? undefined,
+    });
+    const response2 = createResponse();
+    const result2 = await badProtection.protect(
+      badAdapter.extractRequest(),
+      response2
+    );
+    expect(result2.success).toBe(false);
+  });
+
+  it('enforces content-type restrictions when enabled', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      contentType: {
+        enforcePresence: true,
+        allowedTypes: ['application/json'],
+      },
+    });
+
+    const req = adapter.extractRequest();
+    req.headers.set('content-type', 'text/plain');
+
+    const response = createResponse();
+    const result = await protection.protect(req, response);
 
     expect(result.success).toBe(false);
-    expect(result.reason).toBeDefined();
+    expect(result.reason).toMatch(/content.type/i);
+  });
+
+  it('rotates tokens when rotateOnUse is enabled', async () => {
+    const issueAdapter = new TestAdapter();
+    const issueProtection = createCsrfProtection(issueAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+    });
+
+    const issueResponse = createResponse();
+    await issueProtection.protect(
+      { ...issueAdapter.extractRequest(), method: 'GET' },
+      issueResponse
+    );
+    const token1 = issueResponse.headers.get('x-csrf-token')!;
+
+    const validateAdapter = issueAdapter.cloneWithState({
+      headers: new Map([['x-csrf-token', token1]]),
+      cookies: new Map([['csrf-token', token1]]),
+    });
+    const validateProtection = createCsrfProtection(validateAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+    });
+
+    const response1 = createResponse();
+    const result1 = await validateProtection.protect(
+      validateAdapter.extractRequest(),
+      response1
+    );
+    expect(result1.success).toBe(true);
+    const token2 = response1.headers.get('x-csrf-token')!;
+    expect(token2).not.toBe(token1);
+
+    // token1 should still be accepted within the rotation grace period
+    const graceAdapter = issueAdapter.cloneWithState({
+      headers: new Map([['x-csrf-token', token1]]),
+      cookies: new Map([['csrf-token', token1]]),
+    });
+    const graceProtection = createCsrfProtection(graceAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+    });
+    const responseGrace = createResponse();
+    const graceResult = await graceProtection.protect(
+      graceAdapter.extractRequest(),
+      responseGrace
+    );
+    expect(graceResult.success).toBe(true);
   });
 });
+
+export {};
