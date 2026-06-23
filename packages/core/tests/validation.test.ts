@@ -378,3 +378,112 @@ describe('validateRequest routing', () => {
     expect(result.isValid).toBe(true);
   });
 });
+
+describe('validateSignedDoubleSubmit edge cases', () => {
+  it('rejects when cookies are missing', async () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', 'token']]),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'signed-double-submit' },
+      mockGetTokenFromRequest
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/missing csrf cookies/i);
+  });
+
+  it('rejects when submitted token is missing', async () => {
+    const unsigned = generateNonce(32);
+    const signed = await signUnsignedToken(unsigned, TEST_SECRET);
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map(),
+      cookies: new Map([
+        ['csrf-token', unsigned],
+        ['csrf-token-server', signed],
+      ]),
+      body: null,
+    };
+
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'signed-double-submit' },
+      async () => undefined
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/no csrf token/i);
+  });
+
+  it('rejects tampered unsigned cookie', async () => {
+    const unsigned = generateNonce(32);
+    const signed = await signUnsignedToken(unsigned, TEST_SECRET);
+    const tampered = 'b'.repeat(32);
+
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', tampered]]),
+      cookies: new Map([
+        ['csrf-token', tampered],
+        ['csrf-token-server', signed],
+      ]),
+      body: null,
+    };
+
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'signed-double-submit' },
+      mockGetTokenFromRequest
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/integrity check failed|token mismatch/i);
+  });
+
+  it('rejects with invalid server token signature', async () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map([['x-csrf-token', 'unsigned']]),
+      cookies: new Map([
+        ['csrf-token', 'unsigned'],
+        ['csrf-token-server', 'invalid.signature'],
+      ]),
+      body: null,
+    };
+
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'signed-double-submit' },
+      mockGetTokenFromRequest
+    );
+    expect(result.isValid).toBe(false);
+  });
+});
+
+describe('validateRequest invalid strategy', () => {
+  it('returns invalid for unknown strategy', async () => {
+    const request: CsrfRequest = {
+      method: 'POST',
+      url: 'http://localhost/api',
+      headers: new Map(),
+      cookies: new Map(),
+      body: null,
+    };
+
+    const result = await validateRequest(
+      request,
+      { ...TEST_CONFIG, strategy: 'unknown' as unknown as RequiredCsrfConfig['strategy'] },
+      mockGetTokenFromRequest
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/invalid strategy/i);
+  });
+});
+

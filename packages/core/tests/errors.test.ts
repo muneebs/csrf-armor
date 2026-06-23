@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { CsrfError, TokenExpiredError, TokenInvalidError, OriginMismatchError } from '../src';
+import {
+  ContentTypeError,
+  CsrfError,
+  CryptoUnavailableError,
+  FetchMetadataError,
+  MissingSecretError,
+  OriginMismatchError,
+  SessionMismatchError,
+  TokenExpiredError,
+  TokenInvalidError,
+  WeakSecretError,
+} from '../src/index.js';
 
 describe('CsrfError', () => {
   it('instantiates with message, code, and statusCode', () => {
@@ -100,3 +111,49 @@ describe('OriginMismatchError', () => {
     expect(err).toBeInstanceOf(Error);
   });
 });
+describe('WeakSecretError', () => {
+  it('has the correct message', () => {
+    const err = new WeakSecretError();
+    expect(err.message).toContain('at least 32 characters');
+    expect(err.code).toBe('WEAK_SECRET');
+  });
+});
+
+describe('CryptoUnavailableError', () => {
+  it('has the correct code and status', () => {
+    const err = new CryptoUnavailableError();
+    expect(err.code).toBe('CRYPTO_UNAVAILABLE');
+    expect(err.statusCode).toBe(500);
+  });
+});
+
+describe('MissingSecretError', () => {
+  it('has the correct code', () => {
+    const err = new MissingSecretError();
+    expect(err.code).toBe('MISSING_SECRET');
+  });
+});
+
+describe('ContentTypeError', () => {
+  it('includes the disallowed type', () => {
+    const err = new ContentTypeError('text/plain');
+    expect(err.message).toContain('text/plain');
+    expect(err.code).toBe('CONTENT_TYPE_INVALID');
+  });
+});
+
+describe('FetchMetadataError', () => {
+  it('includes the site value', () => {
+    const err = new FetchMetadataError('cross-site');
+    expect(err.message).toContain('cross-site');
+    expect(err.code).toBe('FETCH_METADATA_MISMATCH');
+  });
+});
+
+describe('SessionMismatchError', () => {
+  it('has the correct code', () => {
+    const err = new SessionMismatchError();
+    expect(err.code).toBe('SESSION_MISMATCH');
+  });
+});
+

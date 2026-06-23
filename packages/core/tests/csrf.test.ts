@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createCsrfProtection,
   type CsrfRequest,
@@ -314,6 +314,229 @@ describe('CsrfProtection', () => {
     );
     expect(graceResult.success).toBe(true);
   });
+
+  it('skips excluded paths', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      excludePaths: ['/api/public'],
+    });
+
+    const response = createResponse();
+    const result = await protection.protect(
+      { ...adapter.extractRequest(), method: 'POST', url: 'https://example.com/api/public' },
+      response
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it('logs rejections through a custom logger', async () => {
+    const warnings: unknown[] = [];
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      logger: {
+        warn: (message, context) => warnings.push({ message, context }),
+        error: () => {},
+      },
+    });
+
+    const response = createResponse();
+    await protection.protect(adapter.extractRequest(), response);
+
+    expect(warnings.length).toBeGreaterThan(0);
+  });
+
+  it('emits metrics through a custom metrics sink', async () => {
+    const rejects: unknown[] = [];
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      metrics: {
+        onAccept: () => {},
+        onReject: (_context) => rejects.push(_context),
+        onTokenRotated: () => {},
+      },
+    });
+
+    const response = createResponse();
+    await protection.protect(adapter.extractRequest(), response);
+
+    expect(rejects.length).toBe(1);
+  });
+
+  it('invokes onFailure hook on rejection', async () => {
+    let failureContext: unknown;
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      onFailure: (context) => {
+        failureContext = context;
+      },
+    });
+
+    const response = createResponse();
+    await protection.protect(adapter.extractRequest(), response);
+
+    expect(failureContext).toBeDefined();
+  });
+
+  it('rejects with weak previous secrets', async () => {
+    expect(() =>
+      createCsrfProtection(adapter, {
+        secret: SECRET,
+        strategy: 'hybrid',
+        previousSecrets: ['short'],
+      })
+    ).toThrow();
+  });
+
+  it('warns when no secret is provided', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    createCsrfProtection(adapter, {
+      strategy: 'hybrid',
+    });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('applies __Host- cookie prefix when enabled', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      hostCookiePrefix: true,
+    });
+
+    const response = createResponse();
+    const result = await protection.protect(
+      { ...adapter.extractRequest(), method: 'GET' },
+      response
+    );
+
+    expect(result.success).toBe(true);
+    expect(response.cookies.get('__Host-csrf-token')).toBeDefined();
+  });
+
+  it('reuses existing tokens on safe methods', async () => {
+    const existingToken = await import('../src/crypto.js').then((m) =>
+      m.generateSignedToken(SECRET, 3600)
+    );
+    const reuseAdapter = new TestAdapter({
+      cookies: new Map([['csrf-token', existingToken]]),
+    });
+
+    const protection = createCsrfProtection(reuseAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+    });
+
+    const response = createResponse();
+    const result = await protection.protect(
+      { ...reuseAdapter.extractRequest(), method: 'GET' },
+      response
+    );
+
+    expect(result.success).toBe(true);
+    expect(response.headers.get('x-csrf-token')).toBe(existingToken);
+  });
+
+  it('does not accept an untracked rotated token', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+    });
+
+    // A random token should not be in the rotation cache.
+    const randomToken = 'totally-not-a-real-token';
+    const validateAdapter = adapter.cloneWithState({
+      headers: new Map([['x-csrf-token', randomToken]]),
+      cookies: new Map([['csrf-token', randomToken]]),
+    });
+
+    const response = createResponse();
+    const result = await protection.protect(validateAdapter.extractRequest(), response);
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a token from the rotation cache without re-verification', async () => {
+    const issueAdapter = new TestAdapter();
+    const issueProtection = createCsrfProtection(issueAdapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+    });
+
+    const issueResponse = createResponse();
+    await issueProtection.protect(
+      { ...issueAdapter.extractRequest(), method: 'GET' },
+      issueResponse
+    );
+    const token = issueResponse.headers.get('x-csrf-token')!;
+
+    // Rotate secret so token is no longer cryptographically valid.
+    const newSecret = 'rotated-32-character-secret-key!!';
+    const validateAdapter = issueAdapter.cloneWithState({
+      headers: new Map([['x-csrf-token', token]]),
+      cookies: new Map([['csrf-token', token]]),
+    });
+    const validateProtection = createCsrfProtection(validateAdapter, {
+      secret: newSecret,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+      previousSecrets: [SECRET],
+    });
+
+    // First request accepts token via previousSecrets and caches it.
+    const response1 = createResponse();
+    await validateProtection.protect(validateAdapter.extractRequest(), response1);
+
+    // Second request should accept token from rotation cache.
+    const response2 = createResponse();
+    const result = await validateProtection.protect(
+      validateAdapter.extractRequest(),
+      response2
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('prunes expired entries from the rotation cache', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      strategy: 'hybrid',
+      rotateOnUse: true,
+    });
+
+    protection['rotationCache'].set('expired-token', Date.now() - 1);
+    protection['rotationCache'].set('valid-token', Date.now() + 10_000);
+
+    // Trigger pruning by calling validateWithRotationGrace through protect.
+    const validateAdapter = adapter.cloneWithState({
+      cookies: new Map([['csrf-token', 'expired-token']]),
+    });
+    await protection.protect(
+      { ...validateAdapter.extractRequest(), method: 'POST' },
+      createResponse()
+    );
+
+    expect(protection['rotationCache'].has('expired-token')).toBe(false);
+    expect(protection['rotationCache'].has('valid-token')).toBe(true);
+  });
+
+  it('handles invalid strategy gracefully', async () => {
+    const protection = createCsrfProtection(adapter, {
+      secret: SECRET,
+      // @ts-expect-error testing invalid strategy
+      strategy: 'unknown',
+    });
+
+    const response = createResponse();
+    const result = await protection.protect(adapter.extractRequest(), response);
+
+    expect(result.success).toBe(false);
+  });
+
 });
 
 export {};
