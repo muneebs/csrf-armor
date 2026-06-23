@@ -1,0 +1,43 @@
+{
+  "name": "@csrf-armor/hono",
+  "version": "2.0.0",
+  "description": "Hono adapter for CSRF Armor - Advanced CSRF protection for Hono applications",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "pretest": "cd ../core \u0026\u0026 pnpm run build",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "csrf",
+    "security",
+    "hono",
+    "middleware",
+    "csrf-protection"
+  ],
+  "author": "Muneeb Samuels",
+  "license": "MIT",
+  "dependencies": {
+    "@csrf-armor/core": "workspace:*"
+  },
+  "devDependencies": {
+    "hono": "^4.0.0",
+    "tsdown": "^0.20.1",
+    "typescript": "^5",
+    "vitest": "^2.0.0"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  }
+}
