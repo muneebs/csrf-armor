@@ -26,13 +26,20 @@ class TestAdapter implements CsrfAdapter<CReq, CRes> {
     });
   }
 
-  extractRequest(): CReq {
+  extractRequest(req?: CReq): CReq {
+    if (!req) {
+      return {
+        method: 'POST',
+        url: 'https://example.com/api/form',
+        headers: new Map(this.headers),
+        cookies: new Map(this.cookies),
+        body: null,
+      };
+    }
     return {
-      method: 'POST',
-      url: 'https://example.com/api/form',
-      headers: new Map(this.headers),
-      cookies: new Map(this.cookies),
-      body: null,
+      ...req,
+      headers: req.headers instanceof Map ? req.headers : new Map(Object.entries(req.headers ?? {})),
+      cookies: req.cookies instanceof Map ? req.cookies : new Map(Object.entries(req.cookies ?? {})),
     };
   }
 
@@ -154,7 +161,7 @@ describe('CsrfProtection', () => {
       response
     );
 
-    if (!result.success) console.log('POST accept reason:', result.reason);
+    if (!result.success) console.log('POST accept reason:', result.reason, 'token:', token.slice(0, 20));
     expect(result.success).toBe(true);
     expect(response.headers.get('x-csrf-token')).toBeDefined();
   });

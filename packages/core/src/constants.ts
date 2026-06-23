@@ -5,7 +5,7 @@ import type { CookieOptions, CsrfConfig, ContentTypeOptions } from './types.js';
  *
  * @public
  */
-export const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+export const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'] as const;
 
 /**
  * Default name for the CSRF token cookie.
@@ -68,8 +68,6 @@ export const DEFAULT_CONTENT_TYPE_OPTIONS: ContentTypeOptions = {
     'application/x-www-form-urlencoded',
     'multipart/form-data',
     'application/graphql',
-    'application/ld+json',
-    'text/plain',
   ],
   skipValidation: [],
 } as const;

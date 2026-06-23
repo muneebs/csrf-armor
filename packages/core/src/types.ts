@@ -116,8 +116,8 @@ export interface OnFailureContext {
   strategy: CsrfStrategy;
   /** HTTP method of the rejected request */
   method: string;
-  /** URL path of the rejected request */
-  path: string;
+  /** Request URL of the rejected request */
+  url: string;
   /** Machine-readable rejection reason */
   reason: string;
   /** Request origin, if available */

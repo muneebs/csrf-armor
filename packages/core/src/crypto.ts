@@ -10,6 +10,7 @@ import {
   CryptoUnavailableError,
   TokenExpiredError,
   TokenInvalidError,
+  WeakSecretError,
 } from './errors.js';
 import type { TokenPayload } from './types.js';
 
@@ -24,12 +25,16 @@ export function assertWebCrypto(): void {
   }
 }
 
+/** Returns the global Web Crypto API object. */
+export function getWebCrypto(): Crypto {
+  assertWebCrypto();
+  return globalThis.crypto;
+}
+
 /** Validate that a secret meets minimum strength requirements. */
 export function validateSecret(secret: string): void {
   if (secret.length < MIN_SECRET_LENGTH) {
-    throw new Error(
-      'CSRF secret must be at least 32 characters. Use generateSecureSecret() to create a strong secret.'
-    );
+    throw new WeakSecretError();
   }
 }
 
@@ -128,20 +133,26 @@ export async function hashSessionId(sessionId: string): Promise<string> {
   ).join('');
 }
 
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
 /**
  * Generates a cryptographically secure random nonce.
  *
  * @public
- * @param length - Length of the nonce in bytes (default: 16 bytes = 32 hex chars)
- * @returns Hexadecimal string representing the random nonce
+ * @param length - Length of the nonce in bytes (default: 16 bytes = 24 base64url chars)
+ * @returns URL-safe base64 string representing the random nonce
  */
 export function generateNonce(length = 16): string {
   assertWebCrypto();
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
-    ''
-  );
+  return base64UrlEncode(bytes);
 }
 
 /**
@@ -150,14 +161,17 @@ export function generateNonce(length = 16): string {
  * @internal
  * @returns Base64-encoded random secret key (32 bytes)
  */
-export function generateSecureSecret(): string {
+export function generateSecureSecret(length = 32): string {
   assertWebCrypto();
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  if (length < MIN_SECRET_LENGTH) {
+    throw new WeakSecretError();
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
   let binary = '';
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
   }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return btoa(binary);
 }
 
 /**

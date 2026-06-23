@@ -100,13 +100,6 @@ export async function validateSignedToken(
       return { isValid: false, reason: 'No CSRF token provided' };
     }
 
-    console.log(
-      'DEBUG validateSignedToken token:',
-      token.slice(0, 20),
-      'sessionId:',
-      sessionId
-    );
-
     const payload = await parseSignedToken(
       token,
       config.secret,
@@ -200,7 +193,7 @@ export function validateFetchMetadata(
   const method = request.method.toUpperCase();
 
   // Safe methods are not state-changing; cross-site GETs are normal user navigation.
-  if (SAFE_METHODS.includes(method)) {
+  if (SAFE_METHODS.includes(method as (typeof SAFE_METHODS)[number])) {
     return { isValid: true };
   }
 
@@ -213,17 +206,7 @@ export function validateFetchMetadata(
     };
   }
 
-  if (site === 'none') {
-    // Direct navigation can produce a POST in rare cases; reject to be safe.
-    return {
-      isValid: false,
-      reason: new FetchMetadataError(
-        'Sec-Fetch-Site: none on state-changing request'
-      ).message,
-    };
-  }
-
-  // same-origin and same-site are acceptable.
+  // same-origin, same-site, and none (direct navigation) are acceptable.
   return { isValid: true };
 }
 
@@ -237,7 +220,7 @@ export function validateContentType(
   config: RequiredCsrfConfig
 ): ValidationResult {
   const method = request.method.toUpperCase();
-  if (SAFE_METHODS.includes(method)) {
+  if (SAFE_METHODS.includes(method as (typeof SAFE_METHODS)[number])) {
     return { isValid: true };
   }
 

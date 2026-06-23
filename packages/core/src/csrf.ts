@@ -224,7 +224,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     request: CsrfRequest
   ): Promise<TokenData | null> {
     const method = request.method.toUpperCase();
-    if (!SAFE_METHODS.includes(method)) {
+    if (!SAFE_METHODS.includes(method as (typeof SAFE_METHODS)[number])) {
       return null;
     }
 
@@ -490,7 +490,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     const method = csrfRequest.method;
     const pathname = extractPathname(csrfRequest.url);
 
-    if (SAFE_METHODS.includes(method)) {
+    if (SAFE_METHODS.includes(method as (typeof SAFE_METHODS)[number])) {
       let tokenData = await this.attemptTokenReuse(csrfRequest);
       const sessionId = await this.getSessionId(csrfRequest);
       tokenData ??= await this.generateTokensForStrategy(sessionId);
@@ -529,7 +529,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
       const failureContext: OnFailureContext = {
         strategy: this.config.strategy,
         method,
-        path: pathname,
+        url: csrfRequest.url,
         reason: validationResult.reason ?? 'CSRF validation failed',
         origin: processHeaders(csrfRequest.headers).get('origin'),
         secFetchSite: processHeaders(csrfRequest.headers).get('sec-fetch-site'),
