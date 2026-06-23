@@ -159,8 +159,9 @@ export class ExpressAdapter
           ? Array.from(csrfResponse.cookies.entries())
           : Object.entries(csrfResponse.cookies);
 
-      for (const [name, { value, options }] of entries) {
-        this.setCookie(res, name, value, options);
+      for (const [name, cookie] of entries) {
+        const cookieValue = cookie as { value: string; options?: CookieOptions };
+        this.setCookie(res, name, cookieValue.value, cookieValue.options);
       }
     }
 
