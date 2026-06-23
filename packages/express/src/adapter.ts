@@ -68,7 +68,10 @@ export class ExpressAdapter
       url: req.url,
       headers,
       cookies: new Map(
-        Object.entries(req.cookies ?? {}).map(([key, value]) => [key.toLowerCase(), String(value)])
+        Object.entries(req.cookies ?? {}).map(([key, value]) => [
+          key,
+          String(value),
+        ])
       ),
       body: req.body,
     };
@@ -205,22 +208,13 @@ export class ExpressAdapter
       request.cookies instanceof Map
         ? request.cookies
         : new Map(
-            Object.entries(request.cookies || {}).map(([key, value]) => [key.toLowerCase(), String(value)])
+            Object.entries(request.cookies || {}).map(([key, value]) => [
+              key,
+              String(value),
+            ])
           );
-    const cookieValue = cookies.get(config.cookie.name.toLowerCase());
+    const cookieValue = cookies.get(config.cookie.name);
     if (cookieValue) return cookieValue;
-
-    // Try query parameter
-    if (request.url) {
-      try {
-        // Express request.url is a relative path, so we need to create a full URL
-        const url = new URL(request.url, 'http://localhost');
-        const queryValue = url.searchParams.get(config.token.fieldName);
-        if (queryValue) return queryValue;
-      } catch {
-        // If URL parsing fails, skip query parameter extraction
-      }
-    }
 
     // Try form body
     if (request.body && typeof request.body === 'object') {

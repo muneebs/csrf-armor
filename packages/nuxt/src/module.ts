@@ -10,23 +10,43 @@ import type { NuxtModule } from '@nuxt/schema';
 
 // Re-export core types for consumer convenience
 export type {
+  ContentTypeOptions,
   CookieOptions,
   CsrfConfig,
+  CsrfLogger,
+  CsrfMetrics,
   CsrfProtectResult,
   CsrfStrategy,
+  GetSessionId,
+  OnFailureContext,
   TokenOptions,
   ValidationResult,
 } from '@csrf-armor/core';
 
 export {
   generateNonce,
+  generateSecureSecret,
   generateSignedToken,
   parseSignedToken,
   signUnsignedToken,
   verifySignedToken,
 } from '@csrf-armor/core';
 
-export interface ModuleOptions extends CsrfConfig {}
+export interface ModuleOptions extends CsrfConfig {
+  /**
+   * Name of the session cookie to read the session ID from.
+   *
+   * This is a Nuxt-specific shorthand because `getSessionId` (a function) cannot
+   * be serialized into `runtimeConfig`. The adapter will read this cookie's
+   * value and use it as the session ID for session-bound tokens.
+   */
+  sessionCookieName?: string;
+  /**
+   * Maximum request body size in bytes the Nuxt adapter will read when parsing
+   * body for token extraction (default: 1MB).
+   */
+  maxBodySize?: number;
+}
 
 /**
  * Deep merges `overrides` into `defaults`, with `overrides` taking priority.
@@ -71,7 +91,9 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const mergedConfig = mergeDefaults(
       options,
       // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
-      nuxt.options.runtimeConfig['csrfArmor'] as Partial<CsrfConfig> | undefined
+      nuxt.options.runtimeConfig['csrfArmor'] as
+        | Partial<ModuleOptions>
+        | undefined
     );
 
     // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures

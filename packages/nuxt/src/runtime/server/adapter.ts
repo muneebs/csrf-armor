@@ -58,7 +58,8 @@ function appendSetCookie(res: ServerResponse, cookieStr: string): void {
 /** Reads and parses the request body based on its content type. Returns null for unsupported types. */
 async function parseBody(
   event: H3Event,
-  contentType: string
+  contentType: string,
+  maxBodySize: number
 ): Promise<unknown> {
   const supportedTypes = [
     'application/json',
@@ -74,7 +75,18 @@ async function parseBody(
 
   const rawBody = await new Promise<string>((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    let totalLength = 0;
+
+    req.on('data', (chunk: Buffer) => {
+      totalLength += chunk.length;
+      if (totalLength > maxBodySize) {
+        req.destroy();
+        reject(new Error('Request body exceeds maximum CSRF parsing size'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
     req.on('error', reject);
   });
@@ -101,8 +113,10 @@ async function parseBody(
 export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
   /** Cache parsed bodies to avoid double reads on the same event. */
   private readonly parsedBodyCache = new WeakMap<H3Event, unknown>();
+  private readonly maxBodySize: number;
 
-  constructor() {
+  constructor(maxBodySize = 1024 * 1024) {
+    this.maxBodySize = maxBodySize;
     this.getTokenFromRequest = this.getTokenFromRequest.bind(this);
   }
 
@@ -178,9 +192,7 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
 
     // 2. Try cookie — use the already-parsed Map from extractRequest
     const cookies = request.cookies as Map<string, string>;
-    const cookieValue =
-      cookies.get(config.cookie.name.toLowerCase()) ??
-      cookies.get(config.cookie.name);
+    const cookieValue = cookies.get(config.cookie.name);
     if (cookieValue) return cookieValue;
 
     // 3. Try body
@@ -190,7 +202,7 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
     } else {
       const contentType = event.headers.get('content-type') ?? 'text/plain';
       try {
-        parsedBody = await parseBody(event, contentType);
+        parsedBody = await parseBody(event, contentType, this.maxBodySize);
         this.parsedBodyCache.set(event, parsedBody);
       } catch (error) {
         console.warn(

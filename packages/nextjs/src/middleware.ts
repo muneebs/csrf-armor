@@ -122,8 +122,15 @@ export function createCsrfMiddleware(config?: CsrfConfig) {
 
 // Export types for convenience
 export type {
-  CsrfConfig,
-  CsrfStrategy,
+  ContentTypeOptions,
   CookieOptions,
+  CsrfConfig,
+  CsrfLogger,
+  CsrfMetrics,
+  CsrfProtectResult,
+  CsrfStrategy,
+  GetSessionId,
+  OnFailureContext,
   TokenOptions,
+  ValidationResult,
 } from '@csrf-armor/core';
