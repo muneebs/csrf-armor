@@ -66,10 +66,10 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.0",
-    "@types/react": "^19.1.6",
-    "next": "^16.2.11",
-    "tsdown": "^0.20.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.17",
+    "next": "^16.2.12",
+    "tsdown": "^0.22.14",
     "typescript": "^5"
   },
   "module": "./dist/index.js"

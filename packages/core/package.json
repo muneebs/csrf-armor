@@ -48,7 +48,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "tsdown": "^0.20.1",
+    "tsdown": "^0.22.14",
     "typescript": "^5"
   },
   "module": "./dist/index.mjs"
