@@ -70,7 +70,7 @@
     "@types/react": "^19.1.6",
     "next": "^16.2.11",
     "tsdown": "^0.20.1",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "module": "./dist/index.js"
 }
