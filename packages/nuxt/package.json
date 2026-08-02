@@ -57,8 +57,8 @@
     "@nuxt/schema": "^4.4.2",
     "h3": "^1.15.9",
     "nuxt": "^4.4.7",
-    "tsdown": "^0.20.1",
-    "typescript": "^5",
+    "tsdown": "^0.22.14",
+    "typescript": "^7",
     "vitest": "^4.1.2"
   },
   "peerDependencies": {
