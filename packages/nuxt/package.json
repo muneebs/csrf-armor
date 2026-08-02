@@ -53,6 +53,7 @@
     "@csrf-armor/core": "workspace:*"
   },
   "devDependencies": {
+<<<<<<< HEAD
     "@nuxt/kit": "^4.5.1",
     "@nuxt/schema": "^4.5.1",
     "h3": "^1.15.11",
@@ -60,6 +61,15 @@
     "tsdown": "^0.22.14",
     "typescript": "^5",
     "vitest": "^4.1.10"
+=======
+    "@nuxt/kit": "^4.4.2",
+    "@nuxt/schema": "^4.4.2",
+    "h3": "^1.15.9",
+    "nuxt": "^4.4.7",
+    "tsdown": "^0.22.14",
+    "typescript": "^7",
+    "vitest": "^4.1.2"
+>>>>>>> origin/main
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0 || ^4.0.0",
