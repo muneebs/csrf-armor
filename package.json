@@ -47,13 +47,8 @@
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "jsdom": "^30.0.1",
-<<<<<<< HEAD
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
-=======
     "typescript": "^7.0.2",
-    "vitest": "^4.1.2"
->>>>>>> origin/main
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "overrides": {

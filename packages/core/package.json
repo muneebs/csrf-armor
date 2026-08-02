@@ -49,11 +49,7 @@
   },
   "devDependencies": {
     "tsdown": "^0.22.14",
-<<<<<<< HEAD
-    "typescript": "^5"
-=======
     "typescript": "^7"
->>>>>>> origin/main
   },
   "module": "./dist/index.mjs"
 }
