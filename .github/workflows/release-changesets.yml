@@ -10,7 +10,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build core package first
+        run: pnpm --filter @csrf-armor/core run build
+
+      - name: Build all packages
+        run: pnpm run build
+
+      - name: Run type check
+        run: pnpm run type-check
+
+      - name: Run linting
+        run: pnpm run lint
+
+      - name: Run tests
+        run: pnpm run test
+
   release:
+    needs: build-check
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,10 +65,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
+          node-version: "22.x"
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
@@ -54,21 +93,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Build core package first
-        run: pnpm --filter @csrf-armor/core run build
-
-      - name: Build all packages
-        run: pnpm run build
-
-      - name: Run type check
-        run: pnpm run type-check
-
-      - name: Run linting
-        run: pnpm run lint
-
-      - name: Run tests
-        run: pnpm run test
 
       - name: Create Release PR or Publish to NPM
         id: changesets
