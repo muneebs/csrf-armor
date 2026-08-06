@@ -1,10 +1,16 @@
 {
   "$schema": "https://jsr.io/schema/config-file.v1.json",
   "name": "@csrf-armor/express",
-  "version": "1.0.1",
-  "exports": "./dist/index.js",
-  "include": [
-    "dist/",
-    "README.md"
-  ]
+  "version": "1.2.3",
+  "exports": "./src/index.ts",
+  "imports": {
+    "@csrf-armor/core": "jsr:@csrf-armor/core@^1.2.3",
+    "express": "npm:express@*"
+  },
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md"
+    ]
+  }
 }

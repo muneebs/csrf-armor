@@ -98,7 +98,13 @@ export type { ExpressAdapter };
  * }));
  * ```
  */
-export function csrfMiddleware(config?: CsrfConfig) {
+export function csrfMiddleware(
+  config?: CsrfConfig
+): (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => Promise<void> {
   const adapter = new ExpressAdapter();
   const protection = createCsrfProtection(adapter, config);
 
