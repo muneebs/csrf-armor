@@ -254,8 +254,10 @@ interface CsrfConfig {
 
 ##### excludePaths
 
-- **Type**: `readonly string[]`
-- **Description**: Paths to exclude from CSRF protection
+- **Description**: Paths to exclude from CSRF protection. Matching is
+  path-segment aware: `'/api'` matches `/api` and `/api/v1` but not
+  `/api-public`. A trailing slash (`'/api/'`) matches children only
+  (`/api/v1`), not the bare `/api`.
 
 ##### skipContentTypes
 
