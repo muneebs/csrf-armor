@@ -286,7 +286,13 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
    */
   private shouldSkipProtection(request: CsrfRequest): boolean {
     const pathname = extractPathname(request.url);
-    if (this.config.excludePaths.some((path) => pathname.startsWith(path))) {
+    if (
+      this.config.excludePaths.some(
+        (path) =>
+          pathname === path ||
+          pathname.startsWith(path.endsWith('/') ? path : `${path}/`)
+      )
+    ) {
       return true;
     }
 
