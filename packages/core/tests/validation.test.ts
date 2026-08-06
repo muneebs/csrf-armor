@@ -101,12 +101,27 @@ describe('Validation', () => {
       const request: CsrfRequest = {
         method: 'POST',
         url: 'http://localhost/api',
-        headers: new Map([['referer', 'http://localhost/some/deep/path?query=1']]),
+        headers: new Map([
+          ['referer', 'http://localhost/some/deep/path?query=1'],
+        ]),
         cookies: new Map(),
       };
 
       const result = validateOrigin(request, TEST_CONFIG);
       expect(result.isValid).toBe(true);
+    });
+
+    it('should return invalid for a malformed Referer header, not throw', () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['referer', 'not-a-valid-url']]),
+        cookies: new Map(),
+      };
+
+      const result = validateOrigin(request, TEST_CONFIG);
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe('Malformed Referer header');
     });
   });
 

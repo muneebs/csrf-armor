@@ -64,7 +64,14 @@ export function validateOrigin(
     return { isValid: false, reason: 'Missing origin and referer headers' };
   }
 
-  const requestOrigin = origin ?? (referer ? new URL(referer).origin : null);
+  let requestOrigin: string | null = origin ?? null;
+  if (!requestOrigin && referer) {
+    try {
+      requestOrigin = new URL(referer).origin;
+    } catch {
+      return { isValid: false, reason: 'Malformed Referer header' };
+    }
+  }
 
   if (!requestOrigin) {
     return { isValid: false, reason: 'No origin or referer header' };
