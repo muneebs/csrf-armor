@@ -108,7 +108,15 @@ import { NextjsAdapter } from './adapter.js';
  * }
  * ```
  */
-export function createCsrfMiddleware(config?: CsrfConfig) {
+export function createCsrfMiddleware(config?: CsrfConfig): (
+  request: NextRequest,
+  response: NextResponse
+) => Promise<{
+  success: boolean;
+  response: NextResponse;
+  token?: string;
+  reason?: string;
+}> {
   const adapter = new NextjsAdapter();
   const csrfProtection = createCsrfProtection(adapter, config);
 

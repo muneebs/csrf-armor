@@ -1,14 +1,22 @@
 {
   "$schema": "https://jsr.io/schema/config-file.v1.json",
   "name": "@csrf-armor/nextjs",
-  "version": "1.2.1",
+  "version": "1.4.4",
   "exports": {
-    ".": "./dist/index.js",
-    "./client": "./dist/client/index.js"
+    ".": "./src/index.ts",
+    "./client": "./src/client/index.ts"
   },
-  "include": [
-    "dist/",
-    "src/",
-    "README.md"
-  ]
+  "imports": {
+    "@csrf-armor/core": "jsr:@csrf-armor/core@^1.2.3",
+    "next/navigation": "npm:next@*/navigation.js",
+    "next/server": "npm:next@*/server.js",
+    "react": "npm:react@*"
+  },
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "README.md"
+    ]
+  }
 }

@@ -122,7 +122,7 @@ export function CsrfProvider({
 }: Readonly<{
   children: React.ReactNode;
   config?: CsrfClientConfig;
-}>) {
+}>): React.JSX.Element {
   const [csrfToken, setCsrfToken] = useState<string | null>(
     config?.initialToken ?? null
   );
