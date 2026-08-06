@@ -243,6 +243,98 @@ describe('CsrfProtection – excludePaths', () => {
 });
 
 // ---------------------------------------------------------------------------
+// excludePaths – path-segment boundaries (SEC-VAL-2)
+// ---------------------------------------------------------------------------
+
+describe('CsrfProtection – excludePaths path-segment boundaries', () => {
+  it('AC-1: /api excludes /api (exact) and /api/v1 (child) but not /api-public or /apiv2', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      excludePaths: ['/api'],
+    });
+
+    // exact match — skipped
+    let result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api' }),
+      {}
+    );
+    expect(result.success).toBe(true);
+
+    // child — skipped
+    result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api/v1' }),
+      {}
+    );
+    expect(result.success).toBe(true);
+
+    // unrelated prefix — NOT skipped
+    result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api-public' }),
+      {}
+    );
+    expect(result.success).toBe(false);
+
+    // unrelated prefix — NOT skipped
+    result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/apiv2' }),
+      {}
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it('AC-2: /api/ excludes /api/v1 (child) but not /api (bare)', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      excludePaths: ['/api/'],
+    });
+
+    // child — skipped
+    let result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api/v1' }),
+      {}
+    );
+    expect(result.success).toBe(true);
+
+    // bare path — NOT skipped (trailing slash = children only)
+    result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api' }),
+      {}
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it('AC-3: exact pathname match still works', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      excludePaths: ['/health'],
+    });
+
+    const result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/health' }),
+      {}
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('AC-4: empty excludePaths excludes nothing', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      excludePaths: [],
+    });
+
+    const result = await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api/public' }),
+      {}
+    );
+    expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // skipContentTypes
 // ---------------------------------------------------------------------------
 
