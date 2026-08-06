@@ -199,7 +199,7 @@ describe('NextjsAdapter', () => {
       expect(token).toBe('header-token');
     });
 
-    it('should extract token from cookie', async () => {
+    it('should NOT extract token from cookie', async () => {
       // Define the token header name to be used consistently
       const tokenHeaderName = 'x-csrf-token';
 
@@ -215,8 +215,6 @@ describe('NextjsAdapter', () => {
       } as RequiredCsrfConfig;
 
       // Create mock cookies object with both get and getAll methods
-      // The get method needs to use the lowercase version of the cookie name
-      // as that's what the adapter implementation uses
       const mockCookies = {
         get: vi.fn((name) => {
           if (name === config.cookie.name.toLowerCase()) {
@@ -251,30 +249,76 @@ describe('NextjsAdapter', () => {
       };
 
       // Skip the adapter.extractRequest and directly create a mock CsrfRequest
-      // This avoids any issues with the extraction process
       const csrfRequest = {
         method: 'POST',
         url: 'http://localhost/api',
         headers: new Headers(),
         cookies: new Map<string, string>(),
-        body: mockNextRequestForCookie, // Put the NextRequest mock in body
+        body: mockNextRequestForCookie,
       };
 
-      // Test the token extraction
+      // Test the token extraction — cookie must NOT be used as a token source
       const token = await adapter.getTokenFromRequest(
         csrfRequest as unknown as CsrfRequest,
         config
       );
-      expect(token).toBe('cookie-token');
+      expect(token).toBeUndefined();
+    });
+
+    it('should extract token from query parameter when header is missing', async () => {
+      const request: CsrfRequest = {
+        method: 'GET',
+        url: 'http://localhost/api?csrf=query-token',
+        headers: new Headers(),
+        cookies: new Map(),
+        body: {},
+      };
+
+      const config = {
+        token: {
+          headerName: 'x-csrf-token',
+          fieldName: 'csrf',
+        },
+      } as RequiredCsrfConfig;
+
+      const token = await adapter.getTokenFromRequest(request, config);
+      expect(token).toBe('query-token');
+    });
+
+    it('should NOT use cookie as token source — query param used when header missing', async () => {
+      const request: CsrfRequest = {
+        method: 'GET',
+        url: 'http://localhost/api?csrf=query-token',
+        headers: new Headers(),
+        cookies: new Map([['csrf-token', 'cookie-token']]),
+        body: {
+          cookies: { get: vi.fn().mockReturnValue({ value: 'cookie-token' }) },
+        },
+      };
+
+      const config = {
+        token: {
+          headerName: 'x-csrf-token',
+          fieldName: 'csrf',
+        },
+        cookie: {
+          name: 'csrf-token',
+        },
+      } as RequiredCsrfConfig;
+
+      const token = await adapter.getTokenFromRequest(request, config);
+      expect(token).toBe('query-token');
     });
 
     it('should extract token from multipart form data', async () => {
       // Create mock FormData with proper entries method that returns an iterator
       const mockFormData = {
-        entries: vi.fn().mockReturnValue([
-          ['csrf', 'form-token'],
-          ['other-field', 'other-value'],
-        ][Symbol.iterator]()),
+        entries: vi.fn().mockReturnValue(
+          [
+            ['csrf', 'form-token'],
+            ['other-field', 'other-value'],
+          ][Symbol.iterator]()
+        ),
       };
       // Make it an instance of FormData for instanceof check
       Object.setPrototypeOf(mockFormData, FormData.prototype);
@@ -473,7 +517,10 @@ describe('NextjsAdapter', () => {
         ]),
         cookies: new Map([
           ['csrf-token', { value: `csrf-${i}`, options: { httpOnly: true } }],
-          ['session-id', { value: `session-${i}`, options: { secure: true, path: '/' } }],
+          [
+            'session-id',
+            { value: `session-${i}`, options: { secure: true, path: '/' } },
+          ],
         ]),
       }));
 
@@ -487,11 +534,17 @@ describe('NextjsAdapter', () => {
       // Verify each response was handled correctly
       results.forEach((result, i) => {
         const response = responses[i];
-        
+
         // Verify headers were set correctly for this specific response
-        expect(response.headers.set).toHaveBeenCalledWith('x-csrf-token', `token-${i}`);
-        expect(response.headers.set).toHaveBeenCalledWith('x-request-id', `req-${i}`);
-        
+        expect(response.headers.set).toHaveBeenCalledWith(
+          'x-csrf-token',
+          `token-${i}`
+        );
+        expect(response.headers.set).toHaveBeenCalledWith(
+          'x-request-id',
+          `req-${i}`
+        );
+
         // Verify cookies were set correctly for this specific response
         expect(response.cookies.set).toHaveBeenCalledWith(
           'csrf-token',
@@ -513,10 +566,24 @@ describe('NextjsAdapter', () => {
         // Check that this response doesn't have calls for other responses' data
         for (let j = 0; j < responses.length; j++) {
           if (i !== j) {
-            expect(response.headers.set).not.toHaveBeenCalledWith('x-csrf-token', `token-${j}`);
-            expect(response.headers.set).not.toHaveBeenCalledWith('x-request-id', `req-${j}`);
-            expect(response.cookies.set).not.toHaveBeenCalledWith('csrf-token', `csrf-${j}`, expect.any(Object));
-            expect(response.cookies.set).not.toHaveBeenCalledWith('session-id', `session-${j}`, expect.any(Object));
+            expect(response.headers.set).not.toHaveBeenCalledWith(
+              'x-csrf-token',
+              `token-${j}`
+            );
+            expect(response.headers.set).not.toHaveBeenCalledWith(
+              'x-request-id',
+              `req-${j}`
+            );
+            expect(response.cookies.set).not.toHaveBeenCalledWith(
+              'csrf-token',
+              `csrf-${j}`,
+              expect.any(Object)
+            );
+            expect(response.cookies.set).not.toHaveBeenCalledWith(
+              'session-id',
+              `session-${j}`,
+              expect.any(Object)
+            );
           }
         }
       });
@@ -594,14 +661,16 @@ describe('NextjsAdapter', () => {
 
       // Create mock for form data request
       const mockFormData = {
-        entries: vi.fn().mockReturnValue([['csrf', 'form-token']][Symbol.iterator]()),
+        entries: vi
+          .fn()
+          .mockReturnValue([['csrf', 'form-token']][Symbol.iterator]()),
       };
       // Make it an instance of FormData for instanceof check
       Object.setPrototypeOf(mockFormData, FormData.prototype);
       const mockBody = {
         formData: vi.fn().mockResolvedValue(mockFormData),
       };
-      
+
       const formRequest: CsrfRequest = {
         method: 'POST',
         url: 'http://localhost/api/3',

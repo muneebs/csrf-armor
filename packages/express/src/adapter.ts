@@ -68,7 +68,10 @@ export class ExpressAdapter
       url: req.url,
       headers,
       cookies: new Map(
-        Object.entries(req.cookies ?? {}).map(([key, value]) => [key.toLowerCase(), String(value)])
+        Object.entries(req.cookies ?? {}).map(([key, value]) => [
+          key.toLowerCase(),
+          String(value),
+        ])
       ),
       body: req.body,
     };
@@ -199,16 +202,6 @@ export class ExpressAdapter
     // Try header first (most common for APIs)
     const headerValue = headers.get(config.token.headerName.toLowerCase());
     if (headerValue) return headerValue;
-
-    // Try cookie
-    const cookies =
-      request.cookies instanceof Map
-        ? request.cookies
-        : new Map(
-            Object.entries(request.cookies || {}).map(([key, value]) => [key.toLowerCase(), String(value)])
-          );
-    const cookieValue = cookies.get(config.cookie.name.toLowerCase());
-    if (cookieValue) return cookieValue;
 
     // Try query parameter
     if (request.url) {

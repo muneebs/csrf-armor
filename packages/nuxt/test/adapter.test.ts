@@ -253,7 +253,7 @@ describe('NuxtAdapter', () => {
       expect(token).toBe('header-token');
     });
 
-    it('should extract token from cookie with lowercased name lookup', async () => {
+    it('should NOT extract token from cookie (lowercased name lookup)', async () => {
       const configWithCasing = {
         ...baseConfig,
         cookie: { name: 'CSRF-Token' },
@@ -276,10 +276,10 @@ describe('NuxtAdapter', () => {
         request,
         configWithCasing
       );
-      expect(token).toBe('cookie-token');
+      expect(token).toBeUndefined();
     });
 
-    it('should fallback to original casing if lowercased cookie not found', async () => {
+    it('should NOT extract token from cookie (original casing fallback)', async () => {
       const configWithCasing = {
         ...baseConfig,
         cookie: { name: 'CSRF-Token' },
@@ -302,10 +302,10 @@ describe('NuxtAdapter', () => {
         request,
         configWithCasing
       );
-      expect(token).toBe('cookie-token');
+      expect(token).toBeUndefined();
     });
 
-    it('should extract token from cookie', async () => {
+    it('should NOT extract token from cookie', async () => {
       const mockEvent = createMockEvent({
         method: 'POST',
         cookies: { 'csrf-token': 'cookie-token' },
@@ -320,7 +320,7 @@ describe('NuxtAdapter', () => {
       };
 
       const token = await adapter.getTokenFromRequest(request, baseConfig);
-      expect(token).toBe('cookie-token');
+      expect(token).toBeUndefined();
     });
 
     it('should extract token from JSON body', async () => {
@@ -591,11 +591,11 @@ describe('NuxtAdapter', () => {
         headers: { 'content-type': 'application/json' },
         body: { csrf: 'body-token' },
       });
-      const cookieEvent = createMockEvent({
-        cookies: { 'csrf-token': 'cookie-token' },
+      const queryEvent = createMockEvent({
+        method: 'POST',
       });
 
-      const [headerToken, bodyToken, cookieToken] = await Promise.all([
+      const [headerToken, bodyToken, queryToken] = await Promise.all([
         adapter.getTokenFromRequest(
           {
             method: 'POST',
@@ -619,10 +619,10 @@ describe('NuxtAdapter', () => {
         adapter.getTokenFromRequest(
           {
             method: 'POST',
-            url: 'http://localhost/api/3',
+            url: 'http://localhost/api/3?csrf=query-token',
             headers: new Map(),
             cookies: new Map([['csrf-token', 'cookie-token']]),
-            body: cookieEvent,
+            body: queryEvent,
           },
           config
         ),
@@ -630,7 +630,8 @@ describe('NuxtAdapter', () => {
 
       expect(headerToken).toBe('header-token');
       expect(bodyToken).toBe('body-token');
-      expect(cookieToken).toBe('cookie-token');
+      // Query param 'csrf=query-token' is extracted; cookie 'cookie-token' is ignored
+      expect(queryToken).toBe('query-token');
     });
   });
 });

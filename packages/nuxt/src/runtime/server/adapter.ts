@@ -176,12 +176,16 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
     );
     if (headerValue) return headerValue;
 
-    // 2. Try cookie — use the already-parsed Map from extractRequest
-    const cookies = request.cookies as Map<string, string>;
-    const cookieValue =
-      cookies.get(config.cookie.name.toLowerCase()) ??
-      cookies.get(config.cookie.name);
-    if (cookieValue) return cookieValue;
+    // 2. Try query parameter
+    if (request.url) {
+      try {
+        const url = new URL(request.url, 'http://localhost');
+        const queryValue = url.searchParams.get(config.token.fieldName);
+        if (queryValue) return queryValue;
+      } catch {
+        // If URL parsing fails, skip query parameter extraction
+      }
+    }
 
     // 3. Try body
     let parsedBody: unknown;

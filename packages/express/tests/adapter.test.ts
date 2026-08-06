@@ -1,4 +1,8 @@
-import type { CsrfRequest, CsrfResponse, RequiredCsrfConfig } from '@csrf-armor/core';
+import type {
+  CsrfRequest,
+  CsrfResponse,
+  RequiredCsrfConfig,
+} from '@csrf-armor/core';
 import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExpressAdapter } from '../src/adapter.js';
@@ -221,7 +225,7 @@ describe('ExpressAdapter', () => {
       expect(result).toBe('header-token');
     });
 
-    it('should extract token from cookie when header is missing', async () => {
+    it('should NOT extract token from cookie when header is missing', async () => {
       const request: CsrfRequest = {
         method: 'POST',
         url: '/api/data',
@@ -231,7 +235,7 @@ describe('ExpressAdapter', () => {
 
       const result = await adapter.getTokenFromRequest(request, TEST_CONFIG);
 
-      expect(result).toBe('cookie-token');
+      expect(result).toBeUndefined();
     });
 
     it('should extract token from query parameter when header and cookie are missing', async () => {
@@ -275,7 +279,7 @@ describe('ExpressAdapter', () => {
       expect(result).toBeUndefined();
     });
 
-    it('should give header priority over cookie', async () => {
+    it('should give header priority over body', async () => {
       const request: CsrfRequest = {
         method: 'POST',
         url: '/api/data',
@@ -289,7 +293,7 @@ describe('ExpressAdapter', () => {
       expect(result).toBe('header-token');
     });
 
-    it('should give cookie priority over query parameter', async () => {
+    it('should NOT use cookie as token source — query param used when header missing', async () => {
       const request: CsrfRequest = {
         method: 'GET',
         url: '/api/data?csrf_token=query-token',
@@ -299,7 +303,7 @@ describe('ExpressAdapter', () => {
 
       const result = await adapter.getTokenFromRequest(request, TEST_CONFIG);
 
-      expect(result).toBe('cookie-token');
+      expect(result).toBe('query-token');
     });
 
     it('should give query parameter priority over body', async () => {
@@ -329,7 +333,7 @@ describe('ExpressAdapter', () => {
       expect(result).toBe('header-token');
     });
 
-    it('should handle object-format cookies (not Map)', async () => {
+    it('should NOT extract token from object-format cookies', async () => {
       const request: CsrfRequest = {
         method: 'POST',
         url: '/api/data',
@@ -339,7 +343,7 @@ describe('ExpressAdapter', () => {
 
       const result = await adapter.getTokenFromRequest(request, TEST_CONFIG);
 
-      expect(result).toBe('cookie-token');
+      expect(result).toBeUndefined();
     });
   });
 });
