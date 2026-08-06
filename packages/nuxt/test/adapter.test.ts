@@ -630,7 +630,8 @@ describe('NuxtAdapter', () => {
 
       expect(headerToken).toBe('header-token');
       expect(bodyToken).toBe('body-token');
-      expect(queryToken).toBeUndefined();
+      // Query param 'csrf=query-token' is extracted; cookie 'cookie-token' is ignored
+      expect(queryToken).toBe('query-token');
     });
   });
 });

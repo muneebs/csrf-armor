@@ -72,6 +72,17 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     const headerValue = headers.get(config.token.headerName.toLowerCase());
     if (headerValue) return headerValue;
 
+    // 2. Try query parameter
+    if (request.url) {
+      try {
+        const url = new URL(request.url, 'http://localhost');
+        const queryValue = url.searchParams.get(config.token.fieldName);
+        if (queryValue) return queryValue;
+      } catch {
+        // If URL parsing fails, skip query parameter extraction
+      }
+    }
+
     // 3. Attempt to get parsed body from cache or parse it once
     let parsedBody: unknown;
     if (this.parsedBodyCache.has(nextRequest)) {

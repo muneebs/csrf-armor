@@ -265,6 +265,51 @@ describe('NextjsAdapter', () => {
       expect(token).toBeUndefined();
     });
 
+    it('should extract token from query parameter when header is missing', async () => {
+      const request: CsrfRequest = {
+        method: 'GET',
+        url: 'http://localhost/api?csrf=query-token',
+        headers: new Headers(),
+        cookies: new Map(),
+        body: {},
+      };
+
+      const config = {
+        token: {
+          headerName: 'x-csrf-token',
+          fieldName: 'csrf',
+        },
+      } as RequiredCsrfConfig;
+
+      const token = await adapter.getTokenFromRequest(request, config);
+      expect(token).toBe('query-token');
+    });
+
+    it('should NOT use cookie as token source — query param used when header missing', async () => {
+      const request: CsrfRequest = {
+        method: 'GET',
+        url: 'http://localhost/api?csrf=query-token',
+        headers: new Headers(),
+        cookies: new Map([['csrf-token', 'cookie-token']]),
+        body: {
+          cookies: { get: vi.fn().mockReturnValue({ value: 'cookie-token' }) },
+        },
+      };
+
+      const config = {
+        token: {
+          headerName: 'x-csrf-token',
+          fieldName: 'csrf',
+        },
+        cookie: {
+          name: 'csrf-token',
+        },
+      } as RequiredCsrfConfig;
+
+      const token = await adapter.getTokenFromRequest(request, config);
+      expect(token).toBe('query-token');
+    });
+
     it('should extract token from multipart form data', async () => {
       // Create mock FormData with proper entries method that returns an iterator
       const mockFormData = {

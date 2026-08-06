@@ -176,6 +176,17 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
     );
     if (headerValue) return headerValue;
 
+    // 2. Try query parameter
+    if (request.url) {
+      try {
+        const url = new URL(request.url, 'http://localhost');
+        const queryValue = url.searchParams.get(config.token.fieldName);
+        if (queryValue) return queryValue;
+      } catch {
+        // If URL parsing fails, skip query parameter extraction
+      }
+    }
+
     // 3. Try body
     let parsedBody: unknown;
     if (this.parsedBodyCache.has(event)) {
