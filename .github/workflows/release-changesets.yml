@@ -17,7 +17,7 @@ jobs:
         node-version: [22.x, 24.x]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -57,7 +57,7 @@ jobs:
       id-token: write # Mints the OIDC token npm and JSR authenticate with
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -70,11 +70,16 @@ jobs:
       # to an unset NODE_AUTH_TOKEN, which only muddies the error if the OIDC
       # exchange fails. npm defaults to registry.npmjs.org anyway, and each
       # package sets publishConfig.registry.
+      #
+      # No dependency cache either. A restored cache is an injection surface,
+      # and this is the job that signs and publishes. `cache` is what enables
+      # it here; package-manager-cache only governs the automatic caching that
+      # v6 turns on for `packageManager: npm`, so it is belt to that braces.
       - name: Setup Node.js 24.x
         uses: actions/setup-node@v6
         with:
           node-version: "24.x"
-          cache: "pnpm"
+          package-manager-cache: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
