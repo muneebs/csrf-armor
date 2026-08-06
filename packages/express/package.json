@@ -18,7 +18,7 @@
     "test": "vitest run",
     "pretest:coverage": "cd ../core && pnpm run build",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "lint": "biome check src/",
     "format": "biome format src/ --write"
   },
@@ -31,6 +31,19 @@
   ],
   "author": "Muneeb Samuels",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muneebs/csrf-armor",
+    "directory": "packages/express"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/muneebs/csrf-armor/issues"
+  },
+  "homepage": "https://github.com/muneebs/csrf-armor#readme",
   "dependencies": {
     "@csrf-armor/core": "workspace:*"
   },
