@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      id-token: write # Required for npm provenance (Sigstore OIDC)
     
     steps:
     - name: Checkout code
@@ -86,6 +86,10 @@ jobs:
         pnpm changeset publish --tag ${{ steps.snapshot.outputs.tag }}
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # changesets shells out to `pnpm publish`, which shells out to
+        # `npm publish`. npm reads this and attaches a Sigstore-signed SLSA
+        # provenance statement to every package it uploads.
+        NPM_CONFIG_PROVENANCE: 'true'
 
     - name: Get published versions
       id: versions
@@ -93,6 +97,18 @@ jobs:
         echo "packages<<EOF" >> $GITHUB_OUTPUT
         find packages -name package.json -exec jq -r '"\(.name)@\(.version)"' {} \; >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Verify npm provenance attestations
+      env:
+        SNAPSHOT_TAG: ${{ steps.snapshot.outputs.tag }}
+      run: |
+        # changesets stamps snapshots as 0.0.0-<tag>-<datetime>. Anything still
+        # on its release version was already on the registry and was skipped,
+        # so only the freshly minted snapshots are ours to verify.
+        jq -r --arg tag "$SNAPSHOT_TAG" \
+          'select(.version | startswith("0.0.0-" + $tag + "-")) | .name + "@" + .version' \
+          packages/*/package.json \
+          | xargs -r ./scripts/verify-provenance.sh
 
     - name: Create summary
       run: |

@@ -63,6 +63,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check packages can be published with provenance
+        run: ./scripts/check-provenance-metadata.sh
+
       - name: Setup pnpm
         uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
 
@@ -74,6 +77,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check JSR configs are in sync and publishable
+        run: pnpm run check:jsr
 
       - name: Build packages
         run: pnpm run build
