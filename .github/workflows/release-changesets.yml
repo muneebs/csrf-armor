@@ -17,7 +17,7 @@ jobs:
         node-version: [22.x, 24.x]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -25,7 +25,7 @@ jobs:
         uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
@@ -54,10 +54,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      id-token: write # Required for npm provenance (Sigstore OIDC)
+      id-token: write # Mints the OIDC token npm and JSR authenticate with
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -65,17 +65,21 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
 
-      - name: Setup Node.js 22.x
-        uses: actions/setup-node@v4
+      # npm 11.5.1+ is required for OIDC trusted publishing; Node 24 ships it.
+      # No registry-url: setup-node would write an ~/.npmrc pinning _authToken
+      # to an unset NODE_AUTH_TOKEN, which only muddies the error if the OIDC
+      # exchange fails. npm defaults to registry.npmjs.org anyway, and each
+      # package sets publishConfig.registry.
+      #
+      # No dependency cache either. A restored cache is an injection surface,
+      # and this is the job that signs and publishes. `cache` is what enables
+      # it here; package-manager-cache only governs the automatic caching that
+      # v6 turns on for `packageManager: npm`, so it is belt to that braces.
+      - name: Setup Node.js 24.x
+        uses: actions/setup-node@v6
         with:
-          node-version: "22.x"
-          cache: "pnpm"
-          registry-url: "https://registry.npmjs.org"
-
-      # Auth is token-based; the provenance statement is minted separately from
-      # the OIDC id-token granted above. Both are needed for attested publishes.
-      - name: Configure NPM with Granular Access Token
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          node-version: "24.x"
+          package-manager-cache: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -91,11 +95,14 @@ jobs:
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # changesets shells out to `pnpm publish`, which shells out to
-          # `npm publish`. npm reads this and attaches a Sigstore-signed SLSA
-          # provenance statement to every package it uploads.
+          # No npm token: npm exchanges the workflow's OIDC id-token for a
+          # short-lived, package-scoped publish token. Each package must name
+          # this workflow file as its trusted publisher on npmjs.com.
+          #
+          # Trusted publishing enables provenance on its own, but only while
+          # the setting is untouched (`config.isDefault('provenance')`) and the
+          # visibility probe succeeds. Setting it explicitly makes attestation
+          # unconditional rather than a side effect.
           NPM_CONFIG_PROVENANCE: "true"
 
       - name: Verify npm provenance attestations
