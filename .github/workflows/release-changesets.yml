@@ -71,7 +71,7 @@ jobs:
       # exchange fails. npm defaults to registry.npmjs.org anyway, and each
       # package sets publishConfig.registry.
       - name: Setup Node.js 24.x
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24.x"
           cache: "pnpm"
