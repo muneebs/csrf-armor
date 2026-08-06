@@ -72,12 +72,6 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     const headerValue = headers.get(config.token.headerName.toLowerCase());
     if (headerValue) return headerValue;
 
-    // 2. Try cookie
-    const clientCookieValue = nextRequest.cookies?.get(
-      config.cookie.name.toLowerCase()
-    )?.value;
-    if (clientCookieValue) return clientCookieValue;
-
     // 3. Attempt to get parsed body from cache or parse it once
     let parsedBody: unknown;
     if (this.parsedBodyCache.has(nextRequest)) {
@@ -142,7 +136,10 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
         }
       } catch (error) {
         // If parsing fails, we can't extract the token from the string
-        console.warn('Failed to parse string body as URL-encoded form data', error);
+        console.warn(
+          'Failed to parse string body as URL-encoded form data',
+          error
+        );
       }
     }
 

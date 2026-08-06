@@ -176,13 +176,6 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
     );
     if (headerValue) return headerValue;
 
-    // 2. Try cookie — use the already-parsed Map from extractRequest
-    const cookies = request.cookies as Map<string, string>;
-    const cookieValue =
-      cookies.get(config.cookie.name.toLowerCase()) ??
-      cookies.get(config.cookie.name);
-    if (cookieValue) return cookieValue;
-
     // 3. Try body
     let parsedBody: unknown;
     if (this.parsedBodyCache.has(event)) {
