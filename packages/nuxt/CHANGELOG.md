@@ -1,5 +1,28 @@
 # @csrf-armor/nuxt
 
+## 1.1.3
+
+### Patch Changes
+
+- [#72](https://github.com/muneebs/csrf-armor/pull/72) [`d6036d4`](https://github.com/muneebs/csrf-armor/commit/d6036d476bbe4c5be171be29de04a7e9d369f2fb) Thanks [@muneebs](https://github.com/muneebs)! - Fix CSRF bypass: remove cookie fallback from getTokenFromRequest
+
+  All three framework adapters (Express, Next.js, Nuxt) fell back to
+  reading the CSRF token from the client-accessible cookie when no header
+  token was found. This made validateSignedDoubleSubmit compare a value
+  against itself — trivially true — defeating signed-double-submit,
+  signed-token, and hybrid strategies.
+
+  **Breaking change:** getTokenFromRequest no longer extracts the CSRF
+  token from request cookies. Clients must send the token explicitly via
+  the X-CSRF-Token header, request body, or query parameter. Use the
+  provided client utilities (csrfFetch, useCsrfFetch) which already do
+  this correctly.
+
+  Security: SEC-INJ-1 (HIGH)
+
+- Updated dependencies [[`3973db5`](https://github.com/muneebs/csrf-armor/commit/3973db598e6b53374feffc698ead42f694ef3e77), [`72c2272`](https://github.com/muneebs/csrf-armor/commit/72c2272e5215421a6e1b8509ba514ac53b2ac133), [`9db7455`](https://github.com/muneebs/csrf-armor/commit/9db745559fba874d9fdcfb66e3d540371571d2a8)]:
+  - @csrf-armor/core@1.2.4
+
 ## 1.1.2
 
 ### Patch Changes
