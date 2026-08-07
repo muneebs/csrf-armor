@@ -1,5 +1,38 @@
 # @csrf-armor/nextjs
 
+## 1.4.5
+
+### Patch Changes
+
+- [#76](https://github.com/muneebs/csrf-armor/pull/76) [`3973db5`](https://github.com/muneebs/csrf-armor/commit/3973db598e6b53374feffc698ead42f694ef3e77) Thanks [@muneebs](https://github.com/muneebs)! - Fix JSR publishing, which had never produced a release.
+
+  The `jsr.json` configs pointed `exports` at `./dist/index.js`, a file the build never emits (it emits `.mjs`), and their versions had drifted up to three minors behind `package.json` because `changeset version` only knows about `package.json`. The JSR scope was empty as a result.
+
+  Configs now export TypeScript source, so JSR can generate documentation and Node type declarations, and versions are synced from `package.json` at release time. Peer frameworks (`express`, `next`, `react`) are mapped to open ranges so JSR does not pin them.
+
+  `csrfMiddleware`, `createCsrfMiddleware`, and `CsrfProvider` gained explicit return types — required by JSR's no-slow-types rule, and better `.d.ts` output for npm consumers too.
+
+  `@csrf-armor/nuxt` is intentionally not published to JSR: its runtime imports Nuxt's virtual modules (`#app`, `#imports`), which only exist inside a Nuxt build.
+
+- [#72](https://github.com/muneebs/csrf-armor/pull/72) [`d6036d4`](https://github.com/muneebs/csrf-armor/commit/d6036d476bbe4c5be171be29de04a7e9d369f2fb) Thanks [@muneebs](https://github.com/muneebs)! - Fix CSRF bypass: remove cookie fallback from getTokenFromRequest
+
+  All three framework adapters (Express, Next.js, Nuxt) fell back to
+  reading the CSRF token from the client-accessible cookie when no header
+  token was found. This made validateSignedDoubleSubmit compare a value
+  against itself — trivially true — defeating signed-double-submit,
+  signed-token, and hybrid strategies.
+
+  **Breaking change:** getTokenFromRequest no longer extracts the CSRF
+  token from request cookies. Clients must send the token explicitly via
+  the X-CSRF-Token header, request body, or query parameter. Use the
+  provided client utilities (csrfFetch, useCsrfFetch) which already do
+  this correctly.
+
+  Security: SEC-INJ-1 (HIGH)
+
+- Updated dependencies [[`3973db5`](https://github.com/muneebs/csrf-armor/commit/3973db598e6b53374feffc698ead42f694ef3e77), [`72c2272`](https://github.com/muneebs/csrf-armor/commit/72c2272e5215421a6e1b8509ba514ac53b2ac133), [`9db7455`](https://github.com/muneebs/csrf-armor/commit/9db745559fba874d9fdcfb66e3d540371571d2a8)]:
+  - @csrf-armor/core@1.2.4
+
 ## 1.4.4
 
 ### Patch Changes

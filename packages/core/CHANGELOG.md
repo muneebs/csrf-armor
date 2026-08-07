@@ -1,5 +1,39 @@
 # @csrf-armor/core
 
+## 1.2.4
+
+### Patch Changes
+
+- [#76](https://github.com/muneebs/csrf-armor/pull/76) [`3973db5`](https://github.com/muneebs/csrf-armor/commit/3973db598e6b53374feffc698ead42f694ef3e77) Thanks [@muneebs](https://github.com/muneebs)! - Fix JSR publishing, which had never produced a release.
+
+  The `jsr.json` configs pointed `exports` at `./dist/index.js`, a file the build never emits (it emits `.mjs`), and their versions had drifted up to three minors behind `package.json` because `changeset version` only knows about `package.json`. The JSR scope was empty as a result.
+
+  Configs now export TypeScript source, so JSR can generate documentation and Node type declarations, and versions are synced from `package.json` at release time. Peer frameworks (`express`, `next`, `react`) are mapped to open ranges so JSR does not pin them.
+
+  `csrfMiddleware`, `createCsrfMiddleware`, and `CsrfProvider` gained explicit return types — required by JSR's no-slow-types rule, and better `.d.ts` output for npm consumers too.
+
+  `@csrf-armor/nuxt` is intentionally not published to JSR: its runtime imports Nuxt's virtual modules (`#app`, `#imports`), which only exist inside a Nuxt build.
+
+- [#75](https://github.com/muneebs/csrf-armor/pull/75) [`72c2272`](https://github.com/muneebs/csrf-armor/commit/72c2272e5215421a6e1b8509ba514ac53b2ac133) Thanks [@muneebs](https://github.com/muneebs)! - Fix uncaught TypeError on malformed Referer header in validateOrigin
+
+  `validateOrigin` called `new URL(referer).origin` without a try-catch.
+  A malformed Referer header (e.g. `not-a-valid-url`) caused an unhandled
+  TypeError that propagated as HTTP 500. Malformed Referer headers now
+  return a validation failure (`isValid: false`, reason:
+  `'Malformed Referer header'`) resulting in HTTP 403, not 500.
+
+  refs SEC-VAL-1
+
+- [#74](https://github.com/muneebs/csrf-armor/pull/74) [`9db7455`](https://github.com/muneebs/csrf-armor/commit/9db745559fba874d9fdcfb66e3d540371571d2a8) Thanks [@muneebs](https://github.com/muneebs)! - Fix excludePaths over-matching unrelated path prefixes
+
+  `shouldSkipProtection` used `pathname.startsWith(path)` for exclusion
+  matching, so `excludePaths: ['/api']` also matched `/api-public` and
+  `/apiv2` — more paths than intended. Matching is now path-segment
+  aware: `'/api'` matches `/api` and `/api/v1` but not `/api-public`.
+  A trailing slash (`'/api/'`) matches children only, not the bare path.
+
+  refs SEC-VAL-2
+
 ## 1.2.3
 
 ### Patch Changes
