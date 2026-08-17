@@ -53,10 +53,10 @@
     "@csrf-armor/core": "workspace:*"
   },
   "devDependencies": {
-    "@nuxt/kit": "^4.5.1",
-    "@nuxt/schema": "^4.5.1",
+    "@nuxt/kit": "^4.5.2",
+    "@nuxt/schema": "^4.5.2",
     "h3": "^1.15.11",
-    "nuxt": "^4.5.1",
+    "nuxt": "^4.5.2",
     "tsdown": "^0.22.14",
     "typescript": "^7",
     "vitest": "^4.1.10"
