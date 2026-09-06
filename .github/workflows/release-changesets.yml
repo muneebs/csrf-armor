@@ -86,13 +86,13 @@ jobs:
 
       - name: Create Release PR or Publish to NPM
         id: changesets
-        uses: changesets/action@e0145edc7d9d8679003495b11f87bd8ef63c0cba
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1, compatible with Changesets 3
         with:
-          version: pnpm run version-packages
-          publish: pnpm run release
-          commit: "chore(release): version packages"
-          title: "chore(release): version packages"
-          createGithubReleases: true
+          version-script: pnpm run version-packages
+          publish-script: pnpm run release
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+          create-github-releases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # No npm token: npm exchanges the workflow's OIDC id-token for a
@@ -108,7 +108,7 @@ jobs:
       - name: Verify npm provenance attestations
         if: steps.changesets.outputs.published == 'true'
         env:
-          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.published-packages }}
         run: |
           jq -r '.[] | "\(.name)@\(.version)"' <<<"$PUBLISHED_PACKAGES" \
             | xargs ./scripts/verify-provenance.sh
@@ -125,12 +125,12 @@ jobs:
         run: |
           echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "Published packages:" >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "- **\(.name)@\(.version)**"' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.changesets.outputs.published-packages }}' | jq -r '.[] | "- **\(.name)@\(.version)**"' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation" >> $GITHUB_STEP_SUMMARY
           echo "**NPM:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "npm install \(.name)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.changesets.outputs.published-packages }}' | jq -r '.[] | "npm install \(.name)@\(.version)"' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**JSR:**" >> $GITHUB_STEP_SUMMARY
@@ -141,7 +141,7 @@ jobs:
       - name: Send Slack notification
         if: steps.changesets.outputs.published == 'true' && vars.SLACK_WEBHOOK_URL
         run: |
-          PACKAGES=$(echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "\(.name)@\(.version)"' | tr '\n' ' ')
+          PACKAGES=$(echo '${{ steps.changesets.outputs.published-packages }}' | jq -r '.[] | "\(.name)@\(.version)"' | tr '\n' ' ')
           curl -X POST -H 'Content-type: application/json' \
             --data "{\"text\":\"📦 New packages published: $PACKAGES\"}" \
             ${{ vars.SLACK_WEBHOOK_URL }}
