@@ -117,6 +117,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check Changesets release output contract
+        run: node scripts/check-release-contract.mjs
+
       - name: Check for changeset
         run: |
           # Check if there are any changesets
