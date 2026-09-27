@@ -272,7 +272,7 @@ csrfArmor: {
 }
 ```
 
-HMAC-signed tokens with expiration timestamps. Stateless validation. Best for APIs and SPAs.
+HMAC-signed tokens with expiration timestamps. Validation requires the submitted token to match the incoming CSRF cookie. Send the cookie with unsafe requests and refresh cached tokens after cookie rotation; hybrid has the same requirement. No server-side session store is needed.
 
 ### Origin Check
 

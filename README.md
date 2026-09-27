@@ -49,7 +49,7 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
   token: { expiry: 3600 }
 }
 ```
-- **How it works**: Generates HMAC-signed tokens with expiration
+- **How it works**: Verifies HMAC and expiration, then requires the submitted token to match the incoming CSRF cookie
 - **Best for**: Stateless applications, microservices
 - **Security**: High (cryptographic protection + expiry)
 
@@ -93,7 +93,7 @@ Modern, framework-agnostic CSRF protection library with multiple security strate
   allowedOrigins: ['https://yourdomain.com']
 }
 ```
-- **How it works**: Combines signed tokens + origin validation
+- **How it works**: Combines cookie-bound signed tokens + origin validation
 - **Best for**: Maximum security requirements
 - **Security**: Maximum (multiple validation layers)
 

@@ -654,6 +654,31 @@ describe('CSRF Middleware', () => {
       expect(mockNext).not.toHaveBeenCalledWith(expect.any(Error));
     });
 
+    it.each(['header', 'query', 'form'] as const)('binds %s submissions to the incoming browser cookie', async (transport) => {
+      const cookieName = 'Custom-CSRF';
+      const middleware = csrfMiddleware({
+        secret: 'test-secret-key-32-chars-long-good',
+        strategy: 'signed-token',
+        cookie: { name: cookieName },
+      });
+      const attacker = createMockReq('GET');
+      const victim = createMockReq('GET');
+      await middleware(attacker, createMockRes(), mockNext);
+      await middleware(victim, createMockRes(), mockNext);
+      if (!attacker.csrfToken || !victim.csrfToken) throw new Error('Missing issued token');
+      const submit = (token: string, cookie: string) => createMockReq('POST', {
+        url: transport === 'query' ? '/api?csrf_token=' + encodeURIComponent(token) : '/api',
+        headers: transport === 'header' ? { 'x-csrf-token': token } : {},
+        body: transport === 'form' ? { csrf_token: token } : undefined,
+        cookies: { [cookieName]: cookie },
+      });
+      mockNext.mockClear();
+      await expect(middleware(submit(attacker.csrfToken, victim.csrfToken), createMockRes(), mockNext)).rejects.toThrow(CsrfError);
+      expect(mockNext).not.toHaveBeenCalled();
+      await middleware(submit(victim.csrfToken, victim.csrfToken), createMockRes(), mockNext);
+      expect(mockNext).toHaveBeenCalledExactlyOnceWith();
+    });
+
     it('should reject POST with invalid signed token', async () => {
       const middleware = csrfMiddleware({
         secret: 'test-secret-key-32-chars-long-good',

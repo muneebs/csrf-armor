@@ -159,6 +159,23 @@ Choose a faster strategy or exclude read-only endpoints:
 
 ## 🧠 Core API
 
+### Signed-token browser binding
+
+For `signed-token` and `hybrid`, unsafe requests must submit the current
+signed token in a supported header, query parameter, or body field **and**
+send the matching cookie named by `cookie.name`. A token copied from another
+browser, or submitted without the cookie, is rejected. Hybrid also requires
+an allowed origin.
+
+Obtain the token and cookie from a safe request first. After a response rotates
+the cookie, use the updated token for subsequent submissions; cached form or
+header tokens may need refreshing. The token format and expiry remain unchanged.
+
+This binds proof to browser CSRF-cookie state, not an application authentication
+session. Keep cookies protected from attacker-controlled writes. The low-level
+`generateSignedToken` and `parseSignedToken` helpers only handle cryptography;
+use request protection to enforce browser binding.
+
 ### Token Functions
 
 ```typescript

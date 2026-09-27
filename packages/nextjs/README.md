@@ -382,7 +382,8 @@ const csrfProtect = createCsrfMiddleware({
 **How it works:**
 
 - HMAC-signed tokens with expiration timestamps
-- Stateless validation using cryptographic signatures
+- Stateless validation using cryptographic signatures and matching the submitted token to the incoming CSRF cookie
+- Send the cookie with unsafe requests and refresh cached tokens after cookie rotation; hybrid has the same requirement
 
 **Best for:** APIs, SPAs, microservices
 

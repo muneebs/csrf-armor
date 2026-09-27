@@ -578,3 +578,34 @@ describe('CsrfProtection – origin-check validation', () => {
     expect(result.reason).toBeDefined();
   });
 });
+
+describe.each(['signed-token', 'hybrid'] as const)('CsrfProtection – %s browser binding', (strategy) => {
+  it('preserves safe reuse and valid requests across response rotation, rejecting another browser', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      strategy,
+      secret: TEST_SECRET,
+      allowedOrigins: ['http://localhost'],
+      cookie: { name: 'Custom-CSRF' },
+    });
+    const first = await csrf.protect(makeRequest({ method: 'GET' }), {});
+    const second = await csrf.protect(makeRequest({ method: 'GET' }), {});
+    expect(first.token).toBeDefined();
+    expect(second.token).toBeDefined();
+    if (!first.token || !second.token) throw new Error('Missing issued token');
+    const reused = await csrf.protect(makeRequest({
+      method: 'GET', cookies: { 'Custom-CSRF': first.token },
+    }), {});
+    expect(reused.token).toBe(first.token);
+    const submit = (token: string, cookie: string) => csrf.protect(makeRequest({
+      method: 'POST',
+      headers: new Map([['origin', 'http://localhost'], ['x-csrf-token', token]]),
+      cookies: { 'Custom-CSRF': cookie },
+    }), {});
+    expect((await submit(first.token, second.token)).success).toBe(false);
+    const own = await submit(first.token, first.token);
+    expect(own.success).toBe(true);
+    expect(own.token).toBeDefined();
+    if (!own.token) throw new Error('Missing rotated token');
+    expect((await submit(own.token, own.token)).success).toBe(true);
+  });
+});

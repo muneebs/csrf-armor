@@ -42,6 +42,16 @@ export async function validateSignedToken(
       return { isValid: false, reason: 'No CSRF token provided' };
     }
 
+    // A valid signature alone is transferable between browsers. Bind the
+    // submitted token to the cookie received on this request.
+    const cookieToken = getCookies(request).get(config.cookie.name);
+    if (!cookieToken) {
+      return { isValid: false, reason: 'No CSRF cookie found' };
+    }
+    if (!timingSafeEqual(cookieToken, token)) {
+      return { isValid: false, reason: 'Token mismatch' };
+    }
+
     await parseSignedToken(token, config.secret);
     return { isValid: true };
   } catch (error) {
