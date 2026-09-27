@@ -16,6 +16,10 @@ function getHeaders(request: CsrfRequest): Map<string, string> {
     return request.headers;
   }
 
+  if (request.headers instanceof Headers) {
+    return new Map(request.headers.entries());
+  }
+
   return new Map(Object.entries(request.headers));
 }
 

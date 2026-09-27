@@ -1,5 +1,6 @@
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import { describe, expect, it } from 'vitest';
 import { csrfMiddleware } from '../src';
@@ -53,6 +54,7 @@ describe('Express parser security', () => {
     const app = express();
     app.use(express.urlencoded({ extended: true, limit: '1kb' }));
     app.use(express.json({ limit: '1kb' }));
+    app.use(cookieParser());
     app.use(
       csrfMiddleware({
         strategy: 'signed-token',
@@ -86,7 +88,10 @@ describe('Express parser security', () => {
       if (!address || typeof address === 'string')
         throw new Error('No TCP address');
       const url = `http://127.0.0.1:${address.port}`;
-      const { token } = await (await fetch(url)).json();
+      const issued = await fetch(url);
+      const { token } = await issued.json();
+      const cookie = issued.headers.get('set-cookie')?.split(';', 1)[0];
+      if (!cookie) throw new Error('No CSRF cookie issued');
       for (const [type, body] of [
         ['application/json', JSON.stringify({ _csrf: token, data: 'hello' })],
         [
@@ -96,7 +101,7 @@ describe('Express parser security', () => {
       ]) {
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'content-type': type },
+          headers: { 'content-type': type, cookie },
           body,
         });
         expect(response.status).toBe(200);
@@ -109,7 +114,7 @@ describe('Express parser security', () => {
       ] as const) {
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', cookie },
           body,
         });
         expect(response.status).toBe(status);

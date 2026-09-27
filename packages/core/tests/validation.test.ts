@@ -59,6 +59,19 @@ describe('Validation', () => {
       expect(result.isValid).toBe(true);
     });
 
+    it('reads allowed and disallowed origins from Web Headers', () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Headers({ origin: 'http://localhost' }),
+        cookies: new Map(),
+      };
+
+      expect(validateOrigin(request, TEST_CONFIG).isValid).toBe(true);
+      request.headers = new Headers({ origin: 'http://evil.com' });
+      expect(validateOrigin(request, TEST_CONFIG).isValid).toBe(false);
+    });
+
     it('should reject disallowed origin', () => {
       const request: CsrfRequest = {
         method: 'POST',

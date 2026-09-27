@@ -413,6 +413,46 @@ describe('CSRF Middleware', () => {
     expect(postResult.reason).toContain('CSRF token is invalid');
   });
 
+  describe.each(['signed-token', 'hybrid'] as const)(
+    '%s browser binding through NextRequest',
+    (strategy) => {
+      it('accepts its own cookie and rejects a token from another browser', async () => {
+        const csrfProtect = createCsrfMiddleware({
+          strategy,
+          secret: 'test-secret-32-characters-long-123',
+          allowedOrigins: ['http://localhost'],
+          cookie: { name: 'Custom-CSRF' },
+        });
+        const issue = () =>
+          csrfProtect(
+            new NextRequest('http://localhost/'),
+            NextResponse.next()
+          );
+        const own = await issue();
+        const other = await issue();
+        const ownToken = own.response.cookies.get('Custom-CSRF')?.value;
+        const otherToken = other.response.cookies.get('Custom-CSRF')?.value;
+        if (!ownToken || !otherToken) throw new Error('No CSRF cookie issued');
+
+        const submit = (token: string, cookie: string) =>
+          csrfProtect(
+            new NextRequest('http://localhost/api', {
+              method: 'POST',
+              headers: {
+                origin: 'http://localhost',
+                'x-csrf-token': token,
+                cookie: `Custom-CSRF=${cookie}`,
+              },
+            }),
+            NextResponse.next()
+          );
+
+        expect((await submit(ownToken, ownToken)).success).toBe(true);
+        expect((await submit(ownToken, otherToken)).success).toBe(false);
+      });
+    }
+  );
+
   it('should handle hybrid strategy (origin + signed token)', async () => {
     const secret = 'test-secret-32-characters-long-123';
 
