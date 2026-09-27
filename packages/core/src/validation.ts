@@ -31,6 +31,15 @@ function getCookies(request: CsrfRequest): Map<string, string> {
   return new Map(Object.entries(request.cookies));
 }
 
+/**
+ * Validates a submitted signed token against the incoming CSRF cookie, then
+ * verifies its signature and expiry. Used by signed-token and hybrid protection.
+ *
+ * @param request - Request containing the submitted token and browser cookies
+ * @param config - Resolved cookie, token, and signing configuration
+ * @param getTokenFromRequest - Adapter callback that extracts the submitted token
+ * @returns Validation result with a reason when cookie binding or verification fails
+ */
 export async function validateSignedToken(
   request: CsrfRequest,
   config: RequiredCsrfConfig,

@@ -667,7 +667,7 @@ describe('CSRF Middleware', () => {
       await middleware(victim, createMockRes(), mockNext);
       if (!attacker.csrfToken || !victim.csrfToken) throw new Error('Missing issued token');
       const submit = (token: string, cookie: string) => createMockReq('POST', {
-        url: transport === 'query' ? '/api?csrf_token=' + encodeURIComponent(token) : '/api',
+        url: transport === 'query' ? `/api?csrf_token=${encodeURIComponent(token)}` : '/api',
         headers: transport === 'header' ? { 'x-csrf-token': token } : {},
         body: transport === 'form' ? { csrf_token: token } : undefined,
         cookies: { [cookieName]: cookie },

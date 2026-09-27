@@ -171,6 +171,13 @@ Obtain the token and cookie from a safe request first. After a response rotates
 the cookie, use the updated token for subsequent submissions; cached form or
 header tokens may need refreshing. The token format and expiry remain unchanged.
 
+Rejected unsafe requests also rotate the cookie. Their result has no `token`
+property, but the modified response carries the replacement cookie and token
+header. Before retrying, refresh the submitted token from the current browser
+cookie or obtain it with a safe request that sends that cookie. When responses
+arrive concurrently, a separately cached token can become stale; use the cookie
+currently held by the browser for the next submission.
+
 This binds proof to browser CSRF-cookie state, not an application authentication
 session. Keep cookies protected from attacker-controlled writes. The low-level
 `generateSignedToken` and `parseSignedToken` helpers only handle cryptography;
