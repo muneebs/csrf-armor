@@ -69,7 +69,7 @@ export class ExpressAdapter
       headers,
       cookies: new Map(
         Object.entries(req.cookies ?? {}).map(([key, value]) => [
-          key.toLowerCase(),
+          key,
           String(value),
         ])
       ),

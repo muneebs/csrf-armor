@@ -16,6 +16,10 @@ function getHeaders(request: CsrfRequest): Map<string, string> {
     return request.headers;
   }
 
+  if (request.headers instanceof Headers) {
+    return new Map(request.headers.entries());
+  }
+
   return new Map(Object.entries(request.headers));
 }
 
@@ -27,6 +31,15 @@ function getCookies(request: CsrfRequest): Map<string, string> {
   return new Map(Object.entries(request.cookies));
 }
 
+/**
+ * Validates a submitted signed token against the incoming CSRF cookie, then
+ * verifies its signature and expiry. Used by signed-token and hybrid protection.
+ *
+ * @param request - Request containing the submitted token and browser cookies
+ * @param config - Resolved cookie, token, and signing configuration
+ * @param getTokenFromRequest - Adapter callback that extracts the submitted token
+ * @returns Validation result with a reason when cookie binding or verification fails
+ */
 export async function validateSignedToken(
   request: CsrfRequest,
   config: RequiredCsrfConfig,
@@ -40,6 +53,16 @@ export async function validateSignedToken(
 
     if (!token) {
       return { isValid: false, reason: 'No CSRF token provided' };
+    }
+
+    // A valid signature alone is transferable between browsers. Bind the
+    // submitted token to the cookie received on this request.
+    const cookieToken = getCookies(request).get(config.cookie.name);
+    if (!cookieToken) {
+      return { isValid: false, reason: 'No CSRF cookie found' };
+    }
+    if (!timingSafeEqual(cookieToken, token)) {
+      return { isValid: false, reason: 'Token mismatch' };
     }
 
     await parseSignedToken(token, config.secret);

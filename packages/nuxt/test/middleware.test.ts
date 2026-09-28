@@ -224,6 +224,40 @@ describe('Nuxt CSRF Middleware Integration', () => {
     expect(verified).toBe(headerToken);
   });
 
+  describe.each(['signed-token', 'hybrid'] as const)(
+    '%s browser binding through NuxtAdapter',
+    (strategy) => {
+      it('accepts its own cookie and rejects a token from another browser', async () => {
+        const protection = createCsrfProtection(new NuxtAdapter(), {
+          strategy,
+          secret: 'test-secret-32-characters-long-123',
+          allowedOrigins: ['http://localhost'],
+          cookie: { name: 'Custom-CSRF' },
+        });
+        const issue = async () => {
+          const event = createGetEvent();
+          await protection.protect(event, event);
+          return getSetCookies(event)['Custom-CSRF'];
+        };
+        const ownToken = await issue();
+        const otherToken = await issue();
+        if (!ownToken || !otherToken) throw new Error('No CSRF cookie issued');
+
+        const submit = (token: string, cookie: string) => {
+          const event = createPostEvent(
+            'http://localhost/api',
+            { origin: 'http://localhost', 'x-csrf-token': token },
+            { 'Custom-CSRF': cookie }
+          );
+          return protection.protect(event, event);
+        };
+
+        expect((await submit(ownToken, ownToken)).success).toBe(true);
+        expect((await submit(ownToken, otherToken)).success).toBe(false);
+      });
+    }
+  );
+
   it('should validate origin-check POST with correct origin', async () => {
     const adapter = new NuxtAdapter();
 

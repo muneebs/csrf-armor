@@ -157,7 +157,7 @@ function mergeConfig(
  * **Available Strategies:**
  * - `double-submit`: Classic double-submit cookie pattern
  * - `signed-double-submit`: Enhanced double-submit with cryptographic signatures
- * - `signed-token`: Server-side token validation with signing
+ * - `signed-token`: Expiring signed token validation bound to the incoming CSRF cookie
  * - `origin-check`: Validates request origin against allowed domains
  * - `hybrid`: Combines multiple strategies for maximum security
  *

@@ -5,7 +5,7 @@
  *
  * - `double-submit`: Classic double-submit cookie pattern. Good for most applications.
  * - `signed-double-submit`: Enhanced double-submit with cryptographic signatures. Recommended for high-security applications.
- * - `signed-token`: Server-side token validation with cryptographic signing. Most secure but requires server state.
+ * - `signed-token`: Expiring signed tokens bound to the incoming CSRF cookie. No server-side session store required.
  * - `origin-check`: Validates request origin against allowed domains. Simple but less robust.
  * - `hybrid`: Combines multiple strategies for maximum security and flexibility.
  */

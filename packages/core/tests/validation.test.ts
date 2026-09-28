@@ -59,6 +59,19 @@ describe('Validation', () => {
       expect(result.isValid).toBe(true);
     });
 
+    it('reads allowed and disallowed origins from Web Headers', () => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Headers({ origin: 'http://localhost' }),
+        cookies: new Map(),
+      };
+
+      expect(validateOrigin(request, TEST_CONFIG).isValid).toBe(true);
+      request.headers = new Headers({ origin: 'http://evil.com' });
+      expect(validateOrigin(request, TEST_CONFIG).isValid).toBe(false);
+    });
+
     it('should reject disallowed origin', () => {
       const request: CsrfRequest = {
         method: 'POST',
@@ -134,7 +147,7 @@ describe('Validation', () => {
         method: 'POST',
         url: 'http://localhost/api',
         headers: new Map([['x-csrf-token', token]]),
-        cookies: new Map(),
+        cookies: new Map([['csrf-token', token]]),
       };
 
       const config = {
@@ -165,6 +178,37 @@ describe('Validation', () => {
       );
       expect(result.isValid).toBe(false);
       expect(result.reason).toBe('No CSRF token provided');
+    });
+  });
+
+  describe.each(['signed-token', 'hybrid'] as const)('%s browser binding', (strategy) => {
+    it.each(['map', 'record'] as const)('rejects transferred and missing cookies with %s cookies', async (format) => {
+      const attackerToken = await generateSignedToken(TEST_CONFIG.secret, 3600);
+      const victimToken = await generateSignedToken(TEST_CONFIG.secret, 3600);
+      const config = { ...TEST_CONFIG, strategy, cookie: { ...TEST_CONFIG.cookie, name: 'Custom-CSRF' } };
+      for (const cookieToken of [victimToken, '', undefined]) {
+        const entries: [string, string][] = cookieToken === undefined ? [] : [['Custom-CSRF', cookieToken]];
+        const request: CsrfRequest = {
+          method: 'POST',
+          url: 'http://localhost/api',
+          headers: new Map([['origin', 'http://localhost'], ['x-csrf-token', attackerToken]]),
+          cookies: format === 'map' ? new Map(entries) : Object.fromEntries(entries),
+        };
+        expect((await validateRequest(request, config, mockGetTokenFromRequest)).isValid).toBe(false);
+      }
+    });
+
+    it.each(['expired', 'tampered'] as const)('rejects matching %s cookie and submitted token', async (kind) => {
+      const issued = await generateSignedToken(TEST_CONFIG.secret, kind === 'expired' ? -1 : 3600);
+      const token = kind === 'tampered' ? issued.slice(0, -1) + (issued.endsWith('a') ? 'b' : 'a') : issued;
+      const result = await validateRequest({
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['origin', 'http://localhost'], ['x-csrf-token', token]]),
+        cookies: { 'csrf-token': token },
+      }, { ...TEST_CONFIG, strategy }, mockGetTokenFromRequest);
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toContain(kind === 'expired' ? 'expired' : 'Invalid signature');
     });
   });
 
@@ -525,7 +569,7 @@ describe('Validation', () => {
         method: 'POST',
         url: 'http://localhost/api',
         headers: new Map([['x-csrf-token', token]]),
-        cookies: new Map(),
+        cookies: new Map([['csrf-token', token]]),
       };
 
       const config = {
@@ -551,7 +595,7 @@ describe('Validation', () => {
           ['origin', 'http://localhost'],
           ['x-csrf-token', token],
         ]),
-        cookies: new Map(),
+        cookies: new Map([['csrf-token', token]]),
       };
 
       const config = {
@@ -577,7 +621,7 @@ describe('Validation', () => {
           ['origin', 'http://evil.com'],
           ['x-csrf-token', token],
         ]),
-        cookies: new Map(),
+        cookies: new Map([['csrf-token', token]]),
       };
 
       const config = {
