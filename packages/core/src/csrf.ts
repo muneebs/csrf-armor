@@ -140,6 +140,9 @@ function mergeConfig(
   };
 
   // Add optional properties if they exist
+  if (merged.getSessionId) {
+    config.getSessionId = merged.getSessionId;
+  }
   if (merged.cookie?.domain) {
     config.cookie.domain = merged.cookie.domain;
   }
@@ -328,7 +331,8 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
    * @internal
    */
   private async attemptTokenReuse(
-    request: CsrfRequest
+    request: CsrfRequest,
+    sessionContext: string | undefined
   ): Promise<TokenData | null> {
     if (!SAFE_METHODS.includes(request.method as never)) {
       return null;
@@ -357,7 +361,8 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
         case 'hybrid': {
           const payload = await parseSignedToken(
             clientTokenFromRequest,
-            this.config.secret
+            this.config.secret,
+            sessionContext
           );
           if (payload.exp > currentTime + reissueThreshold) {
             return {
@@ -373,7 +378,8 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
             try {
               const payload = await parseSignedToken(
                 serverCookieTokenFromRequest,
-                this.config.secret
+                this.config.secret,
+                sessionContext
               );
               if (
                 payload.exp > currentTime + reissueThreshold &&
@@ -510,9 +516,14 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
       return { success: true, response };
     }
 
+    const sessionContext = await this.resolveSessionContext(
+      csrfRequest,
+      request
+    );
+
     // Attempt to reuse existing tokens or generate new ones
-    let tokenData = await this.attemptTokenReuse(csrfRequest);
-    tokenData ??= await this.generateTokensForStrategy();
+    let tokenData = await this.attemptTokenReuse(csrfRequest, sessionContext);
+    tokenData ??= await this.generateTokensForStrategy(sessionContext);
 
     // Build CSRF response
     const csrfResponse = this.buildCsrfResponse(tokenData);
@@ -535,7 +546,8 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     const validationResult = await validateRequest(
       csrfRequest,
       this.config,
-      this.adapter.getTokenFromRequest
+      this.adapter.getTokenFromRequest,
+      sessionContext
     );
 
     if (!validationResult.isValid) {
@@ -553,7 +565,29 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     };
   }
 
-  private async generateTokensForStrategy(): Promise<TokenData> {
+  /**
+   * Resolves the session context signed tokens are bound to.
+   *
+   * Returns `undefined` when session binding is not configured, so tokens are
+   * signed exactly as before. When it is configured, anonymous requests bind
+   * to the empty string, so their tokens never verify in an authenticated
+   * session.
+   *
+   * @internal
+   */
+  private async resolveSessionContext(
+    csrfRequest: CsrfRequest,
+    request: TRequest
+  ): Promise<string | undefined> {
+    if (!this.config.getSessionId) {
+      return undefined;
+    }
+    return (await this.config.getSessionId(csrfRequest, request)) ?? '';
+  }
+
+  private async generateTokensForStrategy(
+    sessionContext: string | undefined
+  ): Promise<TokenData> {
     const baseOptions = this.config.cookie;
 
     switch (this.config.strategy) {
@@ -583,7 +617,8 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
         const signedToken = await signNonceWithExpiry(
           unsignedToken,
           this.config.secret,
-          this.config.token.expiry
+          this.config.token.expiry,
+          sessionContext
         );
         return {
           clientToken: unsignedToken,
@@ -597,7 +632,8 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
       case 'hybrid': {
         const signedToken = await generateSignedToken(
           this.config.secret,
-          this.config.token.expiry
+          this.config.token.expiry,
+          sessionContext
         );
         return {
           clientToken: signedToken,
