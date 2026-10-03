@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { createCsrfProtection, verifySignedToken } from '@csrf-armor/core';
+import { createCsrfProtection, parseSignedToken } from '@csrf-armor/core';
 import type { H3Event } from 'h3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NuxtAdapter } from '../src/runtime/server/adapter';
@@ -215,13 +215,13 @@ describe('Nuxt CSRF Middleware Integration', () => {
     expect(headerToken).toBe(clientCookie);
     expect(headerToken?.includes('.')).toBe(false);
 
-    // Server cookie is signed (contains a dot)
-    expect(serverCookie?.split('.').length).toBe(2);
+    // Server cookie is signed with an expiry: exp.nonce.signature
+    expect(serverCookie?.split('.').length).toBe(3);
 
     // Signed server cookie contains the unsigned token
     // biome-ignore lint/style/noNonNullAssertion: serverCookie is already assigned
-    const verified = await verifySignedToken(serverCookie!, secret);
-    expect(verified).toBe(headerToken);
+    const payload = await parseSignedToken(serverCookie!, secret);
+    expect(payload.nonce).toBe(headerToken);
   });
 
   describe.each(['signed-token', 'hybrid'] as const)(

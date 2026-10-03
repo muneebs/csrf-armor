@@ -12,9 +12,8 @@ import {
   generateSecureSecret,
   generateSignedToken,
   parseSignedToken,
-  signUnsignedToken,
+  signNonceWithExpiry,
   timingSafeEqual,
-  verifySignedToken,
 } from './crypto.js';
 import type {
   CsrfAdapter,
@@ -354,11 +353,14 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
         case 'signed-double-submit': {
           if (serverCookieTokenFromRequest && clientTokenFromRequest) {
             try {
-              const verifiedToken = await verifySignedToken(
+              const payload = await parseSignedToken(
                 serverCookieTokenFromRequest,
                 this.config.secret
               );
-              if (timingSafeEqual(verifiedToken, clientTokenFromRequest)) {
+              if (
+                payload.exp > currentTime + reissueThreshold &&
+                timingSafeEqual(payload.nonce, clientTokenFromRequest)
+              ) {
                 return {
                   clientToken: clientTokenFromRequest,
                   cookieToken: clientTokenFromRequest,
@@ -367,7 +369,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
                 };
               }
             } catch {
-              // Invalid signature, fall through to generate new tokens
+              // Invalid, expired or legacy unexpiring cookie: issue new tokens
             }
           }
           break;
@@ -558,9 +560,12 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
             'CSRF Error: Failed to generate nonce for strategy "signed-double-submit".'
           );
         }
-        const signedToken = await signUnsignedToken(
+        // The server cookie signs the nonce with an expiry so token.expiry is
+        // enforced on validation, not just by browser cookie lifetime.
+        const signedToken = await signNonceWithExpiry(
           unsignedToken,
-          this.config.secret
+          this.config.secret,
+          this.config.token.expiry
         );
         return {
           clientToken: unsignedToken,

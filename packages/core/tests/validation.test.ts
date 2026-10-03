@@ -7,7 +7,12 @@ import {
   validateSignedToken,
 } from '../src';
 import type { CsrfRequest, RequiredCsrfConfig } from '../src';
-import { generateNonce, generateSignedToken, signUnsignedToken } from '../src';
+import {
+  generateNonce,
+  generateSignedToken,
+  signNonceWithExpiry,
+  signUnsignedToken,
+} from '../src';
 
 const TEST_CONFIG: RequiredCsrfConfig = {
   strategy: 'hybrid',
@@ -286,9 +291,10 @@ describe('Validation', () => {
   describe('validateSignedDoubleSubmit', () => {
     it('should validate with unsigned client token and signed server cookie', async () => {
       const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
+      const signedServerToken = await signNonceWithExpiry(
         unsignedToken,
-        TEST_CONFIG.secret
+        TEST_CONFIG.secret,
+        3600
       );
 
       const request: CsrfRequest = {
@@ -311,9 +317,10 @@ describe('Validation', () => {
 
     it('should reject when no client cookie found', async () => {
       const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
+      const signedServerToken = await signNonceWithExpiry(
         unsignedToken,
-        TEST_CONFIG.secret
+        TEST_CONFIG.secret,
+        3600
       );
 
       const request: CsrfRequest = {
@@ -360,9 +367,10 @@ describe('Validation', () => {
     it('should reject when submitted token does not match client cookie', async () => {
       const unsignedToken1 = generateNonce(32);
       const unsignedToken2 = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
+      const signedServerToken = await signNonceWithExpiry(
         unsignedToken1,
-        TEST_CONFIG.secret
+        TEST_CONFIG.secret,
+        3600
       );
 
       const request: CsrfRequest = {
@@ -387,9 +395,10 @@ describe('Validation', () => {
     it('should reject when client cookie does not match server cookie', async () => {
       const unsignedToken1 = generateNonce(32);
       const unsignedToken2 = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
+      const signedServerToken = await signNonceWithExpiry(
         unsignedToken2,
-        TEST_CONFIG.secret
+        TEST_CONFIG.secret,
+        3600
       );
 
       const request: CsrfRequest = {
@@ -413,7 +422,7 @@ describe('Validation', () => {
 
     it('should reject invalid server cookie signature', async () => {
       const unsignedToken = generateNonce(32);
-      const invalidSignedToken = 'invalid.signature';
+      const invalidSignedToken = `9999999999.${unsignedToken}.invalidsignature`;
 
       const request: CsrfRequest = {
         method: 'POST',
@@ -436,9 +445,10 @@ describe('Validation', () => {
 
     it('should reject when server cookie signed with wrong secret', async () => {
       const unsignedToken = generateNonce(32);
-      const wrongSignedToken = await signUnsignedToken(
+      const wrongSignedToken = await signNonceWithExpiry(
         unsignedToken,
-        'wrong-secret'
+        'wrong-secret',
+        3600
       );
 
       const request: CsrfRequest = {
@@ -460,12 +470,68 @@ describe('Validation', () => {
       expect(result.reason).toBe('CSRF token is invalid: Invalid signature');
     });
 
+    it('should reject an expired server cookie even when every value matches', async () => {
+      const unsignedToken = generateNonce(32);
+      const expiredServerToken = await signNonceWithExpiry(
+        unsignedToken,
+        TEST_CONFIG.secret,
+        -1
+      );
+
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['x-csrf-token', unsignedToken]]),
+        cookies: new Map([
+          ['csrf-token', unsignedToken],
+          ['csrf-token-server', expiredServerToken],
+        ]),
+      };
+
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe('CSRF token has expired');
+    });
+
+    it('should reject a legacy unexpiring server cookie', async () => {
+      const unsignedToken = generateNonce(32);
+      const legacyServerToken = await signUnsignedToken(
+        unsignedToken,
+        TEST_CONFIG.secret
+      );
+
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Map([['x-csrf-token', unsignedToken]]),
+        cookies: new Map([
+          ['csrf-token', unsignedToken],
+          ['csrf-token-server', legacyServerToken],
+        ]),
+      };
+
+      const result = await validateSignedDoubleSubmit(
+        request,
+        TEST_CONFIG,
+        mockGetTokenFromRequest
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toBe(
+        'CSRF token is invalid: Token must have 3 parts'
+      );
+    });
+
     // LEGACY TEST - This behavior should now fail
     it('should reject legacy signed-double-submit pattern (signed token in client cookie)', async () => {
       const unsignedToken = generateNonce(32);
-      const signedToken = await signUnsignedToken(
+      const signedToken = await signNonceWithExpiry(
         unsignedToken,
-        TEST_CONFIG.secret
+        TEST_CONFIG.secret,
+        3600
       );
 
       // Old pattern: unsigned in header, signed in client cookie
@@ -513,9 +579,10 @@ describe('Validation', () => {
 
     it('should validate signed-double-submit strategy correctly', async () => {
       const unsignedToken = generateNonce(32);
-      const signedServerToken = await signUnsignedToken(
+      const signedServerToken = await signNonceWithExpiry(
         unsignedToken,
-        TEST_CONFIG.secret
+        TEST_CONFIG.secret,
+        3600
       );
 
       const request: CsrfRequest = {

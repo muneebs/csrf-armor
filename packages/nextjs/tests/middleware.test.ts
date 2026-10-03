@@ -1,4 +1,4 @@
-import { verifySignedToken, createCsrfProtection } from '@csrf-armor/core';
+import { parseSignedToken, createCsrfProtection } from '@csrf-armor/core';
 import { NextRequest, NextResponse } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createCsrfMiddleware } from '../src';
@@ -126,13 +126,13 @@ describe('CSRF Middleware', () => {
     expect(clientCookieToken?.includes('.')).toBe(false);
     expect(headerToken).toBe(clientCookieToken);
 
-    // Server cookie should be signed (has one dot for signature)
-    expect(serverCookieToken?.split('.').length).toBe(2);
+    // Server cookie is signed with an expiry: exp.nonce.signature
+    expect(serverCookieToken?.split('.').length).toBe(3);
 
     // Verify that the signed server cookie contains the unsigned client token
     // biome-ignore lint/style/noNonNullAssertion: <explanation>
-    const verifiedToken = await verifySignedToken(serverCookieToken!, secret);
-    expect(verifiedToken).toBe(headerToken);
+    const payload = await parseSignedToken(serverCookieToken!, secret);
+    expect(payload.nonce).toBe(headerToken);
   });
 
   // UPDATED TEST - Client now submits unsigned token
@@ -203,6 +203,11 @@ describe('CSRF Middleware', () => {
     const headerToken = getResult.response.headers.get('x-csrf-token');
     const clientCookieToken =
       getResult.response.cookies.get('csrf-token')?.value;
+    const serverCookieToken =
+      getResult.response.cookies.get('csrf-token-server')?.value;
+    // Keep exp and nonce, replace the signature
+    const [exp, nonce] = serverCookieToken!.split('.');
+    const tamperedServerToken = `${exp}.${nonce}.${'0'.repeat(64)}`;
 
     // Make POST with valid tokens but tampered server cookie
     const postRequest = new NextRequest('http://localhost/api', {
@@ -223,7 +228,7 @@ describe('CSRF Middleware', () => {
       },
       {
         name: 'csrf-token-server',
-        value: 'tampered.signature', // Tampered server cookie
+        value: tamperedServerToken, // Tampered server cookie
       },
     ]);
 
