@@ -17,7 +17,8 @@ export type { ExpressAdapter };
  *
  * **Behavior:**
  * - For safe methods (GET, HEAD, OPTIONS): Generates and sets CSRF tokens, calls `next()`
- * - For state-changing methods: Validates CSRF tokens, calls `next()` on success or throws on failure
+ * - For state-changing methods: Validates CSRF tokens, calls `next()` on success or `next(error)` on failure
+ * - Never rejects its returned promise, so errors reach error handlers on Express 4 and 5
  * - Attaches `req.csrfToken` property containing the current CSRF token for use in views/responses
  * - Respects `excludePaths` configuration to skip protection for specified routes
  * - Handles multiple token sources: headers, cookies, query parameters, and request body
@@ -32,7 +33,8 @@ export type { ExpressAdapter };
  * @param config - Optional CSRF protection configuration (uses secure defaults if not provided)
  * @returns Express middleware function that validates CSRF tokens and manages token lifecycle
  *
- * @throws {CsrfError} If CSRF token validation fails, with code `'CSRF_VERIFICATION_ERROR'`
+ * Validation failures are passed to `next()` as a {@link CsrfError} with code
+ * `'CSRF_VERIFICATION_ERROR'`; unexpected errors are passed to `next()` unchanged.
  *
  * @example
  * ```typescript
@@ -113,15 +115,25 @@ export function csrfMiddleware(
     res: express.Response,
     next: express.NextFunction
   ) => {
-    const result = await protection.protect(req, res);
+    // Express 4 ignores rejected middleware promises, so every failure must
+    // reach the app's error handlers through next(error).
+    let result: Awaited<ReturnType<typeof protection.protect>>;
+    try {
+      result = await protection.protect(req, res);
+    } catch (error) {
+      next(error);
+      return;
+    }
 
     if (result.success) {
       req.csrfToken = result.token ?? undefined;
       next();
     } else {
-      throw new CsrfError(
-        result.reason ?? 'CSRF: Token validation failed.',
-        'CSRF_VERIFICATION_ERROR'
+      next(
+        new CsrfError(
+          result.reason ?? 'CSRF: Token validation failed.',
+          'CSRF_VERIFICATION_ERROR'
+        )
       );
     }
   };
