@@ -1,6 +1,5 @@
 import { CsrfProvider } from '@csrf-armor/nextjs/client';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Next.js Demo | CSRF Armor',

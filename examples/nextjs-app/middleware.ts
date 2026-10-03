@@ -35,7 +35,7 @@ const csrfProtect = createCsrfMiddleware({
     : undefined,
 });
 
-const demoProtectors = new Map<string, typeof csrfProtect>(
+const demoProtectors = new Map(
   STRATEGIES.map((s) => [
     s,
     createCsrfMiddleware({
@@ -48,8 +48,9 @@ const demoProtectors = new Map<string, typeof csrfProtect>(
 );
 
 function protectorFor(pathname: string) {
-  const demoStrategy = /^\/(?:api\/)?demo\/([a-z-]+)/.exec(pathname)?.[1];
-  return demoProtectors.get(demoStrategy ?? '') ?? csrfProtect;
+  const segment = /^\/(?:api\/)?demo\/([^/]+)/.exec(pathname)?.[1];
+  const demoStrategy = STRATEGIES.find((s) => s === segment);
+  return (demoStrategy && demoProtectors.get(demoStrategy)) || csrfProtect;
 }
 
 export async function middleware(request: NextRequest) {
