@@ -3,6 +3,7 @@ import {
   addImports,
   addPlugin,
   addServerHandler,
+  addServerImports,
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit';
@@ -26,7 +27,20 @@ export {
   verifySignedToken,
 } from '@csrf-armor/core';
 
-export interface ModuleOptions extends CsrfConfig {}
+export type { CsrfSessionResolver } from './runtime/server/session';
+
+export interface ModuleOptions extends Omit<CsrfConfig, 'getSessionId'> {
+  /**
+   * Require session binding. When `true`, the server middleware refuses to
+   * start (every request fails with 500) unless a resolver has been
+   * registered with `defineCsrfSessionResolver()` in a Nitro plugin, so a
+   * missing plugin can't silently leave tokens unbound.
+   *
+   * `getSessionId` itself can't be set here because `runtimeConfig` only
+   * holds serializable values.
+   */
+  sessionBinding?: boolean;
+}
 
 /**
  * Deep merges `overrides` into `defaults`, with `overrides` taking priority.
@@ -96,6 +110,15 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/middleware'),
       middleware: true,
     });
+
+    // Auto-import the session-binding API in server code (Nitro plugins)
+    addServerImports([
+      {
+        name: 'defineCsrfSessionResolver',
+        as: 'defineCsrfSessionResolver',
+        from: resolver.resolve('./runtime/server/session'),
+      },
+    ]);
 
     // Register composables for auto-import
     addImports([

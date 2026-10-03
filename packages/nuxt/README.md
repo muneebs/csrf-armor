@@ -169,6 +169,37 @@ export default defineNuxtConfig({
 });
 ```
 
+### Session Binding
+
+By default, a signed token or cookie pair is valid for any visitor. Binding tokens to the logged-in session stops an attacker from reusing a pair they obtained themselves, for example one planted from a sibling subdomain. This applies to the `signed-token`, `hybrid` and `signed-double-submit` strategies.
+
+`runtimeConfig` can't hold functions, so register the session lookup from a Nitro plugin. `defineCsrfSessionResolver` is auto-imported in server code:
+
+```typescript
+// server/plugins/csrf-session.ts
+export default defineNitroPlugin(() => {
+  defineCsrfSessionResolver(async (event) => {
+    const session = await getUserSession(event); // your auth library
+    return session?.id; // undefined for anonymous visitors
+  });
+});
+```
+
+Return a stable server-side identifier, never a value the client controls. Tokens issued before login stop working after login; the next GET issues new ones automatically.
+
+To make a missing plugin fail closed instead of silently leaving tokens unbound, require session binding:
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  csrfArmor: {
+    sessionBinding: true, // every request fails with 500 until a resolver is registered
+  },
+});
+```
+
+The function can also be imported explicitly from `@csrf-armor/nuxt/server`.
+
 ### Accessing the Token Server-Side
 
 The middleware stores the issued token on `event.context.csrfToken` for use in server routes:

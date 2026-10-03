@@ -6,6 +6,7 @@ export default defineConfig({
     'src/runtime/utils/client.ts',
     'src/runtime/server/adapter.ts',
     'src/runtime/server/middleware.ts',
+    'src/runtime/server/session.ts',
     'src/runtime/composables/useCsrfToken.ts',
     'src/runtime/composables/useCsrfFetch.ts',
     'src/runtime/plugin.client.ts',

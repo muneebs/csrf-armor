@@ -9,6 +9,7 @@
   "exports": {
     ".": "./dist/module.js",
     "./client": "./dist/runtime/utils/client.js",
+    "./server": "./dist/runtime/server/session.js",
     "./package.json": "./package.json"
   },
   "files": [
