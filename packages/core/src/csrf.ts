@@ -73,6 +73,21 @@ function processHeaders(
 }
 
 /**
+ * Extracts the normalized media type (`type/subtype`) from a Content-Type value.
+ *
+ * Parameters such as `charset` or `boundary` are dropped, so attacker-chosen
+ * parameter text cannot influence content-type exclusion matching.
+ *
+ * @param contentType - Raw Content-Type header value
+ * @returns Lowercased media type, or an empty string when absent
+ *
+ * @internal
+ */
+function extractMediaType(contentType: string): string {
+  return (contentType.split(';')[0] ?? '').trim().toLowerCase();
+}
+
+/**
  * Merges user configuration with default CSRF configuration values.
  *
  * Creates a complete configuration object by combining user-provided options
@@ -297,9 +312,12 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
     }
 
     const headers = processHeaders(request.headers);
-    const contentType = headers.get('content-type') ?? '';
-    return this.config.skipContentTypes.some((type) =>
-      contentType.includes(type)
+    const mediaType = extractMediaType(headers.get('content-type') ?? '');
+    if (!mediaType) {
+      return false;
+    }
+    return this.config.skipContentTypes.some(
+      (type) => extractMediaType(type) === mediaType
     );
   }
 
