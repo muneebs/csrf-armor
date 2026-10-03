@@ -7,6 +7,13 @@ import { csrfMiddleware } from '../src';
 describe('CSRF Middleware', () => {
   const mockNext = vi.fn();
 
+  const expectCsrfErrorForwarded = () => {
+    expect(mockNext).toHaveBeenCalledOnce();
+    const [error] = mockNext.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(CsrfError);
+    expect((error as CsrfError).code).toBe('CSRF_VERIFICATION_ERROR');
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -188,15 +195,10 @@ describe('CSRF Middleware', () => {
         strategy: 'signed-double-submit',
       });
 
-      let error: Error | undefined;
-      try {
-        await middleware(mockReq, mockRes, mockNext);
-      } catch (err) {
-        error = err as Error;
-      }
-
-      expect(error).toBeInstanceOf(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(
+        middleware(mockReq, mockRes, mockNext)
+      ).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
     });
   });
 
@@ -480,15 +482,10 @@ describe('CSRF Middleware', () => {
         allowedOrigins: ['http://localhost:3000'],
       });
 
-      let error: Error | undefined;
-      try {
-        await middleware(mockReq, mockRes, mockNext);
-      } catch (err) {
-        error = err as Error;
-      }
-
-      expect(error).toBeInstanceOf(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(
+        middleware(mockReq, mockRes, mockNext)
+      ).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
     });
   });
 
@@ -557,8 +554,8 @@ describe('CSRF Middleware', () => {
       } as Partial<Request>);
       const res = createMockRes();
 
-      await expect(middleware(req, res, mockNext)).rejects.toThrow(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(middleware(req, res, mockNext)).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
     });
 
     it('should reject DELETE requests without valid token', async () => {
@@ -572,8 +569,8 @@ describe('CSRF Middleware', () => {
       } as Partial<Request>);
       const res = createMockRes();
 
-      await expect(middleware(req, res, mockNext)).rejects.toThrow(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(middleware(req, res, mockNext)).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
     });
 
     it('should reject PATCH requests without valid token', async () => {
@@ -587,8 +584,8 @@ describe('CSRF Middleware', () => {
       } as Partial<Request>);
       const res = createMockRes();
 
-      await expect(middleware(req, res, mockNext)).rejects.toThrow(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(middleware(req, res, mockNext)).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
     });
   });
 
@@ -673,8 +670,9 @@ describe('CSRF Middleware', () => {
         cookies: { [cookieName]: cookie },
       });
       mockNext.mockClear();
-      await expect(middleware(submit(attacker.csrfToken, victim.csrfToken), createMockRes(), mockNext)).rejects.toThrow(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(middleware(submit(attacker.csrfToken, victim.csrfToken), createMockRes(), mockNext)).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
+      mockNext.mockClear();
       await middleware(submit(victim.csrfToken, victim.csrfToken), createMockRes(), mockNext);
       expect(mockNext).toHaveBeenCalledExactlyOnceWith();
     });
@@ -692,8 +690,66 @@ describe('CSRF Middleware', () => {
       } as Partial<Request>);
       const res = createMockRes();
 
-      await expect(middleware(req, res, mockNext)).rejects.toThrow(CsrfError);
-      expect(mockNext).not.toHaveBeenCalled();
+      await expect(middleware(req, res, mockNext)).resolves.toBeUndefined();
+      expectCsrfErrorForwarded();
+    });
+  });
+
+  describe('Express 4 error forwarding', () => {
+    const createMockReq = (method: string) =>
+      ({
+        method,
+        url: '/api/data',
+        headers: {},
+        cookies: {},
+        get: vi.fn(),
+        header: vi.fn(),
+      }) as unknown as Request;
+
+    const createMockRes = () =>
+      ({
+        setHeader: vi.fn(),
+        cookie: vi.fn(),
+      }) as unknown as Response;
+
+    it('forwards a failed validation to next(error) without rejecting', async () => {
+      const unhandled = vi.fn();
+      process.on('unhandledRejection', unhandled);
+      try {
+        const middleware = csrfMiddleware({
+          secret: 'test-secret-key-32-chars-long-good',
+          strategy: 'signed-double-submit',
+        });
+
+        // Express 4 discards the returned promise; mimic that dispatch.
+        void middleware(createMockReq('POST'), createMockRes(), mockNext);
+        await vi.waitFor(() => expect(mockNext).toHaveBeenCalled());
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expectCsrfErrorForwarded();
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off('unhandledRejection', unhandled);
+      }
+    });
+
+    it('forwards unexpected errors from protect() to next(error) once', async () => {
+      const middleware = csrfMiddleware({
+        secret: 'test-secret-key-32-chars-long-good',
+        strategy: 'signed-double-submit',
+      });
+      const failure = new Error('cookie write failed');
+      const res = {
+        setHeader: vi.fn(),
+        cookie: vi.fn(() => {
+          throw failure;
+        }),
+      } as unknown as Response;
+
+      await expect(
+        middleware(createMockReq('GET'), res, mockNext)
+      ).resolves.toBeUndefined();
+      expect(mockNext).toHaveBeenCalledExactlyOnceWith(failure);
     });
   });
 });
