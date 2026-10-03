@@ -1,0 +1,49 @@
+name: Publish to JSR
+
+# Manual recovery path for JSR. The release workflow publishes to JSR only
+# when changesets has just published to npm in the same run, so a release
+# that fails after the npm step (or a JSR outage) leaves JSR behind with no
+# way to catch up: the @csrf-armor scope requires publishing from CI, so a
+# local `jsr publish` is refused. Run this from the Actions tab on `main`.
+#
+# Safe to re-run: `jsr publish` skips versions that already exist.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only ever publish what is on main.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Mints the OIDC token JSR authenticates with
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
+
+      # Same as the release job: no dependency cache in a publishing job.
+      - name: Setup Node.js 24.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.x"
+          package-manager-cache: false
+
+      # jsr publish runs with --unstable-byonm and resolves npm: imports
+      # from node_modules.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish to JSR
+        run: ./scripts/publish-jsr.sh --allow-dirty
