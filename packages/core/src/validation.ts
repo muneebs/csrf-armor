@@ -34,6 +34,7 @@ function getCookies(request: CsrfRequest): Map<string, string> {
  * @param request - Request containing the submitted token and browser cookies
  * @param config - Resolved cookie, token, and signing configuration
  * @param getTokenFromRequest - Adapter callback that extracts the submitted token
+ * @param sessionContext - Session the token must be bound to, when session binding is enabled
  * @returns Validation result with a reason when cookie binding or verification fails
  */
 export async function validateSignedToken(
@@ -42,7 +43,8 @@ export async function validateSignedToken(
   getTokenFromRequest: (
     req: CsrfRequest,
     config: RequiredCsrfConfig
-  ) => Promise<string | undefined>
+  ) => Promise<string | undefined>,
+  sessionContext?: string
 ): Promise<ValidationResult> {
   try {
     const token = await getTokenFromRequest(request, config);
@@ -61,7 +63,7 @@ export async function validateSignedToken(
       return { isValid: false, reason: 'Token mismatch' };
     }
 
-    await parseSignedToken(token, config.secret);
+    await parseSignedToken(token, config.secret, sessionContext);
     return { isValid: true };
   } catch (error) {
     if (error instanceof Error) {
@@ -140,7 +142,8 @@ export async function validateSignedDoubleSubmit(
   getTokenFromRequest: (
     req: CsrfRequest,
     config: RequiredCsrfConfig
-  ) => Promise<string | undefined>
+  ) => Promise<string | undefined>,
+  sessionContext?: string
 ): Promise<ValidationResult> {
   const cookies = getCookies(request);
 
@@ -158,10 +161,11 @@ export async function validateSignedDoubleSubmit(
   }
 
   try {
-    // 1. Verify the server cookie signature and expiry
+    // 1. Verify the server cookie signature, expiry and (when bound) session
     const { nonce: verifiedUnsignedToken } = await parseSignedToken(
       signedCookieToken,
-      config.secret
+      config.secret,
+      sessionContext
     );
 
     // 2. Ensure client cookie matches the verified token
@@ -189,11 +193,17 @@ export async function validateRequest(
   getTokenFromRequest: (
     req: CsrfRequest,
     config: RequiredCsrfConfig
-  ) => Promise<string | undefined>
+  ) => Promise<string | undefined>,
+  sessionContext?: string
 ): Promise<ValidationResult> {
   switch (config.strategy) {
     case 'signed-token':
-      return await validateSignedToken(request, config, getTokenFromRequest);
+      return await validateSignedToken(
+        request,
+        config,
+        getTokenFromRequest,
+        sessionContext
+      );
 
     case 'origin-check':
       return validateOrigin(request, config);
@@ -205,14 +215,20 @@ export async function validateRequest(
       return await validateSignedDoubleSubmit(
         request,
         config,
-        getTokenFromRequest
+        getTokenFromRequest,
+        sessionContext
       );
 
     case 'hybrid': {
       const originResult = validateOrigin(request, config);
       if (!originResult.isValid) return originResult;
 
-      return await validateSignedToken(request, config, getTokenFromRequest);
+      return await validateSignedToken(
+        request,
+        config,
+        getTokenFromRequest,
+        sessionContext
+      );
     }
 
     default:

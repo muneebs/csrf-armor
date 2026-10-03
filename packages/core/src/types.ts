@@ -139,7 +139,39 @@ export interface CsrfConfig {
    * parameters such as `charset` are ignored, and prefixes are not matched.
    */
   skipContentTypes?: readonly string[];
+  /**
+   * Opt-in session binding for the signed strategies (`signed-token`,
+   * `hybrid` and `signed-double-submit`).
+   *
+   * Return the current authenticated session's identifier, or `undefined`
+   * for anonymous requests. The value is mixed into the token signature, so
+   * a token or cookie pair issued in one session fails validation in any
+   * other, including pairs planted by a sibling subdomain. Tokens are
+   * reissued automatically on the next safe request after the session
+   * changes (for example after login).
+   *
+   * Use a stable, server-side value such as `req.session.id`, never a value
+   * the client can choose. Ignored by `double-submit` and `origin-check`.
+   *
+   * @example
+   * ```typescript
+   * getSessionId: (_csrfRequest, req) => (req as express.Request).session?.id
+   * ```
+   */
+  getSessionId?: SessionIdResolver;
 }
+
+/**
+ * Resolves the session identifier a signed CSRF token is bound to.
+ *
+ * @param request - Normalized request built by the framework adapter
+ * @param frameworkRequest - The original framework request passed to `protect()`
+ * @returns The session identifier, or `undefined` for anonymous requests
+ */
+export type SessionIdResolver = (
+  request: CsrfRequest,
+  frameworkRequest: unknown
+) => string | undefined | Promise<string | undefined>;
 
 /**
  * Complete CSRF configuration with all required fields present.
@@ -157,6 +189,7 @@ export interface RequiredCsrfConfig {
   allowedOrigins: readonly string[];
   excludePaths: readonly string[];
   skipContentTypes: readonly string[];
+  getSessionId?: SessionIdResolver;
 }
 
 /**

@@ -746,3 +746,184 @@ describe.each(['signed-token', 'hybrid'] as const)('CsrfProtection – %s browse
     expect((await submit(own.token, own.token)).success).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Opt-in session binding (getSessionId)
+// ---------------------------------------------------------------------------
+
+describe('CsrfProtection – session binding', () => {
+  const SESSION_HEADER = 'x-test-session';
+  const sessionHeaders = (session?: string, extra: [string, string][] = []) =>
+    new Map<string, string>([
+      ['origin', 'http://localhost'],
+      ...(session ? [[SESSION_HEADER, session] as [string, string]] : []),
+      ...extra,
+    ]);
+  const getSessionId = (request: CsrfRequest) =>
+    (request.headers as Map<string, string>).get(SESSION_HEADER);
+
+  const cookiesOf = (result: { response: unknown }) => {
+    const csrfResponse = (result.response as Record<string, unknown>)
+      .csrfResponse as CsrfResponse;
+    return csrfResponse.cookies as Map<string, { value: string }>;
+  };
+
+  describe('signed-double-submit', () => {
+    const create = () =>
+      new CsrfProtection(new MockAdapter(), {
+        secret: TEST_SECRET,
+        strategy: 'signed-double-submit',
+        getSessionId,
+      });
+
+    const issue = async (
+      csrf: ReturnType<typeof create>,
+      session?: string
+    ) => {
+      const result = await csrf.protect(
+        makeRequest({ method: 'GET', headers: sessionHeaders(session) }),
+        {}
+      );
+      const cookies = cookiesOf(result);
+      return {
+        client: cookies.get('csrf-token')!.value,
+        server: cookies.get('csrf-token-server')!.value,
+      };
+    };
+
+    const submit = (
+      csrf: ReturnType<typeof create>,
+      pair: { client: string; server: string },
+      session?: string
+    ) =>
+      csrf.protect(
+        makeRequest({
+          method: 'POST',
+          headers: sessionHeaders(session, [['x-csrf-token', pair.client]]),
+          cookies: new Map([
+            ['csrf-token', pair.client],
+            ['csrf-token-server', pair.server],
+          ]),
+        }),
+        {}
+      );
+
+    it('accepts a pair in the session it was issued to', async () => {
+      const csrf = create();
+      const pair = await issue(csrf, 'session-a');
+      expect((await submit(csrf, pair, 'session-a')).success).toBe(true);
+    });
+
+    it('rejects a fully matching pair planted from another session', async () => {
+      const csrf = create();
+      const attackerPair = await issue(csrf, 'attacker-session');
+
+      const result = await submit(csrf, attackerPair, 'victim-session');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('CSRF token is invalid: Invalid signature');
+    });
+
+    it('rejects an anonymous pair in an authenticated session', async () => {
+      const csrf = create();
+      const anonymousPair = await issue(csrf);
+
+      expect((await submit(csrf, anonymousPair, 'victim-session')).success).toBe(
+        false
+      );
+    });
+
+    it('reissues the pair on a safe request after the session changes', async () => {
+      const csrf = create();
+      const anonymousPair = await issue(csrf);
+
+      const afterLogin = await csrf.protect(
+        makeRequest({
+          method: 'GET',
+          headers: sessionHeaders('session-a'),
+          cookies: new Map([
+            ['csrf-token', anonymousPair.client],
+            ['csrf-token-server', anonymousPair.server],
+          ]),
+        }),
+        {}
+      );
+
+      expect(afterLogin.token).not.toBe(anonymousPair.client);
+      const cookies = cookiesOf(afterLogin);
+      const freshPair = {
+        client: cookies.get('csrf-token')!.value,
+        server: cookies.get('csrf-token-server')!.value,
+      };
+      expect((await submit(csrf, freshPair, 'session-a')).success).toBe(true);
+    });
+  });
+
+  describe.each(['signed-token', 'hybrid'] as const)('%s', (strategy) => {
+    const create = () =>
+      new CsrfProtection(new MockAdapter(), {
+        secret: TEST_SECRET,
+        strategy,
+        allowedOrigins: ['http://localhost'],
+        getSessionId,
+      });
+
+    const submit = (
+      csrf: ReturnType<typeof create>,
+      token: string,
+      session: string
+    ) =>
+      csrf.protect(
+        makeRequest({
+          method: 'POST',
+          headers: sessionHeaders(session, [['x-csrf-token', token]]),
+          cookies: new Map([['csrf-token', token]]),
+        }),
+        {}
+      );
+
+    it('accepts a token only in the session it was issued to', async () => {
+      const csrf = create();
+      const issued = await csrf.protect(
+        makeRequest({ method: 'GET', headers: sessionHeaders('session-a') }),
+        {}
+      );
+      const token = issued.token!;
+
+      expect((await submit(csrf, token, 'session-a')).success).toBe(true);
+      const foreign = await submit(csrf, token, 'session-b');
+      expect(foreign.success).toBe(false);
+      expect(foreign.reason).toBe('CSRF token is invalid: Invalid signature');
+    });
+  });
+
+  it('passes the normalized and original framework requests to getSessionId', async () => {
+    const resolver = vi.fn(() => 'session-a');
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'signed-token',
+      getSessionId: resolver,
+    });
+    const request = makeRequest({ method: 'GET' });
+
+    await csrf.protect(request, {});
+
+    expect(resolver).toHaveBeenCalledWith(request, request);
+  });
+
+  it('does not call getSessionId for excluded paths', async () => {
+    const resolver = vi.fn(() => 'session-a');
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      excludePaths: ['/api/public'],
+      getSessionId: resolver,
+    });
+
+    await csrf.protect(
+      makeRequest({ method: 'POST', url: 'http://localhost/api/public' }),
+      {}
+    );
+
+    expect(resolver).not.toHaveBeenCalled();
+  });
+});

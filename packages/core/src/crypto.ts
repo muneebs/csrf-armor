@@ -125,6 +125,7 @@ export function generateSecureSecret(): string {
  * @public
  * @param secret - Secret key for HMAC signing (must be consistent across requests)
  * @param expirySeconds - Token validity duration in seconds from now
+ * @param context - Optional session context bound into the signature
  * @returns Promise resolving to the signed token string
  *
  * @example
@@ -143,9 +144,10 @@ export function generateSecureSecret(): string {
  */
 export async function generateSignedToken(
   secret: string,
-  expirySeconds: number
+  expirySeconds: number,
+  context?: string
 ): Promise<string> {
-  return signNonceWithExpiry(generateNonce(), secret, expirySeconds);
+  return signNonceWithExpiry(generateNonce(), secret, expirySeconds, context);
 }
 
 /**
@@ -161,16 +163,18 @@ export async function generateSignedToken(
  * @param nonce - Nonce to bind into the signed value (must not contain `.`)
  * @param secret - Secret key for HMAC signing
  * @param expirySeconds - Validity duration in seconds from now
+ * @param context - Optional session context bound into the signature
  * @returns Promise resolving to the signed, expiring token
  */
 export async function signNonceWithExpiry(
   nonce: string,
   secret: string,
-  expirySeconds: number
+  expirySeconds: number,
+  context?: string
 ): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + expirySeconds;
   const payload = `${exp}.${nonce}`;
-  const signature = await signPayload(payload, secret);
+  const signature = await signPayload(payload, secret, context);
 
   return `${payload}.${signature}`;
 }
@@ -185,6 +189,7 @@ export async function signNonceWithExpiry(
  * @public
  * @param token - The signed token string to parse
  * @param secret - Secret key used for signature verification
+ * @param context - Session context the token must have been signed with
  * @returns Promise resolving to the validated token payload
  *
  * @example
@@ -209,7 +214,8 @@ export async function signNonceWithExpiry(
  */
 export async function parseSignedToken(
   token: string,
-  secret: string
+  secret: string,
+  context?: string
 ): Promise<TokenPayload> {
   const parts = token.split('.');
   if (parts.length !== 3) {
@@ -229,7 +235,7 @@ export async function parseSignedToken(
   }
 
   const payload = `${expStr}.${nonce}`;
-  const expectedSignature = await signPayload(payload, secret);
+  const expectedSignature = await signPayload(payload, secret, context);
 
   if (!timingSafeEqual(signature, expectedSignature)) {
     throw new TokenInvalidError('Invalid signature');
@@ -252,6 +258,7 @@ export async function parseSignedToken(
  * @public
  * @param unsignedToken - The token string to sign
  * @param secret - Secret key for HMAC signing
+ * @param context - Optional session context bound into the signature
  * @returns Promise resolving to the signed token
  *
  * @example
@@ -265,9 +272,10 @@ export async function parseSignedToken(
  */
 export async function signUnsignedToken(
   unsignedToken: string,
-  secret: string
+  secret: string,
+  context?: string
 ): Promise<string> {
-  const signature = await signPayload(unsignedToken, secret);
+  const signature = await signPayload(unsignedToken, secret, context);
   return `${unsignedToken}.${signature}`;
 }
 
@@ -281,6 +289,7 @@ export async function signUnsignedToken(
  * @public
  * @param signedToken - The signed token to verify (format: `{token}.{signature}`)
  * @param secret - Secret key used for signature verification
+ * @param context - Session context the token must have been signed with
  * @returns Promise resolving to the original unsigned token
  *
  * @example
@@ -302,7 +311,8 @@ export async function signUnsignedToken(
  */
 export async function verifySignedToken(
   signedToken: string,
-  secret: string
+  secret: string,
+  context?: string
 ): Promise<string> {
   const parts = signedToken.split('.');
   if (parts.length !== 2) {
@@ -315,7 +325,7 @@ export async function verifySignedToken(
     throw new TokenInvalidError('Token parts cannot be empty');
   }
 
-  const expectedSignature = await signPayload(unsignedToken, secret);
+  const expectedSignature = await signPayload(unsignedToken, secret, context);
 
   if (!timingSafeEqual(signature, expectedSignature)) {
     throw new TokenInvalidError('Invalid signature');
@@ -324,12 +334,24 @@ export async function verifySignedToken(
   return unsignedToken;
 }
 
-async function signPayload(payload: string, secret: string): Promise<string> {
+/**
+ * HMAC-signs a payload, optionally bound to a session context.
+ *
+ * The context is part of the signed message but never of the token, so a
+ * token only verifies when the verifier supplies the same context. Payloads
+ * never contain `|`, so the `|sid:` separator keeps messages unambiguous.
+ */
+async function signPayload(
+  payload: string,
+  secret: string,
+  context?: string
+): Promise<string> {
   const keyCache = CryptoKeyCache.getInstance();
   const key = await keyCache.getCachedKey(secret);
 
   const encoder = new TextEncoder();
-  const messageData = encoder.encode(payload);
+  const message = context === undefined ? payload : `${payload}|sid:${context}`;
+  const messageData = encoder.encode(message);
 
   const signature = await crypto.subtle.sign('HMAC', key, messageData);
   const signatureArray = new Uint8Array(signature);
