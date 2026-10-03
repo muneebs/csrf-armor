@@ -605,13 +605,20 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next();
     const result = await csrfProtect(request, response);
 
-    if (result.success) {
-        // Add security headers
-        result.response.headers.set('X-Content-Type-Options', 'nosniff');
-        result.response.headers.set('X-Frame-Options', 'DENY');
-        result.response.headers.set('X-XSS-Protection', '1; mode=block');
-        result.response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // Always block failed checks: result.response is the NextResponse.next()
+    // you passed in, so returning it would let the request through.
+    if (!result.success) {
+        return NextResponse.json(
+            {error: 'CSRF validation failed'},
+            {status: 403}
+        );
     }
+
+    // Add security headers
+    result.response.headers.set('X-Content-Type-Options', 'nosniff');
+    result.response.headers.set('X-Frame-Options', 'DENY');
+    result.response.headers.set('X-XSS-Protection', '1; mode=block');
+    result.response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
     return result.response;
 }
