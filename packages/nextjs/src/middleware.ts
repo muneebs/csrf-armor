@@ -7,7 +7,7 @@ import { NextjsAdapter } from './adapter.js';
  * Creates Next.js middleware for CSRF protection.
  *
  * This function creates middleware compatible with Next.js 13+ middleware system
- * that automatically protects your application routes from CSRF attacks. It works
+ * that validates requests to your application routes against CSRF attacks. It works
  * with both Pages Router and App Router architectures.
  *
  * **Features:**
@@ -17,6 +17,12 @@ import { NextjsAdapter } from './adapter.js';
  * - Compatible with Next.js middleware patterns
  * - Supports all CSRF strategies (double-submit, signed tokens, etc.)
  * - Handles multipart form data from Next.js forms
+ *
+ * **Caller must enforce the result:** the returned function does not block
+ * requests. It resolves to `{ success, response, reason }`; when `success` is
+ * `false` you must return a rejecting response (for example a 403). On failure
+ * `response` is still the continue response you passed in (with CSRF cookies
+ * applied), so returning it lets the request reach your route.
  *
  * **Usage Patterns:**
  * - Place in `middleware.ts` file for application-wide protection
@@ -45,9 +51,18 @@ import { NextjsAdapter } from './adapter.js';
  * });
  *
  * export async function middleware(request: NextRequest) {
- *   const response = NextResponse.next();
- *   await csrfMiddleware(request, response);
- *   return response;
+ *   const result = await csrfMiddleware(request, NextResponse.next());
+ *
+ *   // The helper only reports the outcome. On failure `result.response` is
+ *   // still the NextResponse.next() passed in, so you must block explicitly.
+ *   if (!result.success) {
+ *     return NextResponse.json(
+ *       { error: 'CSRF validation failed' },
+ *       { status: 403 }
+ *     );
+ *   }
+ *
+ *   return result.response;
  * }
  *
  * export const config = {
