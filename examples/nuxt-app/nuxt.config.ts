@@ -6,7 +6,11 @@ export default defineNuxtConfig({
       titleTemplate: '%s | CSRF Armor',
       title: 'Nuxt Demo',
       meta: [
-        { name: 'description', content: 'Interactive demo of CSRF protection strategies using @csrf-armor/nuxt' },
+        {
+          name: 'description',
+          content:
+            'Interactive demo of CSRF protection strategies using @csrf-armor/nuxt',
+        },
       ],
     },
   },
@@ -15,8 +19,11 @@ export default defineNuxtConfig({
     // Override in production via NUXT_CSRF_ARMOR_SECRET env variable
     secret: 'super-secret-key-for-dev-only-32-chars-long-enough',
     token: { expiry: 3600, fieldName: '_csrf' },
-    cookie: { secure: false /* must be true in production (HTTPS) */, name: 'x-csrf-token' },
+    cookie: {
+      secure: false /* must be true in production (HTTPS) */,
+      name: 'x-csrf-token',
+    },
     allowedOrigins: ['http://localhost:3000'],
   },
   devtools: { enabled: false },
-})
+});

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 useSeoMeta({
   title: 'Strategy Selector',
-  description: 'Select a CSRF protection strategy to test with the @csrf-armor/nuxt module.',
-})
+  description:
+    'Select a CSRF protection strategy to test with the @csrf-armor/nuxt module.',
+});
 
 const strategies = [
   'double-submit',
@@ -10,7 +11,7 @@ const strategies = [
   'signed-token',
   'origin-check',
   'hybrid',
-] as const
+] as const;
 </script>
 
 <template>
@@ -22,6 +23,11 @@ const strategies = [
         <NuxtLink :to="`/demo/${strategy}`">{{ strategy }}</NuxtLink>
       </li>
     </ul>
+    <p>
+      Try the <NuxtLink to="/attacker">attacker page</NuxtLink> from another
+      origin (<code>http://[::1]:3000/attacker</code>) to see forged
+      requests rejected.
+    </p>
   </div>
 </template>
 

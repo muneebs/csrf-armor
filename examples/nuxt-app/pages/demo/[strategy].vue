@@ -1,18 +1,18 @@
 <script setup lang="ts">
-const route = useRoute()
-const rawStrategy = route.params.strategy
-const strategy = Array.isArray(rawStrategy) ? rawStrategy[0] : rawStrategy
+const route = useRoute();
+const rawStrategy = route.params.strategy;
+const strategy = Array.isArray(rawStrategy) ? rawStrategy[0] : rawStrategy;
 
 useSeoMeta({
   title: `${strategy} Demo`,
   description: `Interactive demo of the ${strategy} CSRF protection strategy.`,
-})
+});
 
-const { csrfToken, csrfFetch } = useCsrfToken()
+const { csrfToken, csrfFetch } = useCsrfToken();
 
-const formData = ref('')
-const result = ref<{ success: boolean; message: string } | null>(null)
-const error = ref<string | null>(null)
+const formData = ref('');
+const result = ref<{ success: boolean; message: string } | null>(null);
+const error = ref<string | null>(null);
 
 /** Strategy-specific notes matching the express example. */
 const strategyNotes: Record<string, string> = {
@@ -26,28 +26,30 @@ const strategyNotes: Record<string, string> = {
     'Validates the Origin and/or Referer headers against allowed origins. No explicit token in form.',
   hybrid:
     'Combines signed-token and origin-check. Requires a secret and allowedOrigins.',
-}
+};
 
 async function handleSubmit() {
-  result.value = null
-  error.value = null
+  result.value = null;
+  error.value = null;
 
   try {
     const response = await csrfFetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: formData.value, strategy }),
-    })
+    });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      error.value = errorData?.data?.reason ?? `Request failed with status ${response.status}`
-      return
+      const errorData = await response.json().catch(() => null);
+      error.value =
+        errorData?.data?.reason ??
+        `Request failed with status ${response.status}`;
+      return;
     }
 
-    result.value = await response.json()
+    result.value = await response.json();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unexpected error'
+    error.value = err instanceof Error ? err.message : 'Unexpected error';
   }
 }
 </script>

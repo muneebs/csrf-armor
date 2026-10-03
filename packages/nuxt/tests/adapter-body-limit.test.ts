@@ -1,6 +1,6 @@
 import { PassThrough } from 'node:stream';
 import type { RequiredCsrfConfig } from '@csrf-armor/core';
-import type { H3Event } from 'h3';
+import { type H3Event, readBody } from 'h3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_MAX_BODY_SIZE,
@@ -74,6 +74,41 @@ describe('NuxtAdapter body token extraction limits', () => {
     // A later stream error must not become an uncaught 'error' event.
     expect(req.listenerCount('error')).toBeGreaterThan(0);
     expect(() => req.destroy(new Error('client aborted'))).not.toThrow();
+  });
+
+  it('leaves a body it read for the route to read with h3', async () => {
+    const adapter = new NuxtAdapter();
+    const { event, req } = makeEvent('application/x-www-form-urlencoded', {
+      'content-type': 'application/x-www-form-urlencoded',
+    });
+    const request = adapter.extractRequest(event);
+
+    const pending = adapter.getTokenFromRequest(request, config);
+    req.end('csrf_token=abc123&name=test');
+    await expect(pending).resolves.toBe('abc123');
+
+    // The stream has ended, so without the cached body this would never settle.
+    await expect(readBody(event)).resolves.toEqual({
+      csrf_token: 'abc123',
+      name: 'test',
+    });
+  });
+
+  it('leaves a JSON body it read for the route to read with h3', async () => {
+    const adapter = new NuxtAdapter();
+    const { event, req } = makeEvent('application/json', {
+      'content-type': 'application/json',
+    });
+    const request = adapter.extractRequest(event);
+
+    const pending = adapter.getTokenFromRequest(request, config);
+    req.end(JSON.stringify({ csrf_token: 'abc123', data: 'x' }));
+    await expect(pending).resolves.toBe('abc123');
+
+    await expect(readBody(event)).resolves.toEqual({
+      csrf_token: 'abc123',
+      data: 'x',
+    });
   });
 
   it('accepts a body exactly at the limit', async () => {

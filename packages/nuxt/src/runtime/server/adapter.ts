@@ -70,16 +70,23 @@ class BodyTooLargeError extends Error {
 }
 
 /**
+ * Where h3's `readRawBody` caches a request body (`Symbol.for` makes it the
+ * same symbol h3 uses). A Node stream can only be read once, so the body read
+ * here must be left for h3, or the route's `readBody(event)` waits forever.
+ */
+const H3_RAW_BODY = Symbol.for('h3RawBody');
+
+/**
  * Reads the raw request body, stopping as soon as it exceeds `maxBytes` so an
  * oversized body is never buffered in full.
  */
-function readRawBody(req: IncomingMessage, maxBytes: number): Promise<string> {
+function readRawBody(req: IncomingMessage, maxBytes: number): Promise<Buffer> {
   const declaredLength = Number(req.headers?.['content-length']);
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
     return Promise.reject(new BodyTooLargeError(maxBytes));
   }
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     let received = 0;
 
@@ -103,7 +110,7 @@ function readRawBody(req: IncomingMessage, maxBytes: number): Promise<string> {
     };
     const onEnd = () => {
       stopReading();
-      resolve(Buffer.concat(chunks).toString('utf-8'));
+      resolve(Buffer.concat(chunks));
     };
     const onError = (error: Error) => {
       stopReading();
@@ -134,7 +141,14 @@ async function parseBody(
   const req = event.node?.req as IncomingMessage | undefined;
   if (!req) return null;
 
-  const rawBody = await readRawBody(req, maxBytes);
+  const pending = readRawBody(req, maxBytes);
+  // Hand the body to h3 so the route can still read it after this middleware.
+  (req as IncomingMessage & { [H3_RAW_BODY]?: Promise<Buffer> })[H3_RAW_BODY] =
+    pending;
+  // The rejection is handled below; this copy must not surface as unhandled.
+  pending.catch(() => {});
+
+  const rawBody = (await pending).toString('utf-8');
 
   if (!rawBody) return null;
 
