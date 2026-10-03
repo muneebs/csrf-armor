@@ -373,6 +373,59 @@ describe('CsrfProtection – skipContentTypes', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it.each([
+    'application/x-www-form-urlencoded; x=text/plain',
+    'application/x-www-form-urlencoded;text/plain',
+    'multipart/form-data; boundary=text/plain',
+    'text/plainfoo',
+    'xtext/plain',
+  ])('does not skip when the exempt type only appears outside the media type: %s', async (contentType) => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      skipContentTypes: ['text/plain'],
+    });
+
+    const req = makeRequest({
+      method: 'POST',
+      headers: new Map([['content-type', contentType]]),
+    });
+    const result = await csrf.protect(req, {});
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(['text/plain; charset=utf-8', 'Text/Plain', '  text/plain ;charset=utf-8'])(
+    'skips the exact media type regardless of case and parameters: %s',
+    async (contentType) => {
+      const csrf = new CsrfProtection(new MockAdapter(), {
+        secret: TEST_SECRET,
+        strategy: 'double-submit',
+        skipContentTypes: ['text/plain'],
+      });
+
+      const req = makeRequest({
+        method: 'POST',
+        headers: new Map([['content-type', contentType]]),
+      });
+      const result = await csrf.protect(req, {});
+
+      expect(result.success).toBe(true);
+    }
+  );
+
+  it('does not skip a request without a Content-Type header', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      skipContentTypes: ['text/plain'],
+    });
+
+    const result = await csrf.protect(makeRequest({ method: 'POST' }), {});
+
+    expect(result.success).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -133,7 +133,11 @@ export interface CsrfConfig {
   allowedOrigins?: readonly string[];
   /** URL paths to exclude from CSRF protection */
   excludePaths?: readonly string[];
-  /** Content types to skip CSRF validation for */
+  /**
+   * Media types (`type/subtype`) to skip CSRF validation for. Matched exactly
+   * and case-insensitively against the request's media type; Content-Type
+   * parameters such as `charset` are ignored, and prefixes are not matched.
+   */
   skipContentTypes?: readonly string[];
 }
 
