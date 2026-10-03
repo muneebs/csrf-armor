@@ -55,10 +55,72 @@ function appendSetCookie(res: ServerResponse, cookieStr: string): void {
   }
 }
 
+/**
+ * Default cap on the bytes read from a request body while looking for a CSRF
+ * token. Matches the Express body-parser default.
+ */
+export const DEFAULT_MAX_BODY_SIZE = 100 * 1024;
+
+/** Error raised when a body exceeds the token-extraction size limit. */
+class BodyTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`Request body exceeds ${limit} bytes`);
+    this.name = 'BodyTooLargeError';
+  }
+}
+
+/**
+ * Reads the raw request body, stopping as soon as it exceeds `maxBytes` so an
+ * oversized body is never buffered in full.
+ */
+function readRawBody(req: IncomingMessage, maxBytes: number): Promise<string> {
+  const declaredLength = Number(req.headers?.['content-length']);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    return Promise.reject(new BodyTooLargeError(maxBytes));
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let received = 0;
+
+    // The error listener stays attached: removing it would turn a later
+    // stream error (for example a client abort) into an uncaught exception.
+    // Rejecting an already-settled promise is a no-op.
+    const stopReading = () => {
+      req.off('data', onData);
+      req.off('end', onEnd);
+    };
+    const onData = (chunk: Buffer) => {
+      received += chunk.length;
+      if (received > maxBytes) {
+        stopReading();
+        req.pause();
+        chunks.length = 0;
+        reject(new BodyTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    const onEnd = () => {
+      stopReading();
+      resolve(Buffer.concat(chunks).toString('utf-8'));
+    };
+    const onError = (error: Error) => {
+      stopReading();
+      reject(error);
+    };
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+  });
+}
+
 /** Reads and parses the request body based on its content type. Returns null for unsupported types. */
 async function parseBody(
   event: H3Event,
-  contentType: string
+  contentType: string,
+  maxBytes: number
 ): Promise<unknown> {
   const supportedTypes = [
     'application/json',
@@ -72,12 +134,7 @@ async function parseBody(
   const req = event.node?.req as IncomingMessage | undefined;
   if (!req) return null;
 
-  const rawBody = await new Promise<string>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-    req.on('error', reject);
-  });
+  const rawBody = await readRawBody(req, maxBytes);
 
   if (!rawBody) return null;
 
@@ -102,7 +159,16 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
   /** Cache parsed bodies to avoid double reads on the same event. */
   private readonly parsedBodyCache = new WeakMap<H3Event, unknown>();
 
-  constructor() {
+  /** Maximum body bytes read while looking for a body-submitted token. */
+  private readonly maxBodySize: number;
+
+  /**
+   * @param options.maxBodySize - Maximum body bytes read while looking for a
+   *   body-submitted token (default {@link DEFAULT_MAX_BODY_SIZE}). Larger
+   *   bodies are not read and yield no token, so the request fails validation.
+   */
+  constructor(options: { maxBodySize?: number } = {}) {
+    this.maxBodySize = options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE;
     this.getTokenFromRequest = this.getTokenFromRequest.bind(this);
   }
 
@@ -194,7 +260,7 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
     } else {
       const contentType = event.headers.get('content-type') ?? 'text/plain';
       try {
-        parsedBody = await parseBody(event, contentType);
+        parsedBody = await parseBody(event, contentType, this.maxBodySize);
         this.parsedBodyCache.set(event, parsedBody);
       } catch (error) {
         console.warn(
