@@ -8,9 +8,9 @@
   },
   "imports": {
     "@csrf-armor/core": "jsr:@csrf-armor/core@^1.2.3",
-    "next/navigation": "npm:next@*/navigation.js",
-    "next/server": "npm:next@*/server.js",
-    "react": "npm:react@*"
+    "next/navigation": "npm:next@^16.0.0/navigation.js",
+    "next/server": "npm:next@^16.0.0/server.js",
+    "react": "npm:react@^19.0.0"
   },
   "publish": {
     "include": [
