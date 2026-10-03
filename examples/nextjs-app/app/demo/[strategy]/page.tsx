@@ -1,6 +1,7 @@
 import {CsrfProvider} from '@csrf-armor/nextjs/client';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
+import {ATTACKER_ORIGIN} from '../../../lib/config';
 import {getCount} from '../../../lib/counter';
 import {STRATEGY_NOTES, demoCookieName, isStrategy} from '../../../lib/strategies';
 import {StrategyTests} from './strategy-tests';
@@ -26,7 +27,11 @@ export default async function StrategyDemoPage({params, searchParams}: {
             <p>Counter: <code id="count">{getCount()}</code></p>
 
             <CsrfProvider config={{cookieName: demoCookieName(strategy)}}>
-                <StrategyTests strategy={strategy} formSubmitted={submitted === 'form'} />
+                <StrategyTests
+                    strategy={strategy}
+                    formSubmitted={submitted === 'form'}
+                    attackerUrl={`${ATTACKER_ORIGIN}/attacker?strategy=${strategy}`}
+                />
             </CsrfProvider>
         </main>
     );

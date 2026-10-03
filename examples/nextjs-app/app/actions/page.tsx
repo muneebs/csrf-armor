@@ -1,4 +1,5 @@
 import {cookies} from 'next/headers';
+import {APP_COOKIE_NAME} from '../../lib/config';
 import {getCount} from '../../lib/counter';
 import {incrementCounter} from './actions';
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // csrf-token cookie for this request, so read the token from it and put it in
 // a hidden field.
 export default async function ActionsPage() {
-    const csrfToken = (await cookies()).get('csrf-token')?.value ?? '';
+    const csrfToken = (await cookies()).get(APP_COOKIE_NAME)?.value ?? '';
 
     return (
         <main>

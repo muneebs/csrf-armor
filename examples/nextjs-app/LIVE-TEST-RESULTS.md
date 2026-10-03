@@ -37,7 +37,7 @@ time, so none of them failed.
   value in `x-csrf-token`, run twice.
 - **Legitimate (form):** load `/form` and submit it. The hidden `csrf_token`
   field is sent as `application/x-www-form-urlencoded`, followed by a 303 to
-  `/form?submitted=1`.
+  `/form?submitted=form`.
 - **Missing token:** the same POST without the header.
 - **Tampered token:** one character of the token changed. For the signed
   strategies, a second run changes the `csrf-token` cookie and the header the

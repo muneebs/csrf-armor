@@ -1,13 +1,6 @@
 import type {CsrfStrategy} from '@csrf-armor/nextjs';
 
-export const STRATEGIES = [
-    'double-submit',
-    'signed-double-submit',
-    'signed-token',
-    'origin-check',
-    'hybrid',
-] as const satisfies readonly CsrfStrategy[];
-
+// The Record type makes the compiler flag a strategy missing from this list.
 export const STRATEGY_NOTES: Record<CsrfStrategy, string> = {
     'double-submit':
         'Compares the token in a cookie with the token sent in the form or header. No secret. Not recommended for production.',
@@ -19,6 +12,8 @@ export const STRATEGY_NOTES: Record<CsrfStrategy, string> = {
         'Checks the Origin or Referer header against allowedOrigins. No token is checked.',
     hybrid: 'origin-check plus signed-token. Requires a secret and allowedOrigins.',
 };
+
+export const STRATEGIES = Object.keys(STRATEGY_NOTES) as CsrfStrategy[];
 
 export function isStrategy(value: string): value is CsrfStrategy {
     return (STRATEGIES as readonly string[]).includes(value);

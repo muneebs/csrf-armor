@@ -1,28 +1,22 @@
 'use client';
 import {useCsrf} from '@csrf-armor/nextjs/client';
 import {useState} from 'react';
+import {FetchTest, FormTest} from '../../csrf-tests';
 import {incrementForDemo} from './actions';
 
-export function StrategyTests({strategy, formSubmitted}: {
+export function StrategyTests({strategy, formSubmitted, attackerUrl}: {
     strategy: string;
     formSubmitted: boolean;
+    attackerUrl: string;
 }) {
-    const {csrfToken, csrfFetch, updateToken} = useCsrf();
-    const [fetchResult, setFetchResult] = useState('');
+    const {csrfToken, updateToken} = useCsrf();
     const [actionResult, setActionResult] = useState('');
     const endpoint = `/api/demo/${strategy}`;
 
-    const runFetch = async () => {
-        const response = await csrfFetch(endpoint, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({}),
-        });
-        setFetchResult(`${response.status} ${JSON.stringify(await response.json())}`);
-    };
-
     const runAction = async (formData: FormData) => {
         try {
+            // Pass formData through: it carries the csrf_token field the
+            // middleware checks.
             const count = await incrementForDemo(strategy, formData);
             setActionResult(`ok, count ${count}`);
         } catch {
@@ -37,20 +31,13 @@ export function StrategyTests({strategy, formSubmitted}: {
             <section>
                 <h2>1. Form</h2>
                 <p>A plain HTML form post with the token in a hidden <code>csrf_token</code> field.</p>
-                <form method="post" action={endpoint}>
-                    <input type="hidden" name="csrf_token" value={csrfToken ?? ''} />
-                    <button type="submit" id="form-submit" disabled={!csrfToken}>Submit form</button>
-                </form>
-                {formSubmitted && <p>Result: <code id="form-result">submitted</code></p>}
+                <FormTest endpoint={endpoint} submitted={formSubmitted} />
             </section>
 
             <section>
                 <h2>2. Fetch</h2>
                 <p><code>csrfFetch</code> sends the token in the <code>x-csrf-token</code> header.</p>
-                <button type="button" id="fetch-submit" onClick={runFetch} disabled={!csrfToken}>
-                    Send fetch request
-                </button>
-                <p>Result: <code id="fetch-result">{fetchResult}</code></p>
+                <FetchTest endpoint={endpoint} />
             </section>
 
             <section>
@@ -67,9 +54,7 @@ export function StrategyTests({strategy, formSubmitted}: {
                 <h2>4. Attacker</h2>
                 <p>
                     Forged posts from another origin. Open the{' '}
-                    <a id="attacker-link" href={`http://127.0.0.1:3000/attacker?strategy=${strategy}`}>
-                        attacker page for {strategy}
-                    </a>{' '}
+                    <a id="attacker-link" href={attackerUrl}>attacker page for {strategy}</a>{' '}
                     and submit its forms. Each should fail with a 403.
                 </p>
             </section>

@@ -1,3 +1,4 @@
+import {APP_ORIGIN} from '../../lib/config';
 import {STRATEGIES, isStrategy} from '../../lib/strategies';
 
 export const dynamic = 'force-dynamic';
@@ -6,10 +7,10 @@ export const dynamic = 'force-dynamic';
 // the target (for example http://127.0.0.1:3000/attacker) so the browser sends
 // a foreign Origin header. It needs no client JavaScript.
 // ?strategy=<name> shows only that strategy's forms.
-export default async function AttackerPage({searchParams}: {
-    searchParams: Promise<{strategy?: string}>;
-}) {
-    const origin = `http://localhost:${process.env.PORT ?? '3000'}`;
+export default async function AttackerPage({searchParams}: Readonly<{
+  searchParams: Promise<{ strategy?: string }>;
+}>) {
+    const origin = APP_ORIGIN;
     const {strategy} = await searchParams;
     const targets = strategy && isStrategy(strategy) ? [strategy] : STRATEGIES;
 
@@ -40,7 +41,6 @@ export default async function AttackerPage({searchParams}: {
                 <section>
                     <h2>App counter (<code>CSRF_STRATEGY</code>)</h2>
                     <form method="post" action={`${origin}/api/counter`}>
-                        <input type="hidden" name="amount" value="1" />
                         <button type="submit" id="forge">Send forged request</button>
                     </form>
                 </section>

@@ -1,5 +1,6 @@
 import {cookies} from 'next/headers';
 import Link from 'next/link';
+import {ATTACKER_ORIGIN, sessionBinding, strategy, tokenExpiry} from '../lib/config';
 import {getCount} from '../lib/counter';
 import {SESSION_COOKIE} from '../lib/session';
 import {STRATEGIES} from '../lib/strategies';
@@ -28,9 +29,9 @@ export default async function Home() {
                 optional session binding and expiry settings.
             </p>
             <ul>
-                <li>Strategy: <code id="strategy">{process.env.CSRF_STRATEGY ?? 'signed-double-submit'}</code></li>
-                <li>Session binding: <code>{process.env.CSRF_SESSION_BINDING === 'true' ? 'on' : 'off'}</code></li>
-                <li>Token expiry: <code>{process.env.CSRF_TOKEN_EXPIRY ?? '3600'}s</code></li>
+                <li>Strategy: <code id="strategy">{strategy}</code></li>
+                <li>Session binding: <code>{sessionBinding ? 'on' : 'off'}</code></li>
+                <li>Token expiry: <code>{tokenExpiry}s</code></li>
                 <li>Session: <code id="session">{session ?? 'anonymous'}</code></li>
                 <li>Counter: <code id="count">{getCount()}</code></li>
             </ul>
@@ -40,7 +41,7 @@ export default async function Home() {
                 <a href="/fetch">fetch page</a> (<code>csrfFetch</code>) or the{' '}
                 <a href="/actions">server actions page</a> to increment the counter.
                 The <a href="/attacker">attacker page</a> posts without a token; open it from a
-                different origin (for example <code>http://127.0.0.1:3000/attacker</code>) to see
+                different origin (for example <code>{ATTACKER_ORIGIN}/attacker</code>) to see
                 origin checks reject it.
             </p>
         </main>
