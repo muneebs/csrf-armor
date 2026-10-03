@@ -1,5 +1,23 @@
 # @csrf-armor/core
 
+## 1.3.0
+
+### Minor Changes
+
+- [#98](https://github.com/muneebs/csrf-armor/pull/98) [`793c1d2`](https://github.com/muneebs/csrf-armor/commit/793c1d2def16cfef18da279960f80f084e375a4a) Thanks [@muneebs](https://github.com/muneebs)! - Add opt-in session binding through a new `getSessionId(csrfRequest, frameworkRequest)` config option. When it is set, the returned session identifier is mixed into the HMAC of `signed-token` and `hybrid` tokens and of the `signed-double-submit` server cookie. A token or cookie pair issued in one session then fails in any other, which blocks pairs planted by a sibling subdomain and tokens copied from another user. Anonymous requests bind to an empty session, so tokens are reissued on the next safe request after login. Without the option, tokens are signed exactly as before.
+  
+  `signUnsignedToken`, `verifySignedToken`, `generateSignedToken`, `signNonceWithExpiry`, `parseSignedToken`, `validateSignedToken`, `validateSignedDoubleSubmit` and `validateRequest` accept an optional trailing session-context argument.
+  
+  Express and Next.js users pass `getSessionId` in their middleware config. Nuxt users register it with `defineCsrfSessionResolver()` from a Nitro plugin (see `@csrf-armor/nuxt` 1.2.0), because `runtimeConfig` cannot hold functions.
+
+### Patch Changes
+
+- [#94](https://github.com/muneebs/csrf-armor/pull/94) [`da4c926`](https://github.com/muneebs/csrf-armor/commit/da4c926fc810c8c6d5c1cdd1b21919bfd15d325d) Thanks [@muneebs](https://github.com/muneebs)! - Match `skipContentTypes` against the request's parsed media type instead of searching the whole Content-Type header. A header such as `application/x-www-form-urlencoded; x=text/plain` no longer matches a `text/plain` exemption. Matching ignores case and parameters such as `charset`, but configured values must now be full media types: partial values such as `json` or `text/` no longer match.
+
+- [#97](https://github.com/muneebs/csrf-armor/pull/97) [`704f82d`](https://github.com/muneebs/csrf-armor/commit/704f82d0f8cf3d63d7aaf51af49c3d211c038add) Thanks [@muneebs](https://github.com/muneebs)! - Enforce `token.expiry` for the `signed-double-submit` strategy on the server. Its server cookie is now signed as `{expiration}.{nonce}.{signature}` and checked with `parseSignedToken`, so an expired pair is rejected even if the browser still sends it. Previously the signature covered only the nonce, so a pair stayed valid for as long as the secret was unchanged. Safe-method requests reissue the pair when it is close to expiry, using `token.reissueThreshold`. Server cookies issued before this release have no expiry and are rejected: clients get a new pair on their next GET, HEAD or OPTIONS request. The client token format does not change. Adds the `signNonceWithExpiry` helper.
+
+- [#91](https://github.com/muneebs/csrf-armor/pull/91) [`1400de7`](https://github.com/muneebs/csrf-armor/commit/1400de7c3b21c2425808d7a1164ddee75664f0f0) Thanks [@muneebs](https://github.com/muneebs)! - Require signed-token and hybrid submissions to match the incoming CSRF cookie as well as passing signature and expiry checks. Cookie-less and cross-browser token submissions are rejected; clients must use the current token after cookie rotation. Preserve case-sensitive Express cookie names so custom names remain usable.
+
 ## 1.2.4
 
 ### Patch Changes
