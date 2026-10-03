@@ -163,11 +163,15 @@ app.get('/', (req, res) => {
 app.use((err, req, res, next) => {
   // Sanitize inputs for logging to prevent log injection
   const sanitizedMessage = err.message
-      ? String(err.message).replace(/[\n\r]/g, ' ')
-      : 'Unknown error';
+    ? String(err.message).replace(/[\n\r]/g, ' ')
+    : 'Unknown error';
   const sanitizedPath = req.path
-      ? encodeURIComponent(String(req.path).replace(/[\n\r]/g, '').replace(/[^a-zA-Z0-9_-]/g, ''))
-      : 'Unknown path';
+    ? encodeURIComponent(
+        String(req.path)
+          .replace(/[\n\r]/g, '')
+          .replace(/[^a-zA-Z0-9_-]/g, '')
+      )
+    : 'Unknown path';
 
   if (err.code === 'CSRF_VERIFICATION_ERROR') {
     // Safe logging with sanitized values
@@ -179,10 +183,10 @@ app.use((err, req, res, next) => {
 
     // Return 403 Forbidden for CSRF errors
     res
-        .status(403)
-        .send(
-            `CSRF token validation failed for path ${safePath}: ${safeMessage} <br><a href="/">Try another strategy</a>`
-        );
+      .status(403)
+      .send(
+        `CSRF token validation failed for path ${safePath}: ${safeMessage} <br><a href="/">Try another strategy</a>`
+      );
   } else {
     // For other errors, log them and send a generic error response
     console.error('Server Error:', sanitizedMessage);
@@ -191,7 +195,7 @@ app.use((err, req, res, next) => {
     }
     res.status(500).send('Something broke!');
   }
-})
+});
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);

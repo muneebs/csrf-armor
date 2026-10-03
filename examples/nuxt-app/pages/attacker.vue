@@ -2,12 +2,12 @@
 useSeoMeta({
   title: 'Attacker Page',
   description: 'Forged cross-site requests that CSRF Armor should reject.',
-})
+});
 
 // Must match an origin the app is served from. Open this page from a
 // different origin (http://[::1]:3000/attacker) so the browser sends a
 // foreign Origin header, as a real attacker site would.
-const target = 'http://localhost:3000/api/submit'
+const target = 'http://localhost:3000/api/submit';
 </script>
 
 <template>
