@@ -8,13 +8,10 @@ import {StrategyTests} from './strategy-tests';
 
 export const dynamic = 'force-dynamic';
 
-// The middleware protects /demo/<strategy> (including server action posts to
-// it) and /api/demo/<strategy> with that strategy. Its token lives in the
-// csrf-<strategy> cookie, so the tests get their own CsrfProvider for it.
-export default async function StrategyDemoPage({params, searchParams}: {
+export default async function StrategyDemoPage({params, searchParams}: Readonly<{
     params: Promise<{strategy: string}>;
     searchParams: Promise<{submitted?: string}>;
-}) {
+}>) {
     const {strategy} = await params;
     if (!isStrategy(strategy)) notFound();
     const {submitted} = await searchParams;

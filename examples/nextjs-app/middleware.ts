@@ -10,7 +10,6 @@ if (process.env.NODE_ENV === 'production' && !process.env.CSRF_SECRET) {
     throw new Error('CSRF_SECRET environment variable is required in production');
 }
 
-// Dev-only fallback. Never ship a hardcoded secret.
 const secret = process.env.CSRF_SECRET ?? 'dev-only-secret-change-me-32-chars-minimum';
 const cookie = {
     secure: process.env.NODE_ENV === 'production',
@@ -23,15 +22,11 @@ const csrfProtect = createCsrfMiddleware({
     token: {expiry: tokenExpiry},
     cookie: {...cookie, name: APP_COOKIE_NAME},
     allowedOrigins,
-    // Bind signed tokens to the (fake) login session. Real apps should return
-    // a server-side session id, never a value the client can choose.
     getSessionId: sessionBinding
         ? (_csrfRequest, req) => (req as NextRequest).cookies.get(SESSION_COOKIE)?.value
         : undefined,
 });
 
-// One protector per /demo/<strategy> page, each with its own cookie. A real
-// app would pick a single strategy.
 const demoProtectors = new Map<string, typeof csrfProtect>(
     STRATEGIES.map((s) => [
         s,

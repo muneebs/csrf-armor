@@ -1,8 +1,8 @@
 import {FormTest} from '../csrf-tests';
 
-export default async function FormPage({searchParams}: {
+export default async function FormPage({searchParams}: Readonly<{
     searchParams: Promise<{submitted?: string}>;
-}) {
+}>) {
     const {submitted} = await searchParams;
 
     return (

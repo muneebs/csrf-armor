@@ -2,9 +2,7 @@
 import {useCsrf} from '@csrf-armor/nextjs/client';
 import {useState} from 'react';
 
-// A plain HTML form post. The middleware reads the token from the csrf_token
-// form field. The route handler redirects back with ?submitted=form.
-export function FormTest({endpoint, submitted}: {endpoint: string; submitted: boolean}) {
+export function FormTest({endpoint, submitted}: Readonly<{endpoint: string; submitted: boolean}>) {
     const {csrfToken} = useCsrf();
 
     return (
@@ -18,8 +16,7 @@ export function FormTest({endpoint, submitted}: {endpoint: string; submitted: bo
     );
 }
 
-// csrfFetch sends the token in the x-csrf-token header.
-export function FetchTest({endpoint}: {endpoint: string}) {
+export function FetchTest({endpoint}: Readonly<{endpoint: string}>) {
     const {csrfToken, csrfFetch} = useCsrf();
     const [result, setResult] = useState('');
 

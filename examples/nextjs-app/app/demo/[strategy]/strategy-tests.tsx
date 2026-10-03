@@ -4,25 +4,22 @@ import {useState} from 'react';
 import {FetchTest, FormTest} from '../../csrf-tests';
 import {incrementForDemo} from './actions';
 
-export function StrategyTests({strategy, formSubmitted, attackerUrl}: {
+export function StrategyTests({strategy, formSubmitted, attackerUrl}: Readonly<{
     strategy: string;
     formSubmitted: boolean;
     attackerUrl: string;
-}) {
+}>) {
     const {csrfToken, updateToken} = useCsrf();
     const [actionResult, setActionResult] = useState('');
     const endpoint = `/api/demo/${strategy}`;
 
     const runAction = async (formData: FormData) => {
         try {
-            // Pass formData through: it carries the csrf_token field the
-            // middleware checks.
             const count = await incrementForDemo(strategy, formData);
             setActionResult(`ok, count ${count}`);
         } catch {
             setActionResult('rejected');
         }
-        // The action response rotated the CSRF cookie; pick up the new token.
         updateToken();
     };
 

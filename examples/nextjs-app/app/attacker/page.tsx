@@ -3,12 +3,8 @@ import {STRATEGIES, isStrategy} from '../../lib/strategies';
 
 export const dynamic = 'force-dynamic';
 
-// Forged cross-site form posts. Open this page from a different origin than
-// the target (for example http://127.0.0.1:3000/attacker) so the browser sends
-// a foreign Origin header. It needs no client JavaScript.
-// ?strategy=<name> shows only that strategy's forms.
 export default async function AttackerPage({searchParams}: Readonly<{
-  searchParams: Promise<{ strategy?: string }>;
+    searchParams: Promise<{strategy?: string}>;
 }>) {
     const origin = APP_ORIGIN;
     const {strategy} = await searchParams;

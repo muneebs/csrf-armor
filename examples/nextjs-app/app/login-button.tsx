@@ -1,7 +1,6 @@
 'use client';
 import {useCsrf} from '@csrf-armor/nextjs/client';
 
-// Login is a state-changing POST, so it needs a CSRF token too.
 export function LoginButton() {
     const {csrfToken, csrfFetch} = useCsrf();
 
