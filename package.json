@@ -47,13 +47,13 @@
     "pnpm": ">=8.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "@changesets/changelog-github": "^1.0.0",
-    "@changesets/cli": "^3.0.1",
-    "@types/node": "^26.4.0",
+    "@biomejs/biome": "^2.5.14",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
+    "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.1.11",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
