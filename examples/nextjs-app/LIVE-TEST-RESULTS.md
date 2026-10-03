@@ -9,6 +9,28 @@ Evidence for each case is the HTTP status, the counter before and after
 (read from `GET /api/counter`), and the `reason` that `middleware.ts` logs for
 every rejected request.
 
+The full suite was rerun on commit `43d93e5`, which includes the adapter fixes,
+with the same results. In one part of the rerun another browser was using the
+app at the same time, so the counter values there are unreliable. For that
+part, the status codes and logged reasons are the evidence.
+
+## Strategy demo pages (`/demo/<strategy>`)
+
+Each strategy page has four tests. All five pages ran on one dev server, each
+with its own protector and cookie.
+
+| Strategy | Form | Fetch | Server action | Attacker (no token / guessed token) | Same-origin fetch, no token |
+|---|---|---|---|---|---|
+| `double-submit` | PASS: 303 → `submitted` | PASS: 200 | PASS: ok, then fetch 200 again | PASS: 403 / 403 (`No CSRF cookie found`) | PASS: 403 |
+| `signed-double-submit` | PASS | PASS: 200 twice | PASS: ok twice, then fetch 200 | PASS: 403 / 403 (`Missing CSRF cookies`) | n/a |
+| `signed-token` | PASS | PASS: 200 | PASS: ok, then fetch 200 | PASS: 403 / 403 (`No CSRF token provided` / `No CSRF cookie found`) | PASS: 403 |
+| `origin-check` | PASS | PASS: 200 | PASS: ok | PASS: 403 / 403 (`Origin "http://127.0.0.1:3000" is not allowed`) | 200, as designed (no token check) |
+| `hybrid` | PASS | PASS: 200 | PASS: ok, then fetch 200 | PASS: 403 / 403 (`Origin "http://127.0.0.1:3000" is not allowed`) | PASS: 403 (`No CSRF token provided`) |
+
+Fetch and server action requests alternated on each page. Every request
+rotates the token, and the page's `CsrfProvider` picked up the new one each
+time, so none of them failed.
+
 ## Method
 
 - **Legitimate (fetch):** `POST /api/counter` with the `csrf-token` cookie
@@ -92,6 +114,10 @@ fix:
 - For `signed-token` and `hybrid`, a tampered header fails the cookie-match
   check before the signature check. The extra cookie-and-header run confirms
   the signature check also rejects it.
+- `double-submit` issues a new token on every GET, so a form that is already
+  open stops working after any other GET request. The rerun hit this when a
+  counter read ran between loading `/form` and submitting it, which gave a
+  403 `Token mismatch`. Without that read, the form passed.
 - Any safe request (including `GET /api/counter`) can reissue tokens, and
   every unsafe request rotates them. Tests that tamper with cookies therefore
   read the counter before tampering, not between tampering and the POST.
