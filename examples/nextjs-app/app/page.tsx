@@ -57,9 +57,8 @@ export default async function Home() {
         Use the <a href="/form">form page</a> (plain HTML form post), the{' '}
         <a href="/fetch">fetch page</a> (<code>csrfFetch</code>) or the{' '}
         <a href="/actions">server actions page</a> to increment the counter. The{' '}
-        <a href="/attacker">attacker page</a> posts without a token; open it
-        from a different origin (for example{' '}
-        <code>{ATTACKER_ORIGIN}/attacker</code>) to see origin checks reject it.
+        <a href={`${ATTACKER_ORIGIN}/attacker`}>attacker page</a> posts from a
+        different origin without a token, so origin checks reject it.
       </p>
     </main>
   );
