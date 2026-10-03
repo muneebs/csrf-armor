@@ -1,9 +1,5 @@
 import { SAFE_METHODS } from './constants.js';
-import {
-  parseSignedToken,
-  timingSafeEqual,
-  verifySignedToken,
-} from './crypto.js';
+import { parseSignedToken, timingSafeEqual } from './crypto.js';
 import { OriginMismatchError } from './errors.js';
 import type {
   CsrfRequest,
@@ -162,8 +158,8 @@ export async function validateSignedDoubleSubmit(
   }
 
   try {
-    // 1. Verify the server cookie signature
-    const verifiedUnsignedToken = await verifySignedToken(
+    // 1. Verify the server cookie signature and expiry
+    const { nonce: verifiedUnsignedToken } = await parseSignedToken(
       signedCookieToken,
       config.secret
     );

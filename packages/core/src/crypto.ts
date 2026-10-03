@@ -145,10 +145,30 @@ export async function generateSignedToken(
   secret: string,
   expirySeconds: number
 ): Promise<string> {
-  const timestamp = Math.floor(Date.now() / 1000);
-  const exp = timestamp + expirySeconds;
-  const nonce = generateNonce();
+  return signNonceWithExpiry(generateNonce(), secret, expirySeconds);
+}
 
+/**
+ * Signs a caller-supplied nonce together with an expiration timestamp.
+ *
+ * Produces the same `{expiration}.{nonce}.{signature}` format as
+ * {@link generateSignedToken}, so the result is verified with
+ * {@link parseSignedToken}, which enforces both the signature and the expiry.
+ * The signed-double-submit strategy uses this for its server cookie so the
+ * configured `token.expiry` is enforced server-side.
+ *
+ * @public
+ * @param nonce - Nonce to bind into the signed value (must not contain `.`)
+ * @param secret - Secret key for HMAC signing
+ * @param expirySeconds - Validity duration in seconds from now
+ * @returns Promise resolving to the signed, expiring token
+ */
+export async function signNonceWithExpiry(
+  nonce: string,
+  secret: string,
+  expirySeconds: number
+): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + expirySeconds;
   const payload = `${exp}.${nonce}`;
   const signature = await signPayload(payload, secret);
 

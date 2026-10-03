@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { CsrfProtection, createCsrfProtection } from '../src/csrf.js';
 import type {
   CsrfAdapter,
@@ -483,8 +483,50 @@ describe('CsrfProtection – token generation shapes', () => {
     expect(cookies.has('csrf-token-server')).toBe(true);
 
     const serverCookie = cookies.get('csrf-token-server')!;
-    // Signed token has exactly one dot: {unsignedToken}.{signature}
-    expect(serverCookie.value.split('.').length).toBe(2);
+    // Signed server cookie: {expiration}.{unsignedToken}.{signature}
+    const [exp, nonce, signature] = serverCookie.value.split('.');
+    expect(serverCookie.value.split('.').length).toBe(3);
+    expect(nonce).toBe(result.token);
+    expect(Number(exp)).toBeGreaterThan(Math.floor(Date.now() / 1000));
+    expect(signature).toMatch(/^[a-f0-9]+$/);
+  });
+
+  it('signed-double-submit: rejects a pair once token.expiry has passed', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'signed-double-submit',
+      token: { expiry: 60 },
+    });
+
+    const getResult = await csrf.protect(makeRequest({ method: 'GET' }), {});
+    const csrfResponse = (getResult.response as Record<string, unknown>)
+      .csrfResponse as CsrfResponse;
+    const cookies = csrfResponse.cookies as Map<string, { value: string }>;
+    const clientToken = getResult.token!;
+    const serverToken = cookies.get('csrf-token-server')!.value;
+    const post = () =>
+      csrf.protect(
+        makeRequest({
+          method: 'POST',
+          headers: new Map([['x-csrf-token', clientToken]]),
+          cookies: new Map([
+            ['csrf-token', clientToken],
+            ['csrf-token-server', serverToken],
+          ]),
+        }),
+        {}
+      );
+
+    expect((await post()).success).toBe(true);
+
+    vi.useFakeTimers({ now: Date.now() + 61_000 });
+    try {
+      const expired = await post();
+      expect(expired.success).toBe(false);
+      expect(expired.reason).toBe('CSRF token has expired');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('signed-token: generates a signed token with dots (3 parts)', async () => {
