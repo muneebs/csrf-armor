@@ -1,5 +1,15 @@
 # @csrf-armor/express
 
+## 1.2.5
+
+### Patch Changes
+
+- [#93](https://github.com/muneebs/csrf-armor/pull/93) [`9fb027c`](https://github.com/muneebs/csrf-armor/commit/9fb027c14706b34a867d566b5be1a4c96334936a) Thanks [@muneebs](https://github.com/muneebs)! - Pass CSRF validation failures and unexpected errors to `next(error)` instead of rejecting the middleware promise. Express 4 ignores rejected middleware promises, so an invalid request could previously cause an unhandled rejection and stop the process. Error handlers that check `err.code === 'CSRF_VERIFICATION_ERROR'` keep working.
+
+- [#91](https://github.com/muneebs/csrf-armor/pull/91) [`1400de7`](https://github.com/muneebs/csrf-armor/commit/1400de7c3b21c2425808d7a1164ddee75664f0f0) Thanks [@muneebs](https://github.com/muneebs)! - Require signed-token and hybrid submissions to match the incoming CSRF cookie as well as passing signature and expiry checks. Cookie-less and cross-browser token submissions are rejected; clients must use the current token after cookie rotation. Preserve case-sensitive Express cookie names so custom names remain usable.
+- Updated dependencies [[`da4c926`](https://github.com/muneebs/csrf-armor/commit/da4c926fc810c8c6d5c1cdd1b21919bfd15d325d), [`793c1d2`](https://github.com/muneebs/csrf-armor/commit/793c1d2def16cfef18da279960f80f084e375a4a), [`704f82d`](https://github.com/muneebs/csrf-armor/commit/704f82d0f8cf3d63d7aaf51af49c3d211c038add), [`1400de7`](https://github.com/muneebs/csrf-armor/commit/1400de7c3b21c2425808d7a1164ddee75664f0f0)]:
+  - @csrf-armor/core@1.3.0
+
 ## 1.2.4
 
 ### Patch Changes

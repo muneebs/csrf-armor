@@ -1,6 +1,6 @@
 {
   "name": "csrf-armor-express-example",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Example Express.js app using @csrf-armor/express",
   "type": "module",
   "main": "app.js",

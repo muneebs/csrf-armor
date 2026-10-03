@@ -1,5 +1,13 @@
 # @csrf-armor/nextjs
 
+## 1.4.6
+
+### Patch Changes
+
+- [#96](https://github.com/muneebs/csrf-armor/pull/96) [`1f4d676`](https://github.com/muneebs/csrf-armor/commit/1f4d6764f8058134da58731e0c370da25e5a5ce3) Thanks [@muneebs](https://github.com/muneebs)! - Fix two documented middleware examples that let rejected requests through. The `createCsrfMiddleware` JSDoc example ignored the result, and the README "Security Headers" example returned `result.response` on failure. Both now return a 403 when `result.success` is false. The JSDoc now states that callers must block failed checks themselves, because `result.response` is still the continue response when validation fails.
+- Updated dependencies [[`da4c926`](https://github.com/muneebs/csrf-armor/commit/da4c926fc810c8c6d5c1cdd1b21919bfd15d325d), [`793c1d2`](https://github.com/muneebs/csrf-armor/commit/793c1d2def16cfef18da279960f80f084e375a4a), [`704f82d`](https://github.com/muneebs/csrf-armor/commit/704f82d0f8cf3d63d7aaf51af49c3d211c038add), [`1400de7`](https://github.com/muneebs/csrf-armor/commit/1400de7c3b21c2425808d7a1164ddee75664f0f0)]:
+  - @csrf-armor/core@1.3.0
+
 ## 1.4.5
 
 ### Patch Changes

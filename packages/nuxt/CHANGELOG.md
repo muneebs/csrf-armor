@@ -1,5 +1,17 @@
 # @csrf-armor/nuxt
 
+## 1.2.0
+
+### Minor Changes
+
+- [#99](https://github.com/muneebs/csrf-armor/pull/99) [`c7b0325`](https://github.com/muneebs/csrf-armor/commit/c7b0325132a0cef9450b24db6a430f12a4a5dba8) Thanks [@muneebs](https://github.com/muneebs)! - Add session binding for Nuxt. Register a resolver with `defineCsrfSessionResolver(event => sessionId)` from a Nitro plugin. It is auto-imported in server code and also exported from `@csrf-armor/nuxt/server`. The middleware then passes it to core as `getSessionId`, so signed tokens and signed-double-submit cookie pairs only validate in the session they were issued to. Without a resolver, behaviour is unchanged. Setting the new `sessionBinding: true` module option makes a missing resolver fail closed (every request returns 500) instead of silently leaving tokens unbound.
+
+### Patch Changes
+
+- [#95](https://github.com/muneebs/csrf-armor/pull/95) [`f26aafe`](https://github.com/muneebs/csrf-armor/commit/f26aafeeeda9c4772a34625fe81ed53b7f8d7e61) Thanks [@muneebs](https://github.com/muneebs)! - Cap the request body the CSRF middleware reads while looking for a body-submitted token at 100 KiB by default. Bodies with a larger `Content-Length`, or that stream past the cap, are not buffered and fail validation with 403. Previously the whole body was buffered with no limit before the request was rejected. `NuxtAdapter` now accepts `{ maxBodySize }` to change the cap. Tokens sent in the header or query string are not affected.
+- Updated dependencies [[`da4c926`](https://github.com/muneebs/csrf-armor/commit/da4c926fc810c8c6d5c1cdd1b21919bfd15d325d), [`793c1d2`](https://github.com/muneebs/csrf-armor/commit/793c1d2def16cfef18da279960f80f084e375a4a), [`704f82d`](https://github.com/muneebs/csrf-armor/commit/704f82d0f8cf3d63d7aaf51af49c3d211c038add), [`1400de7`](https://github.com/muneebs/csrf-armor/commit/1400de7c3b21c2425808d7a1164ddee75664f0f0)]:
+  - @csrf-armor/core@1.3.0
+
 ## 1.1.3
 
 ### Patch Changes
