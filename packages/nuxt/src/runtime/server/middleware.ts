@@ -3,6 +3,7 @@ import type { H3Event } from 'h3';
 // @ts-expect-error - Nuxt auto-imports resolved at build time
 import { defineEventHandler, useRuntimeConfig } from '#imports';
 import { NuxtAdapter } from './adapter';
+import { getCsrfSessionResolver } from './session';
 
 /**
  * Lazily-initialized CSRF protection singleton.
@@ -14,6 +15,39 @@ let csrfProtection: ReturnType<
   typeof createCsrfProtection<H3Event, H3Event>
 > | null = null;
 
+type RuntimeCsrfConfig = CsrfConfig & { sessionBinding?: boolean };
+
+/**
+ * Builds the core config, adding session binding when a resolver has been
+ * registered with `defineCsrfSessionResolver`.
+ *
+ * Throws when `sessionBinding: true` is configured but no resolver exists, so
+ * a missing Nitro plugin fails closed instead of silently leaving tokens
+ * unbound.
+ */
+function resolveConfig(
+  config: RuntimeCsrfConfig | undefined
+): CsrfConfig | undefined {
+  const { sessionBinding, ...csrfConfig } = config ?? {};
+  const resolver = getCsrfSessionResolver();
+
+  if (!resolver) {
+    if (sessionBinding) {
+      throw new Error(
+        'CSRF Armor: sessionBinding is enabled but no session resolver is registered. ' +
+          'Call defineCsrfSessionResolver() from a Nitro plugin.'
+      );
+    }
+    return config ? csrfConfig : undefined;
+  }
+
+  return {
+    ...csrfConfig,
+    getSessionId: (_request, frameworkRequest) =>
+      resolver(frameworkRequest as H3Event),
+  };
+}
+
 /**
  * Nitro server middleware that enforces CSRF protection on all requests.
  *
@@ -23,9 +57,14 @@ let csrfProtection: ReturnType<
  */
 export default defineEventHandler(async (event: H3Event) => {
   if (!csrfProtection) {
-    const config = useRuntimeConfig().csrfArmor as CsrfConfig | undefined;
+    const config = useRuntimeConfig().csrfArmor as
+      | RuntimeCsrfConfig
+      | undefined;
     const adapter = new NuxtAdapter();
-    csrfProtection = createCsrfProtection<H3Event, H3Event>(adapter, config);
+    csrfProtection = createCsrfProtection<H3Event, H3Event>(
+      adapter,
+      resolveConfig(config)
+    );
   }
 
   const result = await csrfProtection.protect(event, event);
