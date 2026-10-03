@@ -6,4 +6,4 @@ Add opt-in session binding through a new `getSessionId(csrfRequest, frameworkReq
 
 `signUnsignedToken`, `verifySignedToken`, `generateSignedToken`, `signNonceWithExpiry`, `parseSignedToken`, `validateSignedToken`, `validateSignedDoubleSubmit` and `validateRequest` accept an optional trailing session-context argument.
 
-The Nuxt module reads its options from `runtimeConfig`, which cannot hold functions, so `getSessionId` is not available there yet. Express and Next.js users can pass it directly.
+Express and Next.js users pass `getSessionId` in their middleware config. Nuxt users register it with `defineCsrfSessionResolver()` from a Nitro plugin (see `@csrf-armor/nuxt` 1.2.0), because `runtimeConfig` cannot hold functions.
