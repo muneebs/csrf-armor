@@ -7,6 +7,29 @@ import type {
 } from '@csrf-armor/core';
 import type { NextRequest, NextResponse } from 'next/server';
 
+/**
+ * Whether a FormData key is `fieldName` as React encodes it for a server
+ * action submitted with JavaScript. React prefixes each field of a FormData
+ * argument with `_<n>_` (for example `_1_csrf_token`).
+ */
+function isServerActionField(key: string, fieldName: string): boolean {
+  return /^_\d+_/.test(key) && key.slice(key.indexOf('_', 1) + 1) === fieldName;
+}
+
+/**
+ * Parses a text/plain body as server action arguments (a JSON array).
+ * Returns null when the body is not a non-empty JSON array.
+ */
+function parseServerActionArgs(body: string): unknown[] | null {
+  if (!body.startsWith('[')) return null;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
   private readonly parsedBodyCache = new WeakMap<NextRequest, unknown>();
 
@@ -124,7 +147,10 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     // 4. Extract token from the parsed body
     if (parsedBody instanceof FormData) {
       for (const [key, value] of parsedBody.entries()) {
-        if (key === config.token.fieldName) {
+        if (
+          key === config.token.fieldName ||
+          isServerActionField(key, config.token.fieldName)
+        ) {
           return value.toString();
         }
       }
@@ -138,6 +164,13 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
         return this.extractTokenFromServerActionArgs(parsedBody, config);
       }
     } else if (typeof parsedBody === 'string') {
+      // Server actions called from client code send their arguments as a
+      // JSON array with a text/plain content type.
+      const actionArgs = parseServerActionArgs(parsedBody);
+      if (actionArgs) {
+        return this.extractTokenFromServerActionArgs(actionArgs, config);
+      }
+
       try {
         // Try to parse as URL-encoded form data
         const params = new URLSearchParams(parsedBody);

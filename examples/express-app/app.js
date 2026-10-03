@@ -155,6 +155,7 @@ app.get('/', (req, res) => {
     <h1>CSRF Armor Express - Strategy Demo</h1>
     <p>Select a CSRF protection strategy to test:</p>
     <ul>${links}</ul>
+    <p>Try the <a href="http://localhost:${attackerPort}/">attacker page</a> to see forged requests rejected.</p>
   `);
 });
 
@@ -195,4 +196,42 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
   console.log('Visit http://localhost:3000 to see strategy demos.');
+});
+
+// A separate "attacker" site on another port. It is a different origin but
+// the same site as the app, so the browser still sends the app's SameSite=Lax
+// CSRF cookies with these forged posts. Only the token or origin check stops them.
+const attackerPort = 3001;
+const attacker = express();
+
+attacker.get('/', (req, res) => {
+  const forms = strategies
+    .map((s) => {
+      const safeStrategy = escapeHtml(s);
+      const target = `http://localhost:${port}/submit/${safeStrategy}`;
+      return `
+        <h2><code>${safeStrategy}</code></h2>
+        <form action="${target}" method="POST">
+          <input type="hidden" name="data" value="forged without a token">
+          <button type="submit" id="forge-${safeStrategy}">Send forged request (no token)</button>
+        </form>
+        <form action="${target}" method="POST">
+          <input type="hidden" name="data" value="forged with a guessed token">
+          <input type="hidden" name="${escapeHtml(commonConfig.token.fieldName)}" value="attacker-guessed-token">
+          <button type="submit" id="forge-guessed-${safeStrategy}">Send forged request (guessed token)</button>
+        </form>`;
+    })
+    .join('');
+
+  res.send(`
+    <h1>Attacker page</h1>
+    <p>Served from <code>http://localhost:${attackerPort}</code>. Each form posts to the demo app on
+    port ${port} the way a malicious site would. Every submission should fail with a 403.</p>
+    <p>Visit a <a href="http://localhost:${port}/">demo page</a> first so your browser has CSRF cookies.</p>
+    ${forms}
+  `);
+});
+
+attacker.listen(attackerPort, () => {
+  console.log(`Attacker page listening at http://localhost:${attackerPort}`);
 });

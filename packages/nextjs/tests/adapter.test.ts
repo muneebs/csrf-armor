@@ -395,6 +395,84 @@ describe('NextjsAdapter', () => {
       expect(token).toBe('body-token');
     });
 
+    describe('server actions', () => {
+      const config = {
+        token: {
+          headerName: 'x-csrf-token',
+          fieldName: 'csrf_token',
+        },
+      } as RequiredCsrfConfig;
+
+      it('should extract the token from a form action submitted with JavaScript', async () => {
+        // React prefixes FormData argument fields with `_<n>_`
+        const formData = new FormData();
+        formData.append('_1_$ACTION_ID_4001d4f9', '');
+        formData.append('_1_csrf_token', 'action-token');
+        formData.append('0', '["$K1"]');
+
+        const request: CsrfRequest = {
+          method: 'POST',
+          url: 'http://localhost/actions',
+          headers: new Headers({
+            'content-type': 'multipart/form-data; boundary=x',
+            'next-action': '4001d4f9',
+          }),
+          cookies: new Map(),
+          body: { formData: vi.fn().mockResolvedValue(formData) },
+        };
+
+        const token = await adapter.getTokenFromRequest(request, config);
+        expect(token).toBe('action-token');
+      });
+
+      it('should not accept a field that only ends with the field name', async () => {
+        const formData = new FormData();
+        formData.append('x_csrf_token', 'wrong-field');
+        formData.append('_1_other_csrf_token', 'wrong-field');
+
+        const request: CsrfRequest = {
+          method: 'POST',
+          url: 'http://localhost/actions',
+          headers: new Headers({ 'content-type': 'multipart/form-data' }),
+          cookies: new Map(),
+          body: { formData: vi.fn().mockResolvedValue(formData) },
+        };
+
+        const token = await adapter.getTokenFromRequest(request, config);
+        expect(token).toBeUndefined();
+      });
+
+      it('should extract the token from server action arguments sent as text/plain', async () => {
+        // Calling an action from client code sends its arguments as JSON text
+        const request: CsrfRequest = {
+          method: 'POST',
+          url: 'http://localhost/actions',
+          headers: new Headers({
+            'content-type': 'text/plain;charset=UTF-8',
+            'next-action': '4001d4f9',
+          }),
+          cookies: new Map(),
+          body: { text: vi.fn().mockResolvedValue('["action-token",{"n":1}]') },
+        };
+
+        const token = await adapter.getTokenFromRequest(request, config);
+        expect(token).toBe('action-token');
+      });
+
+      it('should still read URL-encoded text/plain bodies', async () => {
+        const request: CsrfRequest = {
+          method: 'POST',
+          url: 'http://localhost/api',
+          headers: new Headers({ 'content-type': 'text/plain' }),
+          cookies: new Map(),
+          body: { text: vi.fn().mockResolvedValue('csrf_token=text-token') },
+        };
+
+        const token = await adapter.getTokenFromRequest(request, config);
+        expect(token).toBe('text-token');
+      });
+    });
+
     it('should return undefined when no token is found', async () => {
       // Create mock NextRequest with no token
       const mockNextRequest = {

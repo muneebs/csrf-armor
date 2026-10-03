@@ -1,0 +1,27 @@
+import {cookies} from 'next/headers';
+import {getCount} from '../../lib/counter';
+import {incrementCounter} from './actions';
+
+export const dynamic = 'force-dynamic';
+
+// A server component: no useCsrf. The middleware has already set the
+// csrf-token cookie for this request, so read the token from it and put it in
+// a hidden field.
+export default async function ActionsPage() {
+    const csrfToken = (await cookies()).get('csrf-token')?.value ?? '';
+
+    return (
+        <main>
+            <h1>Server actions</h1>
+            <p>
+                A server component with a server action. Server actions are POSTs, so the
+                middleware checks the <code>csrf_token</code> field before the action runs.
+            </p>
+            <p>Counter: <code id="count">{getCount()}</code></p>
+            <form action={incrementCounter}>
+                <input type="hidden" name="csrf_token" value={csrfToken} />
+                <button type="submit" id="form-action">Increment with a server action</button>
+            </form>
+        </main>
+    );
+}

@@ -22,6 +22,11 @@ const strategies = [
         <NuxtLink :to="`/demo/${strategy}`">{{ strategy }}</NuxtLink>
       </li>
     </ul>
+    <p>
+      Try the <NuxtLink to="/attacker">attacker page</NuxtLink> from another
+      origin (<code>http://[::1]:3000/attacker</code>) to see forged
+      requests rejected.
+    </p>
   </div>
 </template>
 
