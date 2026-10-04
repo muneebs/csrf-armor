@@ -8,6 +8,26 @@ import type {
 } from '@csrf-armor/core';
 import type { H3Event } from 'h3';
 
+/**
+ * Strips only spaces and tabs (RFC 6265 whitespace) from both ends.
+ *
+ * `String.prototype.trim()` must not be used for cookie names: it also strips
+ * Unicode whitespace such as U+00A0 and U+2000. Browsers treat a cookie named
+ * `__Host-x` with a leading U+00A0 as an ordinary, unprefixed cookie that a
+ * sibling subdomain can set, so trimming it here would let it pass as `__Host-x`.
+ */
+function trimCookieWhitespace(input: string): string {
+  let start = 0;
+  let end = input.length;
+  while (start < end && (input[start] === ' ' || input[start] === '\t')) {
+    start++;
+  }
+  while (end > start && (input[end - 1] === ' ' || input[end - 1] === '\t')) {
+    end--;
+  }
+  return input.slice(start, end);
+}
+
 /** Parses a raw Cookie header string into a name→value map. */
 function parseCookieHeader(
   cookieHeader: string | null
@@ -17,8 +37,8 @@ function parseCookieHeader(
   for (const pair of cookieHeader.split(';')) {
     const eqIndex = pair.indexOf('=');
     if (eqIndex === -1) continue;
-    const name = pair.slice(0, eqIndex).trim();
-    const value = pair.slice(eqIndex + 1).trim();
+    const name = trimCookieWhitespace(pair.slice(0, eqIndex));
+    const value = trimCookieWhitespace(pair.slice(eqIndex + 1));
     try {
       result[name] = decodeURIComponent(value);
     } catch {
