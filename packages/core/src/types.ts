@@ -17,14 +17,37 @@ export type CsrfStrategy =
   | 'hybrid';
 
 /**
+ * Cookie name prefixes that browsers enforce.
+ *
+ * - `__Host-`: the browser only accepts the cookie with `Secure`, `Path=/` and
+ *   no `Domain`, from a secure origin. Sibling subdomains and plain-HTTP
+ *   origins cannot set or overwrite it (blocks cookie tossing).
+ * - `__Secure-`: the browser only accepts the cookie with `Secure`, from a
+ *   secure origin. Sibling subdomains can still set it with `Domain`.
+ */
+export type CookiePrefix = '__Host-' | '__Secure-';
+
+/**
  * Cookie configuration options for CSRF tokens.
  *
  * These options control how CSRF tokens are stored in HTTP cookies,
  * affecting both security and compatibility with different browsers and deployments.
  */
 export interface CookieOptions {
-  /** Cookie name (default: 'csrf-token') */
+  /** Cookie name, without any prefix (default: 'csrf-token') */
   name?: string;
+  /**
+   * Browser-enforced cookie name prefix (default: none).
+   *
+   * Prepended to `name` and to the `-server` cookie used by
+   * `signed-double-submit`, e.g. `__Host-csrf-token` and
+   * `__Host-csrf-token-server`. Client-side readers must use the full name.
+   *
+   * `__Host-` requires `secure: true`, `path: '/'` and no `domain`;
+   * `__Secure-` requires `secure: true`. Invalid combinations throw a
+   * {@link CsrfConfigError} when the protection is created.
+   */
+  prefix?: CookiePrefix | false;
   /** Require HTTPS for cookie transmission (default: true) */
   secure?: boolean;
   /** Prevent client-side JavaScript access (default: false for client access) */
@@ -48,7 +71,9 @@ export interface CookieOptions {
  * @internal
  */
 export interface RequiredCookieOptions {
+  /** Full cookie name, including `prefix` when one is set */
   name: string;
+  prefix?: CookiePrefix;
   secure: boolean;
   httpOnly: boolean;
   sameSite: 'strict' | 'lax' | 'none';

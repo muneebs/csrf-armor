@@ -93,6 +93,56 @@ const csrfProtection = createCsrfProtection(adapter, {
 { strategy: 'double-submit', cookie: { secure: false } }
 ```
 
+### Cookie Prefixes (`__Host-` / `__Secure-`)
+
+Set `cookie.prefix` to have the browser enforce how the CSRF cookies are set.
+It is off by default, so existing cookie names do not change.
+
+```typescript
+createCsrfProtection(adapter, {
+  strategy: 'signed-double-submit',
+  secret: process.env.CSRF_SECRET!,
+  cookie: { prefix: '__Host-' } // cookies: __Host-csrf-token, __Host-csrf-token-server
+});
+```
+
+| Prefix | Browser accepts the cookie only if | Blocks |
+|--------|------------------------------------|--------|
+| `__Host-` (recommended) | `Secure`, `Path=/`, no `Domain`, set from HTTPS | Cookies set by sibling subdomains (`evil.example.com`) and by plain-HTTP origins |
+| `__Secure-` | `Secure`, set from HTTPS | Cookies set by plain-HTTP origins only |
+
+Why it matters: the cookie strategies (`double-submit`, `signed-double-submit`,
+`signed-token`, `hybrid`) trust that only your site wrote the CSRF cookie. An
+attacker who controls a sibling subdomain, or who can inject a cookie over HTTP,
+can otherwise plant a cookie (or a valid cookie pair from their own session)
+and submit a matching token. `__Host-` stops that. `origin-check` does not read
+the cookie and gains nothing.
+
+- **Validation:** `__Host-` with `domain`, a `path` other than `/`, or
+  `secure: false` throws a `CsrfConfigError` when the protection is created.
+  So does `__Secure-` with `secure: false`, setting `prefix` on a name that is
+  already prefixed, and an `__Http-` / `__Host-Http-` name (those require
+  `HttpOnly`, but the client cookie must stay readable).
+- **Client code** must read the full name. `resolveCookieName(config.cookie)`
+  returns it. The Nuxt module passes it to the client automatically; in
+  Next.js set `cookiePrefix` in the client config.
+- **One host, several apps:** `__Host-` forces `Path=/`, so give each app its
+  own `cookie.name`.
+- **Local development:** current Chrome and Firefox accept `Secure` and
+  prefixed cookies on `http://localhost` and `http://127.0.0.1`. Safari rejects
+  `Secure` cookies over plain HTTP, even on localhost, so the default
+  `secure: true` already fails there. Older Chrome versions also rejected
+  prefixed cookies on localhost. Leave `prefix` unset in development if your
+  browser drops the cookie.
+- **Migrating:** after enabling the prefix, the old `csrf-token` cookies are
+  ignored and new prefixed ones are issued on the next safe request. A page that
+  was already open may get one 403 on its next unsafe request until the token
+  is refreshed.
+
+If you need `domain` for cross-subdomain cookies, use `__Secure-` and enable
+session binding with `getSessionId`, which stops planted cookie pairs from
+validating in another user's session.
+
 **📚 Complete configuration options**: [Advanced Configuration Guide →](./docs/ADVANCED.md)
 
 ---
@@ -133,6 +183,14 @@ const config = {
   }
 };
 ```
+
+`domain` cannot be combined with the `__Host-` prefix. See
+[Cookie Prefixes](#cookie-prefixes-__host---__secure-).
+
+### ❓ Getting a `CsrfConfigError` at startup?
+
+The cookie options conflict with `cookie.prefix` (or a prefixed `cookie.name`).
+The error message names the option to change.
 
 ### ❓ CSRF blocking legitimate requests?
 
@@ -213,7 +271,10 @@ if (result.success) {
 ### Error Handling
 
 ```typescript
-import { TokenExpiredError, TokenInvalidError, OriginMismatchError } from '@csrf-armor/core';
+import { TokenExpiredError, TokenInvalidError, OriginMismatchError, CsrfConfigError } from '@csrf-armor/core';
+
+// Thrown by createCsrfProtection for invalid config, e.g. __Host- with a domain
+// error instanceof CsrfConfigError → error.code === 'INVALID_CONFIG'
 
 try {
   await parseSignedToken(token, secret);

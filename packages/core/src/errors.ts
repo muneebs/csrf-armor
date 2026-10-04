@@ -38,6 +38,26 @@ export class CsrfError extends Error {
 }
 
 /**
+ * Error thrown when the CSRF configuration is invalid, for example a
+ * `__Host-` cookie prefix combined with a `domain`.
+ *
+ * Thrown when the protection is created, not per request.
+ *
+ * @public
+ */
+export class CsrfConfigError extends CsrfError {
+  /**
+   * Creates a new configuration error.
+   *
+   * @param message - What is wrong with the configuration and how to fix it
+   */
+  constructor(message: string) {
+    super(message, 'INVALID_CONFIG', 500);
+    this.name = 'CsrfConfigError';
+  }
+}
+
+/**
  * Error thrown when a CSRF token has expired.
  *
  * This typically occurs when a user has a page open for longer than the

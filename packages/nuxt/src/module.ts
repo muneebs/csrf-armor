@@ -1,4 +1,5 @@
 import type { CsrfConfig } from '@csrf-armor/core';
+import { resolveCookieName } from '@csrf-armor/core';
 import {
   addImports,
   addPlugin,
@@ -12,6 +13,7 @@ import type { NuxtModule } from '@nuxt/schema';
 // Re-export core types for consumer convenience
 export type {
   CookieOptions,
+  CookiePrefix,
   CsrfConfig,
   CsrfProtectResult,
   CsrfStrategy,
@@ -94,8 +96,9 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // biome-ignore lint/complexity/useLiteralKeys: runtimeConfig uses index signatures
     nuxt.options.runtimeConfig.public['csrfArmor'] = mergeDefaults(
       {
+        // Full name including any cookie.prefix, so the client reads e.g. __Host-csrf-token
         // biome-ignore lint/complexity/useLiteralKeys: CsrfConfig uses index signatures
-        cookieName: mergedConfig['cookie']?.name ?? 'csrf-token',
+        cookieName: resolveCookieName(mergedConfig['cookie']),
         // biome-ignore lint/complexity/useLiteralKeys: CsrfConfig uses index signatures
         headerName: mergedConfig['token']?.headerName ?? 'x-csrf-token',
       },

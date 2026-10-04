@@ -476,14 +476,42 @@ const secret = fs.readFileSync('/etc/secrets/csrf-secret', 'utf8');
 ```typescript
 const productionCookieConfig = {
     name: 'csrf-token',
-    secure: true,           // HTTPS only
+    prefix: '__Host-',      // Browser rejects cookies from subdomains / HTTP
+    secure: true,           // HTTPS only (required by __Host-)
     httpOnly: false,        // Allow client access where needed
     sameSite: 'strict',     // Strictest same-site policy
-    path: '/',              // Minimize path scope
-    domain: '.yourdomain.com', // Specific domain only
+    path: '/',              // Required by __Host-
+    // no domain: host-only cookie (required by __Host-)
     maxAge: 1800           // 30 minutes maximum
 };
 ```
+
+#### Cookie Tossing and the `__Host-` Prefix
+
+`SameSite` does not stop a sibling subdomain (`evil.yourdomain.com`, a
+user-content host, a compromised marketing site) or a plain-HTTP response from
+*setting* a cookie for your site. For the cookie-based strategies that matters:
+
+| Strategy | Without a prefix, an attacker who can set cookies can… | `__Host-` helps |
+|----------|---------------------------------------------------------|-----------------|
+| `double-submit` | choose both the cookie and the submitted token | Yes, fully |
+| `signed-double-submit` | plant a valid cookie pair from their own session | Yes (session binding also helps) |
+| `signed-token` | plant their own valid signed cookie and submit it | Yes (session binding also helps) |
+| `hybrid` | the same, but the origin check still has to pass | Defence in depth |
+| `origin-check` | nothing, the cookie is not checked | No |
+
+With `cookie.prefix: '__Host-'` the browser only accepts the cookie when it is
+`Secure`, has `Path=/` and no `Domain`, and was set by a secure origin, so other
+hosts cannot write it. The library throws a `CsrfConfigError` for option
+combinations the browser would reject.
+
+Server cookie parsers must compare cookie names exactly. A parser that strips
+Unicode whitespace would read a cookie named `__Host-csrf-token` with a leading
+non-breaking space (U+00A0), which browsers treat as unprefixed, as the real one. The Express (`cookie-parser`),
+Next.js and Nuxt adapters only strip spaces and tabs.
+
+If you need `domain`, use `__Secure-` together with session binding
+(`getSessionId`).
 
 #### Cookie Security Headers
 

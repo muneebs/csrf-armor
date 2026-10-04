@@ -8,8 +8,13 @@
  * token refresh endpoints.
  */
 export interface CsrfClientConfig {
-  /** Name of the cookie containing the CSRF token (default: 'csrf-token') */
+  /** Name of the cookie containing the CSRF token, without prefix (default: 'csrf-token') */
   cookieName?: string;
+  /**
+   * Cookie name prefix. Must match `cookie.prefix` in the server config, so
+   * the client reads e.g. `__Host-csrf-token` (default: none)
+   */
+  cookiePrefix?: '__Host-' | '__Secure-' | false;
   /** Name of the header to send the CSRF token in (default: 'x-csrf-token') */
   headerName?: string;
   /** Initial token value if available (not commonly used) */
@@ -41,6 +46,9 @@ export interface CsrfClientConfig {
  *   cookieName: 'my-csrf-cookie'
  * });
  *
+ * // Server configured with cookie: { prefix: '__Host-' }
+ * const hostToken = getCsrfToken({ cookiePrefix: '__Host-' });
+ *
  * if (token) {
  *   // Use token in requests
  *   fetch('/api/data', {
@@ -52,7 +60,7 @@ export interface CsrfClientConfig {
 export function getCsrfToken(config?: CsrfClientConfig): string | null {
   if (typeof window === 'undefined') return null;
 
-  const cookieName = config?.cookieName ?? 'csrf-token';
+  const cookieName = `${config?.cookiePrefix || ''}${config?.cookieName ?? 'csrf-token'}`;
 
   // Always read from the client-accessible cookie
   // The server ensures this contains the correct token for the strategy
