@@ -1,5 +1,13 @@
 # @csrf-armor/nuxt
 
+## 1.2.1
+
+### Patch Changes
+
+- [#105](https://github.com/muneebs/csrf-armor/pull/105) [`18146d9`](https://github.com/muneebs/csrf-armor/commit/18146d91a7447147e6adc440ebeba0716e0b9977) Thanks [@muneebs](https://github.com/muneebs)! - Fix body-submitted CSRF tokens in two integrations. Next.js: server actions now pass validation. The adapter reads the token from React's prefixed form fields (`_1_csrf_token`) and from action arguments sent as `text/plain`. Nuxt: requests with a valid token in the body no longer hang. The adapter now leaves the body it reads for h3, so the route's `readBody(event)` still returns it.
+
+- [#107](https://github.com/muneebs/csrf-armor/pull/107) [`c538607`](https://github.com/muneebs/csrf-armor/commit/c5386075220f873e0c998eee8c093379d16fda6c) Thanks [@muneebs](https://github.com/muneebs)! - Stop the server-side cookie parser from stripping Unicode whitespace around cookie names and values. It used `String.prototype.trim()`, which also removes characters such as the non-breaking space (U+00A0). A sibling subdomain could set a cookie whose name is `__Host-csrf-token` preceded by a non-breaking space. Browsers treat that cookie as unprefixed, but the parser read it as `__Host-csrf-token`, defeating the `__Host-` prefix. Only spaces and tabs are stripped now, as RFC 6265 specifies. Cookies set by this library are not affected.
+
 ## 1.2.0
 
 ### Minor Changes
