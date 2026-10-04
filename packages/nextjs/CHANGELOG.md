@@ -1,5 +1,11 @@
 # @csrf-armor/nextjs
 
+## 1.4.7
+
+### Patch Changes
+
+- [#105](https://github.com/muneebs/csrf-armor/pull/105) [`18146d9`](https://github.com/muneebs/csrf-armor/commit/18146d91a7447147e6adc440ebeba0716e0b9977) Thanks [@muneebs](https://github.com/muneebs)! - Fix body-submitted CSRF tokens in two integrations. Next.js: server actions now pass validation. The adapter reads the token from React's prefixed form fields (`_1_csrf_token`) and from action arguments sent as `text/plain`. Nuxt: requests with a valid token in the body no longer hang. The adapter now leaves the body it reads for h3, so the route's `readBody(event)` still returns it.
+
 ## 1.4.6
 
 ### Patch Changes
