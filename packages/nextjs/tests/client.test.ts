@@ -9,9 +9,9 @@ vi.mock('next/navigation', () => ({
 }));
 
 import {
-  getCsrfToken,
   createCsrfHeaders,
   csrfFetch,
+  getCsrfToken,
   refreshCsrfToken,
 } from '../src/client/client.js';
 
@@ -36,6 +36,21 @@ describe('Client utilities', () => {
       document.cookie = 'my-csrf=custom-token';
       const token = getCsrfToken({ cookieName: 'my-csrf' });
       expect(token).toBe('custom-token');
+    });
+
+    it('should read the prefixed cookie when cookiePrefix is set', () => {
+      // jsdom refuses __Host- cookies over http, so stub what the browser returns
+      const spy = vi
+        .spyOn(document, 'cookie', 'get')
+        .mockReturnValue('csrf-token=unprefixed; __Host-csrf-token=host-token');
+      try {
+        expect(getCsrfToken({ cookiePrefix: '__Host-' })).toBe('host-token');
+        expect(
+          getCsrfToken({ cookiePrefix: '__Host-', cookieName: 'missing' })
+        ).toBeNull();
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it('should decode URI-encoded cookie value', () => {

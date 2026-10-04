@@ -136,7 +136,8 @@ export default defineNuxtConfig({
 
     cookie: {
       name: 'csrf-token',             // Cookie name (default: 'csrf-token')
-      secure: true,                   // HTTPS only (default: true in production)
+      prefix: '__Host-',              // Browser-enforced name prefix (default: none, see below)
+      secure: true,                   // HTTPS only (default: true)
       httpOnly: false,                // Allow client access (default: false)
       sameSite: 'lax',               // SameSite policy (default: 'lax')
       path: '/',                      // Cookie path (default: '/')
@@ -148,6 +149,20 @@ export default defineNuxtConfig({
   },
 });
 ```
+
+### Cookie Prefixes (`__Host-`)
+
+`cookie.prefix: '__Host-'` makes the browser reject CSRF cookies set by sibling
+subdomains or plain-HTTP origins (cookie tossing). It requires `secure: true`,
+`path: '/'` and no `domain`; other combinations throw a `CsrfConfigError` when
+the middleware starts. The cookies become `__Host-csrf-token` and
+`__Host-csrf-token-server`. The module passes the full name to
+`useCsrfToken` / `useCsrfFetch`, so client code needs no change.
+
+Safari rejects `Secure` (and so prefixed) cookies over `http://localhost`, so
+consider `prefix: isDev ? false : '__Host-'`. See the
+[core guide](../core/README.md#cookie-prefixes-__host---__secure-) for the
+details and the migration notes.
 
 ### Environment-Specific Configuration
 

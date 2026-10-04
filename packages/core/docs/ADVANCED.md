@@ -40,6 +40,7 @@ interface TokenOptions {
 
 interface CookieOptions {
     name?: string;            // Cookie name (default: 'csrf-token')
+    prefix?: '__Host-' | '__Secure-' | false; // Name prefix the browser enforces (default: none)
     secure?: boolean;         // HTTPS only (default: true)
     httpOnly?: boolean;       // JavaScript access (default: false)
     sameSite?: 'strict' | 'lax' | 'none'; // SameSite policy (default: 'lax')
@@ -48,6 +49,11 @@ interface CookieOptions {
     maxAge?: number;          // Max age in seconds (optional)
 }
 ```
+
+`prefix` is prepended to `name` and to the `-server` cookie. `__Host-` needs
+`secure: true`, `path: '/'` and no `domain`; `__Secure-` needs `secure: true`.
+Invalid combinations throw `CsrfConfigError` when the protection is created.
+See [Cookie Prefixes](../README.md#cookie-prefixes-__host---__secure-).
 
 ### Strategy-Specific Configuration
 
@@ -70,7 +76,8 @@ const enterpriseConfig: CsrfConfig = {
         httpOnly: false,        // Allow client access
         sameSite: 'strict',     // Strict policy for high security
         path: '/',
-        domain: '.yourdomain.com', // Cross-subdomain support
+        domain: '.yourdomain.com', // Cross-subdomain support (rules out __Host-)
+        prefix: '__Secure-',    // Browser rejects cookies set over plain HTTP
         maxAge: 1800            // Match token expiry
     },
 

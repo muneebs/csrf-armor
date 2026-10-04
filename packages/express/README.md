@@ -36,12 +36,9 @@ const csrfProtect = csrfMiddleware({
   strategy: 'signed-double-submit', // CSRF protection strategy
   secret: 'your-secret-key', // Required for signed strategies
   cookie: {
-    name: 'csrf-token',
-    options: {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict'
-    }
+    prefix: '__Host-', // Cookie becomes __Host-csrf-token (needs HTTPS, see below)
+    secure: true,
+    sameSite: 'strict'
   }
 });
 
@@ -71,6 +68,7 @@ csrfMiddleware({
   },
   cookie: {
     name: 'csrf-token',                // Cookie name
+    prefix: '__Host-',                 // Browser-enforced name prefix (default: none)
     secure: true,                      // HTTPS only
     httpOnly: false,                   // Allow client access
     sameSite: 'strict'                 // CSRF protection
@@ -79,6 +77,18 @@ csrfMiddleware({
   allowedOrigins: ['https://yourdomain.com'] // Origin allowlist
 })
 ```
+
+### Cookie Prefixes (`__Host-`)
+
+`cookie.prefix: '__Host-'` makes the browser reject CSRF cookies set by sibling
+subdomains or plain-HTTP origins (cookie tossing). It requires `secure: true`,
+`path: '/'` and no `domain`; other combinations throw a `CsrfConfigError` when
+`csrfMiddleware()` is called. Front-end code that reads the cookie must use the
+full name (`__Host-csrf-token`); `resolveCookieName(config.cookie)` from
+`@csrf-armor/core` returns it. Safari rejects `Secure` (and so prefixed)
+cookies over `http://localhost`, so you may want to enable the prefix in
+production only. See the
+[core guide](../core/README.md#cookie-prefixes-__host---__secure-).
 
 ---
 

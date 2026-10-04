@@ -442,7 +442,8 @@ interface CsrfConfig {
 
     cookie?: {
         name?: string;                    // Cookie name (default: 'csrf-token')
-        secure?: boolean;                 // Secure flag (default: true in production)
+        prefix?: '__Host-' | '__Secure-' | false; // Browser-enforced name prefix (default: none)
+        secure?: boolean;                 // Secure flag (default: true)
         httpOnly?: boolean;               // HttpOnly flag (default: false)
         sameSite?: 'strict' | 'lax' | 'none'; // SameSite (default: 'lax')
         path?: string;                    // Path (default: '/')
@@ -486,6 +487,35 @@ const csrfProtect = createCsrfMiddleware(
 );
 ```
 
+### Cookie Prefixes (`__Host-`)
+
+`cookie.prefix: '__Host-'` makes the browser reject CSRF cookies set by sibling
+subdomains or plain-HTTP origins (cookie tossing). It requires `secure: true`,
+`path: '/'` and no `domain`; other combinations throw a `CsrfConfigError` at
+startup. The cookies become `__Host-csrf-token` and `__Host-csrf-token-server`.
+
+The client reads the cookie by name, so pass the same prefix to it:
+
+```typescript
+// lib/csrf.ts — shared by middleware and client
+export const CSRF_COOKIE_PREFIX = process.env.NODE_ENV === 'production' ? '__Host-' : false;
+
+// middleware.ts
+const csrfProtect = createCsrfMiddleware({
+    strategy: 'signed-double-submit',
+    secret: process.env.CSRF_SECRET!,
+    cookie: { prefix: CSRF_COOKIE_PREFIX },
+});
+
+// app/providers.tsx
+<CsrfProvider config={{ cookiePrefix: CSRF_COOKIE_PREFIX }}>{children}</CsrfProvider>
+```
+
+Safari rejects `Secure` (and so prefixed) cookies over `http://localhost`,
+which is why the example only enables the prefix in production. See the
+[core guide](../core/README.md#cookie-prefixes-__host---__secure-) for the
+details and the migration notes.
+
 ### Path Exclusions
 
 ```typescript
@@ -517,8 +547,9 @@ interface CsrfProviderProps {
 
 interface CsrfClientConfig {
     cookieName?: string;    // Cookie name to read token from (default: 'csrf-token')
+    cookiePrefix?: '__Host-' | '__Secure-' | false; // Must match the server's cookie.prefix (default: none)
     headerName?: string;    // Header name to send token in (default: 'x-csrf-token')
-    autoRefresh?: boolean;  // Auto-refresh on focus/visibility (default: true)
+    refreshEndpoint?: string; // URL used by refreshCsrfToken (default: current pathname)
 }
 ```
 
@@ -534,8 +565,7 @@ interface CsrfClientConfig {
 ```typescript jsx
 <CsrfProvider config={{
     cookieName: 'my-csrf',
-    headerName: 'X-My-CSRF',
-    autoRefresh: true
+    headerName: 'X-My-CSRF'
 }}>
     <App/>
 </CsrfProvider>

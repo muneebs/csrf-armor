@@ -146,6 +146,7 @@ interface CsrfConfig {
   };
   cookie?: {
     name?: string;             // Cookie name (default: 'csrf-token')
+    prefix?: '__Host-' | '__Secure-' | false; // Browser-enforced name prefix (default: none)
     secure?: boolean;          // Secure flag (default: true)
     httpOnly?: boolean;        // HttpOnly flag (default: false)
     sameSite?: 'strict' | 'lax' | 'none'; // SameSite (default: 'lax')
@@ -158,6 +159,12 @@ interface CsrfConfig {
   skipContentTypes?: string[]; // Content types to skip
 }
 ```
+
+**Hardening tip:** set `cookie: { prefix: '__Host-' }` in production. The browser
+then refuses CSRF cookies set by sibling subdomains or plain-HTTP origins, which
+closes cookie-tossing attacks on the cookie-based strategies. It cannot be
+combined with `cookie.domain`. See
+[Cookie Prefixes](./packages/core/README.md#cookie-prefixes-__host---__secure-).
 
 ---
 

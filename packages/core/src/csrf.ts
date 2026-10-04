@@ -7,6 +7,7 @@ import {
   SAFE_METHODS,
   SERVER_CSRF_COOKIE_SUFFIX,
 } from './constants.js';
+import { resolveCookieName, validateCookiePrefix } from './cookie-prefix.js';
 import {
   generateNonce,
   generateSecureSecret,
@@ -148,6 +149,16 @@ function mergeConfig(
   }
   if (merged.cookie?.maxAge) {
     config.cookie.maxAge = merged.cookie.maxAge;
+  }
+
+  const prefix = merged.cookie?.prefix;
+  validateCookiePrefix({ ...config.cookie, prefix });
+  if (prefix) {
+    config.cookie.prefix = prefix;
+    config.cookie.name = resolveCookieName({
+      name: config.cookie.name,
+      prefix,
+    });
   }
 
   return config;
