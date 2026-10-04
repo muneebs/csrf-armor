@@ -26,6 +26,9 @@ interface MockH3Event {
   context: Record<string, unknown>;
 }
 
+/** Non-breaking space (U+00A0), written as a char code so it stays visible. */
+const NBSP = String.fromCharCode(0xa0);
+
 /** Creates a mock Node.js readable stream that emits the given body then ends. */
 function createMockStream(body?: string | null): Readable {
   const stream = new Readable({ read() {} });
@@ -140,6 +143,33 @@ describe('NuxtAdapter', () => {
       expect(cookiesMap.get('session-id')).toBe('test-session');
 
       expect(result.body).toBe(mockEvent);
+    });
+
+    it('should strip spaces and tabs around cookie names and values', () => {
+      const mockEvent = createMockEvent({
+        headers: { cookie: 'a=1;  csrf-token = abc\t;\tother=2' },
+      });
+
+      const cookiesMap = adapter.extractRequest(mockEvent as unknown as H3Event)
+        .cookies as Map<string, string>;
+
+      expect(cookiesMap.get('csrf-token')).toBe('abc');
+      expect(cookiesMap.get('other')).toBe('2');
+    });
+
+    it('should not strip Unicode whitespace from cookie names (prefix bypass)', () => {
+      // A sibling subdomain can set "<NBSP>__Host-csrf-token" because browsers
+      // do not treat it as __Host- prefixed. It must not be read as the real one.
+      const plantedName = `${NBSP}__Host-csrf-token`;
+      const mockEvent = createMockEvent({
+        headers: { cookie: `${plantedName}=planted` },
+      });
+
+      const cookiesMap = adapter.extractRequest(mockEvent as unknown as H3Event)
+        .cookies as Map<string, string>;
+
+      expect(cookiesMap.has('__Host-csrf-token')).toBe(false);
+      expect(cookiesMap.get(plantedName)).toBe('planted');
     });
   });
 
