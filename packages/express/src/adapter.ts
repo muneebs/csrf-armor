@@ -14,15 +14,14 @@ import type express from 'express';
  * for Express.js applications. It handles request/response transformation,
  * token extraction from various sources, and cookie/header management.
  *
+ * The package exports it as a type only; use `csrfMiddleware()`, which
+ * creates the adapter and the protection for you.
+ *
  * @example
  * ```typescript
- * import { CsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
+ * import { csrfMiddleware } from '@csrf-armor/express';
  *
- * const csrf = new CsrfProtection(new ExpressAdapter(), {
- *   secret: 'your-secret-key',
- *   strategy: 'signed-double-submit'
- * });
+ * app.use(csrfMiddleware({ secret: process.env.CSRF_SECRET }));
  * ```
  */
 export class ExpressAdapter
@@ -37,13 +36,6 @@ export class ExpressAdapter
    *
    * @param req - Express.js request object
    * @returns Normalized CSRF request object
-   *
-   * @example
-   * ```typescript
-   * const adapter = new ExpressAdapter();
-   * const csrfRequest = adapter.extractRequest(req);
-   * // csrfRequest contains normalized headers, cookies, and body
-   * ```
    */
   extractRequest(req: express.Request): CsrfRequest {
     // Create a Map for headers with proper type handling
@@ -137,15 +129,6 @@ export class ExpressAdapter
    * @param res - Express.js response object to modify
    * @param csrfResponse - CSRF response data containing headers and cookies
    * @returns The modified Express.js response object
-   *
-   * @example
-   * ```typescript
-   * const adapter = new ExpressAdapter();
-   * const modifiedResponse = adapter.applyResponse(res, {
-   *   headers: new Map([['x-csrf-token', 'abc123']]),
-   *   cookies: new Map([['csrf-token', { value: 'def456', options: { httpOnly: true } }]])
-   * });
-   * ```
    */
   applyResponse(
     res: express.Response,
@@ -180,15 +163,6 @@ export class ExpressAdapter
    * @param request - Normalized CSRF request object
    * @param config - CSRF configuration containing token field names
    * @returns The extracted token string, or undefined if not found
-   *
-   * @example
-   * ```typescript
-   * const adapter = new ExpressAdapter();
-   * const token = await adapter.getTokenFromRequest(csrfRequest, {
-   *   token: { headerName: 'X-CSRF-Token', fieldName: 'csrf_token' }
-   * });
-   * // Returns token from header, query param, or body
-   * ```
    */
   async getTokenFromRequest(
     request: CsrfRequest,
