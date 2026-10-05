@@ -111,7 +111,10 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
     if (this.parsedBodyCache.has(nextRequest)) {
       parsedBody = this.parsedBodyCache.get(nextRequest);
     } else {
+      // Compare the bare media type: parameters such as `charset` and the
+      // header's casing must not change how the body is parsed.
       const contentType = headers.get('content-type') ?? 'text/plain';
+      const mediaType = (contentType.split(';')[0] ?? '').trim().toLowerCase();
       try {
         if (nextRequest.bodyUsed) {
           console.warn(
@@ -119,16 +122,16 @@ export class NextjsAdapter implements CsrfAdapter<NextRequest, NextResponse> {
           );
           parsedBody = null;
         } else if (
-          contentType.startsWith('application/x-www-form-urlencoded') ||
-          contentType.startsWith('multipart/form-data')
+          mediaType === 'application/x-www-form-urlencoded' ||
+          mediaType === 'multipart/form-data'
         ) {
           parsedBody = await nextRequest.formData();
         } else if (
-          contentType === 'application/json' ||
-          contentType === 'application/ld+json'
+          mediaType === 'application/json' ||
+          mediaType === 'application/ld+json'
         ) {
           parsedBody = await nextRequest.json();
-        } else if (contentType.startsWith('text/plain')) {
+        } else if (mediaType === 'text/plain') {
           parsedBody = await nextRequest.text();
         } else {
           parsedBody = null;

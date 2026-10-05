@@ -144,8 +144,8 @@ export function CsrfProvider({
     updateToken();
   }, [updateToken]);
 
-  // Refresh the CSRF token when the route changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: we need the pathname to trigger a token update
+  // Refresh the CSRF token when the route changes. `pathname` isn't read in
+  // the effect; it is a dependency only so the effect re-runs on navigation.
   useEffect(() => {
     updateToken();
 

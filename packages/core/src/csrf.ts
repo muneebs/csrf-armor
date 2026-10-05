@@ -68,6 +68,10 @@ function processHeaders(
     return rawHeaders;
   }
 
+  if (rawHeaders instanceof Headers) {
+    return new Map(rawHeaders.entries());
+  }
+
   return new Map(Object.entries(rawHeaders));
 }
 
@@ -182,85 +186,36 @@ function mergeConfig(
  * @template TResponse - Framework-specific response type
  * @public
  *
+ * Express, Next.js and Nuxt users should use the matching
+ * `@csrf-armor/*` package instead; use this class directly to support
+ * another framework with your own {@link CsrfAdapter}.
+ *
  * @example
  * ```typescript
  * import { CsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
  *
- * // Create CSRF protection with Express adapter
- * const csrf = new CsrfProtection(new ExpressAdapter(), {
+ * // MyFrameworkAdapter implements CsrfAdapter<MyRequest, MyResponse>
+ * const csrf = new CsrfProtection(new MyFrameworkAdapter(), {
  *   strategy: 'signed-double-submit',
- *   secret: 'your-secret-key',
- *   token: {
- *     expiry: 3600, // 1 hour
- *     headerName: 'X-CSRF-Token',
- *     fieldName: 'csrf_token'
- *   },
- *   cookie: {
- *     name: 'csrf-token',
- *     secure: true,
- *     httpOnly: false,
- *     sameSite: 'strict'
- *   },
- *   allowedOrigins: ['https://yourdomain.com'],
- *   excludePaths: ['/api/public', '/health']
+ *   secret: process.env.CSRF_SECRET,
+ *   cookie: { sameSite: 'strict' },
+ *   excludePaths: ['/api/public', '/health'],
  * });
  *
- * // Use in middleware
- * app.use(async (req, res, next) => {
- *   try {
- *     const result = await csrf.protect(req, res);
- *     if (result.success) {
- *       req.csrfToken = result.token;
- *       next();
- *     } else {
- *       res.status(403).json({ error: result.reason });
- *     }
- *   } catch (error) {
- *     next(error);
- *   }
- * });
- * ```
- * // Basic setup with Express
- * import { CsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
- *
- * const csrf = new CsrfProtection(new ExpressAdapter(), {
- *   secret: 'your-32-character-secret-key-here',
- *   strategy: 'signed-double-submit',
- *   allowedOrigins: ['https://yourdomain.com'],
- *   excludePaths: ['/api/public']
- * });
- *
- * // In middleware
- * app.use(async (req, res, next) => {
- *   const result = await csrf.protect(req, res);
- *   if (!result.success) {
- *     return res.status(403).json({ error: 'CSRF validation failed' });
- *   }
- *   next();
- * });
+ * const result = await csrf.protect(request, response);
+ * if (!result.success) {
+ *   // Reject with 403; result.reason says why
+ * }
  * ```
  *
  * @example
  * ```typescript
- * // Advanced configuration
+ * // Hybrid: signed token plus origin check
  * const csrf = new CsrfProtection(adapter, {
  *   strategy: 'hybrid',
  *   secret: process.env.CSRF_SECRET,
- *   token: {
- *     expiry: 7200, // 2 hours
- *     headerName: 'X-Custom-CSRF-Token',
- *     fieldName: 'custom_csrf_token'
- *   },
- *   cookie: {
- *     name: 'custom-csrf',
- *     secure: true,
- *     httpOnly: true,
- *     sameSite: 'strict'
- *   },
- *   excludePaths: ['/health', '/api/webhook'],
- *   skipContentTypes: ['application/json']
+ *   allowedOrigins: ['https://yourdomain.com'],
+ *   token: { expiry: 7200 }, // 2 hours
  * });
  * ```
  */
@@ -399,7 +354,7 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
           break;
         }
       }
-    } catch (error) {
+    } catch {
       // Token invalid or expired, return null to generate new tokens
       return null;
     }
@@ -677,54 +632,28 @@ export class CsrfProtection<TRequest = unknown, TResponse = unknown> {
  * @param config - Optional CSRF configuration (uses secure defaults if not provided)
  * @returns Configured CSRF protection instance ready for use
  *
- * @example
- * ```typescript
- * import { createCsrfProtection } from '@csrf-armor/core';
- * import { ExpressAdapter } from '@csrf-armor/express';
- *
- * // Basic setup with defaults
- * const csrf = createCsrfProtection(new ExpressAdapter());
- *
- * // Custom configuration
- * const csrf = createCsrfProtection(new ExpressAdapter(), {
- *   strategy: 'signed-double-submit',
- *   secret: process.env.CSRF_SECRET,
- *   token: {
- *     expiry: 7200, // 2 hours
- *     fieldName: 'authenticity_token'
- *   },
- *   excludePaths: ['/api/public'],
- *   allowedOrigins: ['https://yourdomain.com']
- * });
- *
- * // Use in middleware
- * app.use(async (req, res, next) => {
- *   const result = await csrf.protect(req, res);
- *   if (result.success) {
- *     next();
- *   } else {
- *     res.status(403).json({ error: result.reason });
- *   }
- * });
- * ```
+ * For Express, Next.js and Nuxt, use `csrfMiddleware()` from
+ * `@csrf-armor/express`, `createCsrfMiddleware()` from `@csrf-armor/nextjs`,
+ * or the `@csrf-armor/nuxt` module, which create the protection for you.
  *
  * @example
  * ```typescript
- * // Framework-specific usage
+ * import { type CsrfAdapter, createCsrfProtection } from '@csrf-armor/core';
  *
- * // Express.js
- * import { ExpressAdapter } from '@csrf-armor/express';
- * const expressCsrf = createCsrfProtection(new ExpressAdapter(), config);
- *
- * // Next.js
- * import { NextjsAdapter } from '@csrf-armor/nextjs';
- * const nextCsrf = createCsrfProtection(new NextjsAdapter(), config);
- *
- * // Custom framework
  * class MyAdapter implements CsrfAdapter<MyRequest, MyResponse> {
- *   // Implementation...
+ *   // extractRequest, applyResponse, getTokenFromRequest
  * }
- * const customCsrf = createCsrfProtection(new MyAdapter(), config);
+ *
+ * const csrf = createCsrfProtection(new MyAdapter(), {
+ *   secret: process.env.CSRF_SECRET,
+ *   token: { fieldName: 'authenticity_token' },
+ *   excludePaths: ['/api/public'],
+ * });
+ *
+ * const result = await csrf.protect(request, response);
+ * if (!result.success) {
+ *   // Reject with 403; result.reason says why
+ * }
  * ```
  */
 export function createCsrfProtection<TRequest = unknown, TResponse = unknown>(
