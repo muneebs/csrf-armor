@@ -26,9 +26,14 @@ if [ "$#" -eq 0 ]; then
   exit 2
 fi
 
+# Each request is bounded by the time left, so a stalled transfer cannot hold
+# the verifier past the deadline. Once it has passed, no new request starts.
 has_slsa_provenance() {
-  local spec="$1" body
-  body=$(curl -sSf "https://registry.npmjs.org/-/npm/v1/attestations/${spec}" 2>/dev/null) || return 1
+  local spec="$1" remaining body
+  remaining=$((deadline - SECONDS))
+  [ "$remaining" -gt 0 ] || return 1
+  body=$(curl -sSf --max-time "$remaining" \
+    "https://registry.npmjs.org/-/npm/v1/attestations/${spec}" 2>/dev/null) || return 1
   jq -e --arg p "$SLSA_PREDICATE" \
     'any(.attestations[]?; .predicateType == $p)' <<<"$body" >/dev/null
 }
@@ -49,8 +54,9 @@ while :; do
   # ${arr[@]+...} keeps an empty array safe under `set -u` on bash < 4.4.
   pending=(${waiting[@]+"${waiting[@]}"})
   [ "${#pending[@]}" -eq 0 ] && break
-  [ "$SECONDS" -ge "$deadline" ] && break
-  sleep "$DELAY"
+  remaining=$((deadline - SECONDS))
+  [ "$remaining" -le 0 ] && break
+  sleep $((DELAY < remaining ? DELAY : remaining))
 done
 
 if [ "${#pending[@]}" -ne 0 ]; then
