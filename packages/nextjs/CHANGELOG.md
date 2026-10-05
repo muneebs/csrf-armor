@@ -1,5 +1,13 @@
 # @csrf-armor/nextjs
 
+## 1.4.8
+
+### Patch Changes
+
+- [#112](https://github.com/muneebs/csrf-armor/pull/112) [`748dc94`](https://github.com/muneebs/csrf-armor/commit/748dc946afb4318befeb30f67926140196dc098a) Thanks [@muneebs](https://github.com/muneebs)! - Read the CSRF token from JSON bodies whose `Content-Type` carries parameters or different casing, such as `application/json; charset=utf-8`. The adapter previously required an exact `application/json` match and skipped those bodies, so a token sent only in the body was rejected; tokens sent in the header were unaffected.
+- Updated dependencies [[`748dc94`](https://github.com/muneebs/csrf-armor/commit/748dc946afb4318befeb30f67926140196dc098a)]:
+  - @csrf-armor/core@1.3.1
+
 ## 1.4.7
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @csrf-armor/core
 
+## 1.3.1
+
+### Patch Changes
+
+- [#112](https://github.com/muneebs/csrf-armor/pull/112) [`748dc94`](https://github.com/muneebs/csrf-armor/commit/748dc946afb4318befeb30f67926140196dc098a) Thanks [@muneebs](https://github.com/muneebs)! - Fix `skipContentTypes` never matching when the adapter passes a Web `Headers` object (Next.js and Nuxt). Header normalization now reads `Headers` instances instead of treating them as an empty plain object. Requests were previously protected rather than skipped, so this was not a bypass.
+
 ## 1.3.0
 
 ### Minor Changes
