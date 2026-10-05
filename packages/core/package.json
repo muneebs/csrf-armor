@@ -45,7 +45,7 @@
   },
   "homepage": "https://github.com/muneebs/csrf-armor#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=19.0.0"
   },
   "devDependencies": {
     "tsdown": "^0.23.0",
