@@ -1,5 +1,12 @@
 # @csrf-armor/nuxt
 
+## 1.2.2
+
+### Patch Changes
+
+- Updated dependencies [[`748dc94`](https://github.com/muneebs/csrf-armor/commit/748dc946afb4318befeb30f67926140196dc098a)]:
+  - @csrf-armor/core@1.3.1
+
 ## 1.2.1
 
 ### Patch Changes

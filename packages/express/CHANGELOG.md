@@ -1,5 +1,12 @@
 # @csrf-armor/express
 
+## 1.2.6
+
+### Patch Changes
+
+- Updated dependencies [[`748dc94`](https://github.com/muneebs/csrf-armor/commit/748dc946afb4318befeb30f67926140196dc098a)]:
+  - @csrf-armor/core@1.3.1
+
 ## 1.2.5
 
 ### Patch Changes
