@@ -415,6 +415,38 @@ describe('CsrfProtection – skipContentTypes', () => {
     }
   );
 
+  it('skips a matching content-type passed as a Web Headers object', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      skipContentTypes: ['text/plain'],
+    });
+
+    const req = makeRequest({
+      method: 'POST',
+      headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' }),
+    });
+    const result = await csrf.protect(req, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it('skips a matching content-type passed as a plain object', async () => {
+    const csrf = new CsrfProtection(new MockAdapter(), {
+      secret: TEST_SECRET,
+      strategy: 'double-submit',
+      skipContentTypes: ['text/plain'],
+    });
+
+    const req = makeRequest({
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+    });
+    const result = await csrf.protect(req, {});
+
+    expect(result.success).toBe(true);
+  });
+
   it('does not skip a request without a Content-Type header', async () => {
     const csrf = new CsrfProtection(new MockAdapter(), {
       secret: TEST_SECRET,

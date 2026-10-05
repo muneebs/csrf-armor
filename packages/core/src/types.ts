@@ -121,7 +121,7 @@ export interface RequiredTokenOptions {
  * ```
  */
 export interface CsrfConfig {
-  /** CSRF protection strategy to use (default: 'hybrid') */
+  /** CSRF protection strategy to use (default: 'signed-double-submit') */
   strategy?: CsrfStrategy;
   /** Token generation and validation options */
   token?: TokenOptions;

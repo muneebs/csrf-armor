@@ -68,6 +68,10 @@ function processHeaders(
     return rawHeaders;
   }
 
+  if (rawHeaders instanceof Headers) {
+    return new Map(rawHeaders.entries());
+  }
+
   return new Map(Object.entries(rawHeaders));
 }
 
