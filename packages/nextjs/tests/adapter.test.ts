@@ -395,6 +395,49 @@ describe('NextjsAdapter', () => {
       expect(token).toBe('body-token');
     });
 
+    it.each([
+      'application/json; charset=utf-8',
+      'Application/JSON',
+      'application/ld+json;charset=UTF-8',
+    ])('should extract token from JSON body sent as %s', async (contentType) => {
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Headers({ 'content-type': contentType }),
+        cookies: new Map(),
+        body: { json: vi.fn().mockResolvedValue({ csrf: 'body-token' }) },
+      };
+
+      const config = {
+        token: { headerName: 'x-csrf-token', fieldName: 'csrf' },
+      } as RequiredCsrfConfig;
+
+      const token = await adapter.getTokenFromRequest(request, config);
+      expect(token).toBe('body-token');
+    });
+
+    it('should extract token from a URL-encoded form with a charset', async () => {
+      const formData = new FormData();
+      formData.append('csrf', 'form-token');
+
+      const request: CsrfRequest = {
+        method: 'POST',
+        url: 'http://localhost/api',
+        headers: new Headers({
+          'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        }),
+        cookies: new Map(),
+        body: { formData: vi.fn().mockResolvedValue(formData) },
+      };
+
+      const config = {
+        token: { headerName: 'x-csrf-token', fieldName: 'csrf' },
+      } as RequiredCsrfConfig;
+
+      const token = await adapter.getTokenFromRequest(request, config);
+      expect(token).toBe('form-token');
+    });
+
     describe('server actions', () => {
       const config = {
         token: {
