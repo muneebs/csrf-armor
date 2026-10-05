@@ -94,7 +94,7 @@ Contributions are welcome, especially new framework adapters, security reviews a
 3. Add a changeset with `pnpm changeset` if a published package changes.
 4. Open a pull request.
 
-Questions and ideas go in [Discussions](https://github.com/muneebs/csrf-armor/discussions); bugs in [Issues](https://github.com/muneebs/csrf-armor/issues).
+Bugs, questions and feature ideas go in [Issues](https://github.com/muneebs/csrf-armor/issues).
 
 ## License
 
