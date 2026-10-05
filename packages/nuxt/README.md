@@ -1,50 +1,26 @@
 # @csrf-armor/nuxt
 
-<img src="https://cdn.nebz.dev/csrf-armor/logo.jpeg" alt="CSRF Armor" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://cdn.nebz.dev/csrf-armor/logo-large-dark.webp" />
+  <img src="https://cdn.nebz.dev/csrf-armor/logo-light.webp" alt="CSRF Armor" width="480" />
+</picture>
 
 [![CI](https://github.com/muneebs/csrf-armor/workflows/CI/badge.svg)](https://github.com/muneebs/csrf-armor/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/@csrf-armor%2Fnuxt.svg)](https://badge.fury.io/js/@csrf-armor%2Fnuxt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![Nuxt](https://img.shields.io/badge/Nuxt-3%2B%20%7C%204%2B-00DC82.svg)](https://nuxt.com/)
 
-**Complete CSRF protection for Nuxt 3/4 applications with automatic server middleware, Vue composables, and SSR-safe token management.**
+CSRF protection for Nuxt 3 and 4: a module that registers server middleware automatically, plus auto-imported composables with SSR-safe token state. The server middleware uses Node.js APIs, so deploy with a Node-compatible Nitro preset.
 
-## Contents
+## Quick start
 
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Configuration](#-configuration)
-- [Composables](#-composables)
-- [Security Strategies](#-security-strategies)
-- [Security Best Practices](#-security-best-practices)
-
-## ✨ Features
-
-- 🛡️ **Multiple Security Strategies** - Choose from 5 different CSRF protection methods
-- 🔄 **Auto-registered Middleware** - Server middleware applied automatically to all routes
-- 🪝 **Vue Composables** - `useCsrfToken` and `useCsrfFetch` auto-imported in your components
-- 🎯 **TypeScript First** - Fully typed with comprehensive TypeScript support
-- 📱 **SSR-Safe** - Uses Nuxt's `useState` for request-isolated server-side state
-- ⚡ **Zero Runtime Dependencies** - Uses H3Event native API with no extra runtime packages
-
----
-
-## 🚀 Quick Start
-
-### 1. Installation
+### 1. Install
 
 ```bash
 npm install @csrf-armor/nuxt
-# or
-yarn add @csrf-armor/nuxt
-# or
-pnpm add @csrf-armor/nuxt
 ```
 
-### 2. Register the Module
-
-Add `@csrf-armor/nuxt` to your `nuxt.config.ts`:
+### 2. Register the module
 
 ```typescript
 // nuxt.config.ts
@@ -52,57 +28,42 @@ export default defineNuxtConfig({
   modules: ['@csrf-armor/nuxt'],
 
   csrfArmor: {
-    strategy: 'signed-double-submit',
     secret: process.env.CSRF_SECRET,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    },
+    cookie: { secure: process.env.NODE_ENV === 'production' },
   },
 });
 ```
 
-### 3. Environment Setup
-
-Add to your `.env`:
-
 ```bash
-# Generate with: openssl rand -base64 32
-CSRF_SECRET=your-super-secret-csrf-key-min-32-chars-long
+# .env — generate with: openssl rand -base64 32
+CSRF_SECRET=your-generated-secret
 ```
 
-> **⚠️ Security Warning**: Never use a default or weak secret in production!
+That's it. Every unsafe request (`POST`, `PUT`, `PATCH`, `DELETE`) now needs a valid token.
 
-That's it. The module automatically registers a Nitro server middleware that enforces CSRF protection on all mutating requests (POST, PUT, PATCH, DELETE).
+### 3. Send the token
 
-### 4. Use in Components
-
-`useCsrfToken` and `useCsrfFetch` are auto-imported — no explicit import needed:
+`useCsrfToken` and `useCsrfFetch` are auto-imported.
 
 ```vue
 <script setup lang="ts">
 const { csrfToken, csrfFetch } = useCsrfToken();
 
-async function handleSubmit(data: Record<string, unknown>) {
-  const response = await csrfFetch('/api/contact', {
+async function send() {
+  await csrfFetch('/api/contact', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ message: 'Hello' }),
   });
 }
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit({ message: 'Hello' })">
-    <input name="message" placeholder="Your message" />
-    <button type="submit" :disabled="!csrfToken">Send</button>
-  </form>
+  <button :disabled="!csrfToken" @click="send">Send</button>
 </template>
 ```
 
-### 5. Using with useFetch
-
-For data fetching with Nuxt's `useFetch`, use `useCsrfFetch` instead:
+Or, with Nuxt's `useFetch`:
 
 ```vue
 <script setup lang="ts">
@@ -113,67 +74,36 @@ const { data, pending } = await useCsrfFetch('/api/items', {
 </script>
 ```
 
----
+## Composables
 
-## ⚙️ Configuration
+### `useCsrfToken()`
 
-Configuration is set via `csrfArmor` in `nuxt.config.ts`. All options from `@csrf-armor/core` are supported.
+Returns `{ csrfToken, updateToken, csrfFetch }`:
 
-```typescript
-// nuxt.config.ts
-export default defineNuxtConfig({
-  modules: ['@csrf-armor/nuxt'],
+- `csrfToken: Ref<string | null>`: reactive token, stored with `useState` so it's isolated per request during SSR
+- `updateToken()`: re-read the token from the cookie
+- `csrfFetch(input, init?)`: native `fetch` that sends the token header and stores any new token from the response; headers from a `Request` argument are preserved
 
-  csrfArmor: {
-    strategy: 'signed-double-submit', // CSRF strategy
-    secret: process.env.CSRF_SECRET,  // Required for signed strategies
+The token is refreshed on route changes and back/forward navigation.
 
-    token: {
-      expiry: 3600,                   // Token lifetime in seconds (default: 3600)
-      headerName: 'x-csrf-token',     // Header to read/send token (default: 'x-csrf-token')
-      fieldName: 'csrf_token',        // Form field name (default: 'csrf_token')
-    },
+### `useCsrfFetch<T>(url, opts?)`
 
-    cookie: {
-      name: 'csrf-token',             // Cookie name (default: 'csrf-token')
-      secure: true,                   // HTTPS only (default: true in production)
-      httpOnly: false,                // Allow client access (default: false)
-      sameSite: 'lax',               // SameSite policy (default: 'lax')
-      path: '/',                      // Cookie path (default: '/')
-      maxAge: 86400,                  // Max age in seconds (optional)
-    },
+`useFetch` with the CSRF header added to every request. Your own `onRequest` interceptors are kept and run as well.
 
-    excludePaths: ['/api/webhooks'],  // Paths excluded from CSRF protection
-    allowedOrigins: ['https://yourdomain.com'], // For origin-check strategy
-  },
-});
-```
+## Configuration
 
-### Environment-Specific Configuration
+Options go under `csrfArmor` in `nuxt.config.ts` and accept the shared `CsrfConfig`, with two Nuxt-specific differences:
 
-```typescript
-// nuxt.config.ts
-const isDev = process.env.NODE_ENV !== 'production';
+- `getSessionId` can't be set here, because `runtimeConfig` only holds serializable values. Use [`defineCsrfSessionResolver`](#session-binding) instead.
+- `sessionBinding: true` makes a missing resolver fail closed.
 
-export default defineNuxtConfig({
-  modules: ['@csrf-armor/nuxt'],
+See the [configuration reference](https://github.com/muneebs/csrf-armor/blob/main/docs/configuration.md) for every option and its default, and [Strategies](https://github.com/muneebs/csrf-armor/blob/main/docs/strategies.md) to choose a strategy.
 
-  csrfArmor: {
-    strategy: isDev ? 'double-submit' : 'signed-double-submit',
-    secret: process.env.CSRF_SECRET,
-    cookie: {
-      secure: !isDev,
-      sameSite: 'lax',
-    },
-  },
-});
-```
+**Body tokens:** the server middleware reads the token from JSON, URL-encoded and `text/plain` bodies. For `multipart/form-data` uploads, send it in the `X-CSRF-Token` header (`csrfFetch` and `useCsrfFetch` do this for you).
 
-### Session Binding
+### Session binding
 
-By default, a signed token or cookie pair is valid for any visitor. Binding tokens to the logged-in session stops an attacker from reusing a pair they obtained themselves, for example one planted from a sibling subdomain. This applies to the `signed-token`, `hybrid` and `signed-double-submit` strategies.
-
-`runtimeConfig` can't hold functions, so register the session lookup from a Nitro plugin. `defineCsrfSessionResolver` is auto-imported in server code:
+Binds signed tokens to the logged-in session, so a token and cookie pair from one session fails in any other (see [why](https://github.com/muneebs/csrf-armor/blob/main/docs/configuration.md#session-binding)). Register the lookup in a Nitro plugin; `defineCsrfSessionResolver` is auto-imported in server code:
 
 ```typescript
 // server/plugins/csrf-session.ts
@@ -185,9 +115,7 @@ export default defineNitroPlugin(() => {
 });
 ```
 
-Return a stable server-side identifier, never a value the client controls. Tokens issued before login stop working after login; the next GET issues new ones automatically.
-
-To make a missing plugin fail closed instead of silently leaving tokens unbound, require session binding:
+To make a missing plugin fail closed instead of silently leaving tokens unbound:
 
 ```typescript
 // nuxt.config.ts
@@ -198,203 +126,24 @@ export default defineNuxtConfig({
 });
 ```
 
-The function can also be imported explicitly from `@csrf-armor/nuxt/server`.
+`defineCsrfSessionResolver` can also be imported explicitly from `@csrf-armor/nuxt/server`.
 
-### Accessing the Token Server-Side
+### Reading the token in server routes
 
-The middleware stores the issued token on `event.context.csrfToken` for use in server routes:
+The middleware stores the current token on `event.context.csrfToken`:
 
 ```typescript
-// server/api/example.post.ts
+// server/api/example.get.ts
 export default defineEventHandler((event) => {
-  const csrfToken = event.context.csrfToken;
-  // token available if needed
-  return { success: true };
+  return { csrfToken: event.context.csrfToken };
 });
 ```
 
-### Excluding Paths
+## More
 
-```typescript
-csrfArmor: {
-  excludePaths: [
-    '/api/webhooks/stripe', // External webhooks
-    '/api/public',          // Public API endpoints
-    '/health',              // Health checks
-  ],
-},
-```
+- [Security guide](https://github.com/muneebs/csrf-armor/blob/main/docs/security.md)
+- [Configuration troubleshooting](https://github.com/muneebs/csrf-armor/blob/main/docs/configuration.md#troubleshooting)
 
----
-
-## 🪝 Composables
-
-Both composables are automatically imported by the module — no import statement needed.
-
-### `useCsrfToken()`
-
-Reactive CSRF token management using Nuxt's `useState` for SSR-safe, request-isolated state.
-
-```typescript
-const { csrfToken, updateToken, csrfFetch } = useCsrfToken();
-```
-
-**Returns:**
-
-- `csrfToken: Ref<string | null>` — Reactive CSRF token, shared across all components in the same request/session
-- `updateToken: () => void` — Manually re-reads the token from cookies
-- `csrfFetch: (input, init?) => Promise<Response>` — Native `fetch` wrapper that automatically attaches the CSRF header and updates the token from response headers
-
-Route changes and browser history navigation are observed automatically to keep the token fresh.
-
-### `useCsrfFetch<T>(url, opts?)`
-
-A wrapper around Nuxt's `useFetch` that automatically injects the CSRF header on every request.
-
-```typescript
-const { data, pending, error } = await useCsrfFetch<MyType>('/api/items', {
-  method: 'POST',
-  body: { name: 'New Item' },
-});
-```
-
-Existing `onRequest` interceptors in `opts` are preserved and chained correctly.
-
----
-
-## 🛡️ Security Strategies
-
-| Strategy                   | Security  | Performance | Best For              |
-|----------------------------|-----------|-------------|-----------------------|
-| **Signed Double Submit** ⭐ | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐       | Most web apps         |
-| **Double Submit**          | ⭐         | ⭐⭐⭐⭐⭐      | Local development     |
-| **Signed Token**           | ⭐⭐⭐⭐     | ⭐⭐⭐⭐       | APIs, SPAs            |
-| **Origin Check**           | ⭐⭐⭐      | ⭐⭐⭐⭐⭐      | Known origins         |
-| **Hybrid**                 | ⭐⭐⭐⭐⭐   | ⭐⭐⭐        | Maximum security      |
-
-### Signed Double Submit (Recommended)
-
-```typescript
-csrfArmor: {
-  strategy: 'signed-double-submit',
-  secret: process.env.CSRF_SECRET,
-}
-```
-
-Client receives an unsigned token in the response header and a readable cookie. The server stores a signed copy in an httpOnly cookie and verifies submissions against it. Combines cryptographic protection with the double-submit pattern.
-
-### Double Submit Cookie
-
-```typescript
-csrfArmor: {
-  strategy: 'double-submit',
-}
-```
-
-Same token stored in cookie and sent in header. Relies on Same-Origin Policy. Suitable for local development only.
-
-### Signed Token
-
-```typescript
-csrfArmor: {
-  strategy: 'signed-token',
-  secret: process.env.CSRF_SECRET,
-  token: { expiry: 3600 },
-}
-```
-
-HMAC-signed tokens with expiration timestamps. Validation requires the submitted token to match the incoming CSRF cookie. Send the cookie with unsafe requests and refresh cached tokens after cookie rotation; hybrid has the same requirement. No server-side session store is needed.
-
-### Origin Check
-
-```typescript
-csrfArmor: {
-  strategy: 'origin-check',
-  allowedOrigins: [
-    'https://yourdomain.com',
-    'https://www.yourdomain.com',
-  ],
-}
-```
-
-Validates `Origin`/`Referer` headers against an allowlist. Lightweight with minimal overhead.
-
-### Hybrid
-
-```typescript
-csrfArmor: {
-  strategy: 'hybrid',
-  secret: process.env.CSRF_SECRET,
-  allowedOrigins: ['https://yourdomain.com'],
-}
-```
-
-Combines signed token validation with origin checking for maximum security depth.
-
----
-
-## 🔒 Security Best Practices
-
-### Strong Secret Management
-
-```bash
-# Generate a strong secret
-openssl rand -base64 32
-
-# Or using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
-
-```typescript
-// nuxt.config.ts
-export default defineNuxtConfig({
-  modules: ['@csrf-armor/nuxt'],
-
-  csrfArmor: {
-    strategy: 'signed-double-submit',
-    secret: process.env.CSRF_SECRET, // Never hardcode secrets
-  },
-});
-```
-
-### Cookie Security
-
-```typescript
-csrfArmor: {
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-    sameSite: 'strict', // Strictest protection if cross-origin not needed
-    httpOnly: false,    // Must be false so the client plugin can read it
-    path: '/',
-    maxAge: 60 * 60 * 24, // 24 hours
-  },
-},
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Areas where help is needed:
-
-- **Additional framework integrations**
-- **Performance optimizations**
-- **Security enhancements**
-- **Documentation improvements**
-- **Test coverage expansion**
-
----
-
-## 📄 License
+## License
 
 MIT © [Jordan Labrosse](https://github.com/Jorgagu)
-
-## 📦 Related Packages
-
-- **[@csrf-armor/core](../core)** - Framework-agnostic CSRF protection
-- **[@csrf-armor/nextjs](../nextjs)** - Next.js adapter
-
----
-
-**Questions?** [Open an issue](https://github.com/muneebs/csrf-armor/issues)
-or [start a discussion](https://github.com/muneebs/csrf-armor/discussions)!
