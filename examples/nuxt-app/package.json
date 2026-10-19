@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@csrf-armor/nuxt": "workspace:*",
-    "nuxt": "^4.5.2",
-    "vue": "^3.5.43"
+    "nuxt": "^4.6.1",
+    "vue": "^3.5.44"
   },
   "author": "Jordan Labrosse",
   "license": "MIT"
