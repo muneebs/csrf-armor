@@ -51,11 +51,11 @@
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^4.1.11",
-    "@vitest/ui": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/ui": "^4.1.12",
     "jsdom": "^30.1.3",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "pnpm": {
     "overrides": {
@@ -63,10 +63,9 @@
       "tmp": ">=0.2.4",
       "vite@>=6.0.0 <7.0.0": "^6.4.2",
       "qs": "^6.16.0",
-      "body-parser@>=2.0.0 <3.0.0": "^2.3.0",
       "simple-git": ">=3.36.0",
       "rollup": ">=4.59.0",
-      "serialize-javascript": ">=7.0.5",
+      "serialize-javascript": ">=7.1.3",
       "svgo": ">=4.1.0",
       "tar": ">=7.5.11",
       "devalue": "^5.9.3",
@@ -83,7 +82,13 @@
       "defu": ">=6.1.5",
       "postcss": ">=8.5.10",
       "nitropack": ">=2.13.4",
-      "undici@>=8.0.0 <9.0.0": "^8.10.2"
+      "undici@>=8.0.0 <9.0.0": "^8.10.2",
+      "proxy-addr@>=2.0.0 <3.0.0": "^2.0.8",
+      "body-parser@>=2.0.0 <3.0.0": "^2.4.0",
+      "shell-quote": ">=1.11.0",
+      "launch-editor": ">=2.14.2",
+      "source-map-js": ">=1.2.2",
+      "@vitest/mocker": "^4.1.12"
     }
   },
   "packageManager": "pnpm@10.2.1+sha512.398035c7bd696d0ba0b10a688ed558285329d27ea994804a52bad9167d8e3a72bcb993f9699585d3ca25779ac64949ef422757a6c31102c12ab932e5cbe5cc92"
