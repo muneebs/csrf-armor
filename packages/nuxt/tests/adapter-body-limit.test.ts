@@ -1,6 +1,7 @@
 import { PassThrough } from 'node:stream';
 import type { RequiredCsrfConfig } from '@csrf-armor/core';
-import { type H3Event, readBody } from 'h3';
+import type { H3Event } from 'h3';
+import { readBody } from 'h3-v1';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_MAX_BODY_SIZE,
@@ -25,7 +26,7 @@ function makeEvent(
   return { event, req };
 }
 
-describe('NuxtAdapter body token extraction limits', () => {
+describe('NuxtAdapter body token extraction limits (h3 v1)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -88,7 +89,7 @@ describe('NuxtAdapter body token extraction limits', () => {
     await expect(pending).resolves.toBe('abc123');
 
     // The stream has ended, so without the cached body this would never settle.
-    await expect(readBody(event)).resolves.toEqual({
+    await expect(readBody(event as never)).resolves.toEqual({
       csrf_token: 'abc123',
       name: 'test',
     });
@@ -105,7 +106,7 @@ describe('NuxtAdapter body token extraction limits', () => {
     req.end(JSON.stringify({ csrf_token: 'abc123', data: 'x' }));
     await expect(pending).resolves.toBe('abc123');
 
-    await expect(readBody(event)).resolves.toEqual({
+    await expect(readBody(event as never)).resolves.toEqual({
       csrf_token: 'abc123',
       data: 'x',
     });

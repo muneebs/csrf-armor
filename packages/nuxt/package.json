@@ -56,7 +56,8 @@
   "devDependencies": {
     "@nuxt/kit": "^4.6.1",
     "@nuxt/schema": "^4.6.1",
-    "h3": "^1.15.11",
+    "h3": "^2.0.8",
+    "h3-v1": "npm:h3@^1.15.11",
     "nuxt": "^4.6.1",
     "tsdown": "^0.23.1",
     "typescript": "^7",
