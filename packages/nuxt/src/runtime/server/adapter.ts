@@ -64,6 +64,28 @@ function serializeCookie(
   return cookie;
 }
 
+/**
+ * The response headers of an h3 v2 event (`event.res.headers`). h3 v1 has a
+ * Node `ServerResponse` at `event.res` instead, which has no `headers`.
+ */
+function getWebResponseHeaders(event: H3Event): Headers | undefined {
+  const headers = (event as { res?: { headers?: Partial<Headers> } }).res
+    ?.headers;
+  return typeof headers?.append === 'function' &&
+    typeof headers.set === 'function'
+    ? (headers as Headers)
+    : undefined;
+}
+
+/**
+ * The web `Request` of an h3 v2 event (`event.req`). h3 v1 has a Node
+ * `IncomingMessage` at `event.req` instead, which cannot be cloned.
+ */
+function getWebRequest(event: H3Event): Request | undefined {
+  const req = (event as { req?: Partial<Request> }).req;
+  return typeof req?.clone === 'function' ? (req as Request) : undefined;
+}
+
 /** Appends a Set-Cookie value to the response without overwriting existing ones. */
 function appendSetCookie(res: ServerResponse, cookieStr: string): void {
   const existing = res.getHeader('set-cookie');
@@ -143,6 +165,61 @@ function readRawBody(req: IncomingMessage, maxBytes: number): Promise<Buffer> {
   });
 }
 
+/**
+ * Reads the raw body of a web `Request` from a clone, so the route can still
+ * read the original. Stops as soon as the body exceeds `maxBytes`.
+ */
+async function readWebRawBody(
+  request: Request,
+  maxBytes: number
+): Promise<string> {
+  const declaredLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new BodyTooLargeError(maxBytes);
+  }
+
+  const body = request.clone().body;
+  if (!body) return '';
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      // Cancelling the clone leaves the original request body intact.
+      reader.cancel().catch(() => {});
+      throw new BodyTooLargeError(maxBytes);
+    }
+    chunks.push(value);
+  }
+
+  const decoder = new TextDecoder();
+  let text = '';
+  for (const chunk of chunks) text += decoder.decode(chunk, { stream: true });
+  return text + decoder.decode();
+}
+
+/** Reads the raw body of an h3 v1 event from its Node request stream. */
+async function readNodeRawBody(
+  event: H3Event,
+  maxBytes: number
+): Promise<string | null> {
+  const req = event.node?.req as IncomingMessage | undefined;
+  if (!req) return null;
+
+  const pending = readRawBody(req, maxBytes);
+  // Hand the body to h3 so the route can still read it after this middleware.
+  (req as IncomingMessage & { [H3_RAW_BODY]?: Promise<Buffer> })[H3_RAW_BODY] =
+    pending;
+  // The rejection is handled by the caller; this copy must not surface as unhandled.
+  pending.catch(() => {});
+
+  return (await pending).toString('utf-8');
+}
+
 /** Reads and parses the request body based on its content type. Returns null for unsupported types. */
 async function parseBody(
   event: H3Event,
@@ -158,17 +235,11 @@ async function parseBody(
 
   if (!supportedTypes.some((t) => contentType.startsWith(t))) return null;
 
-  const req = event.node?.req as IncomingMessage | undefined;
-  if (!req) return null;
-
-  const pending = readRawBody(req, maxBytes);
-  // Hand the body to h3 so the route can still read it after this middleware.
-  (req as IncomingMessage & { [H3_RAW_BODY]?: Promise<Buffer> })[H3_RAW_BODY] =
-    pending;
-  // The rejection is handled below; this copy must not surface as unhandled.
-  pending.catch(() => {});
-
-  const rawBody = (await pending).toString('utf-8');
+  // h3 v2 reads bodies from the web Request, so the Node stream must be left alone there.
+  const webRequest = getWebRequest(event);
+  const rawBody = webRequest
+    ? await readWebRawBody(webRequest, maxBytes)
+    : await readNodeRawBody(event, maxBytes);
 
   if (!rawBody) return null;
 
@@ -187,7 +258,8 @@ async function parseBody(
  *
  * Bridges H3 event objects with the framework-agnostic CSRF protection logic
  * from `@csrf-armor/core` using only the H3Event's native properties
- * (`event.method`, `event.headers`, `event.path`, `event.node`).
+ * (`event.method`, `event.headers`, `event.path`), plus `event.req`/`event.res`
+ * on h3 v2 and `event.node` on h3 v1.
  */
 export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
   /** Cache parsed bodies to avoid double reads on the same event. */
@@ -231,35 +303,37 @@ export class NuxtAdapter implements CsrfAdapter<H3Event, H3Event> {
   }
 
   applyResponse(event: H3Event, csrfResponse: CsrfResponse): H3Event {
-    const res = event.node.res;
+    const headers =
+      csrfResponse.headers instanceof Map
+        ? [...csrfResponse.headers]
+        : Object.entries(csrfResponse.headers).map(
+            ([key, value]) => [key, String(value)] as const
+          );
+    const cookies = (
+      csrfResponse.cookies instanceof Map
+        ? [...csrfResponse.cookies]
+        : Object.entries(csrfResponse.cookies)
+    ).map(([name, cookieData]) => {
+      const { value, options } = cookieData as {
+        value: string;
+        options?: CookieOptions;
+      };
+      return serializeCookie(name, value, options);
+    });
 
-    if (csrfResponse.headers instanceof Map) {
-      for (const [key, value] of csrfResponse.headers) {
-        res.setHeader(key, value);
-      }
-    } else {
-      for (const [key, value] of Object.entries(csrfResponse.headers)) {
-        res.setHeader(key, String(value));
-      }
+    const webHeaders = getWebResponseHeaders(event);
+    if (webHeaders) {
+      for (const [key, value] of headers) webHeaders.set(key, value);
+      for (const cookie of cookies) webHeaders.append('set-cookie', cookie);
+      return event;
     }
 
-    if (csrfResponse.cookies instanceof Map) {
-      for (const [name, cookieData] of csrfResponse.cookies) {
-        const { value, options } = cookieData as {
-          value: string;
-          options?: CookieOptions;
-        };
-        appendSetCookie(res, serializeCookie(name, value, options));
-      }
-    } else {
-      for (const [name, cookieData] of Object.entries(csrfResponse.cookies)) {
-        const { value, options } = cookieData as {
-          value: string;
-          options?: CookieOptions;
-        };
-        appendSetCookie(res, serializeCookie(name, value, options));
-      }
+    const res = event.node?.res as ServerResponse | undefined;
+    if (!res) {
+      throw new Error('CSRF Armor: unable to write response headers');
     }
+    for (const [key, value] of headers) res.setHeader(key, value);
+    for (const cookie of cookies) appendSetCookie(res, cookie);
 
     return event;
   }
