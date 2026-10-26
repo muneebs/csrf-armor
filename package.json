@@ -47,7 +47,7 @@
     "pnpm": ">=8.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.2",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@types/node": "^26.6.5",
