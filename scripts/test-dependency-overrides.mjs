@@ -34,6 +34,11 @@ test('archiver-utils expands patterns with glob options', async () => {
       ['nested/keep.js', 'nested/skip.txt']);
     const ignoredAbsolute = path.join(cwd, 'ignored', '**').replaceAll('\\', '/');
     assert.deepEqual(sorted(file.expand({ cwd, nodir: true, ignore: ignoredAbsolute }, '**/*.js')), ['nested/keep.js']);
+    // Leading-slash ignores are rooted at `root`, not implicitly at `cwd`.
+    assert.deepEqual(sorted(file.expand({ cwd, root: cwd, nodir: true, ignore: '/ignored/**' }, '**/*.js')), ['nested/keep.js']);
+    // Backslashes are escapes by default; opt in when they are path separators.
+    assert.deepEqual(sorted(file.expand({ cwd, nodir: true }, 'nested\\*.js')), []);
+    assert.deepEqual(sorted(file.expand({ cwd, nodir: true, windowsPathsNoEscape: true }, 'nested\\*.js')), ['nested/keep.js']);
     assert.deepEqual(sorted(file.expand({ cwd, mark: true }, 'nested')), ['nested/']);
     const expected = (await realpath(path.join(cwd, 'nested', 'keep.js'))).replaceAll('\\', '/');
     assert.deepEqual(sorted(file.expand({ cwd, absolute: true, realpath: true, nodir: true }, 'nested/*.js')), [expected]);
