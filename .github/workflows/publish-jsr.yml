@@ -34,10 +34,10 @@ jobs:
         uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
 
       # Same as the release job: no dependency cache in a publishing job.
-      - name: Setup Node.js 24.x
+      - name: Setup Node.js 24.22.1 or newer
         uses: actions/setup-node@v6
         with:
-          node-version: "24.x"
+          node-version: "^24.22.1"
           package-manager-cache: false
 
       # jsr publish runs with --unstable-byonm and resolves npm: imports

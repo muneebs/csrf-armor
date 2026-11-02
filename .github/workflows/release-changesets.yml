@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: ["^24.22.1"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -75,10 +75,10 @@ jobs:
       # and this is the job that signs and publishes. `cache` is what enables
       # it here; package-manager-cache only governs the automatic caching that
       # v6 turns on for `packageManager: npm`, so it is belt to that braces.
-      - name: Setup Node.js 24.x
+      - name: Setup Node.js 24.22.1 or newer
         uses: actions/setup-node@v6
         with:
-          node-version: "24.x"
+          node-version: "^24.22.1"
           package-manager-cache: false
 
       - name: Install dependencies
