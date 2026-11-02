@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: ["^24.22.1"]
 
     steps:
       - name: Checkout code
@@ -53,6 +53,24 @@ jobs:
       - name: Check packages can be packed
         run: pnpm -r exec npm pack --dry-run
 
+  dependency-compatibility:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: ["^24.22.1"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@d648c2dd069001a242c621c8306af467f150e99d
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/test-dependency-overrides.mjs
+
   build-check:
     runs-on: ubuntu-latest
     needs: test
@@ -72,7 +90,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22.x"
+          node-version: "^24.22.1"
           cache: "pnpm"
 
       - name: Install dependencies
@@ -111,7 +129,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22.x"
+          node-version: "^24.22.1"
           cache: "pnpm"
 
       - name: Install dependencies
